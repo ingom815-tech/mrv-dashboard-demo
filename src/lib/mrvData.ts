@@ -36,14 +36,22 @@ export interface MonthPoint {
 
 type DailyRec = {
   date: string;
+  post: boolean;
   saving: number | null;
   estimated: boolean;
   usable: boolean;
+  kwhDay: number;
   copDay: number | null;
+  sysKwRT: number | null;
   ch1KwRT: number | null;
   ch2KwRT: number | null;
   dT: number | null;
   approach: number | null;
+  ch1: number;
+  ch2: number;
+  chwp: number;
+  cwp: number;
+  ct: number;
 };
 
 const repDaily = savings.daily as DailyRec[];
@@ -210,6 +218,140 @@ const equip: EquipCard[] = [
   },
 ];
 
+// ---------- 주별 성능 집계 (설비성과 화면) ----------
+export interface WeekPoint {
+  key: string; // 주 시작일(일요일) YYYY-MM-DD
+  post: boolean;
+  sysKwRT: number | null;
+  cop: number | null;
+  dT: number | null;
+  approach: number | null;
+  ch1: number | null; // kWh/일 평균
+  ch2: number | null;
+  chwp: number | null;
+  cwp: number | null;
+  ct: number | null;
+  kwh: number | null;
+  usableN: number;
+}
+
+const weekKey = (date: string) => {
+  const d = new Date(date + "T12:00:00"); // 정오 기준 — 타임존에 따른 날짜 밀림 방지
+  d.setDate(d.getDate() - d.getDay());
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+const allDaily = daily as DailyRec[];
+const weekMap = new Map<string, DailyRec[]>();
+for (const d of allDaily) {
+  const k = weekKey(d.date);
+  if (!weekMap.has(k)) weekMap.set(k, []);
+  weekMap.get(k)!.push(d);
+}
+const weekly: WeekPoint[] = [...weekMap.entries()]
+  .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+  .map(([k, days]) => {
+    const u = days.filter((d) => d.usable);
+    const avg = (sel: (d: DailyRec) => number | null) => {
+      const v = u.map(sel).filter((x): x is number => x !== null && Number.isFinite(x));
+      return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;
+    };
+    return {
+      key: k,
+      post: days.some((d) => d.post),
+      sysKwRT: avg((d) => d.sysKwRT),
+      cop: avg((d) => d.copDay),
+      dT: avg((d) => d.dT),
+      approach: avg((d) => d.approach),
+      ch1: avg((d) => d.ch1),
+      ch2: avg((d) => d.ch2),
+      chwp: avg((d) => d.chwp),
+      cwp: avg((d) => d.cwp),
+      ct: avg((d) => d.ct),
+      kwh: avg((d) => d.kwhDay),
+      usableN: u.length,
+    };
+  });
+
+export interface PerfKpi {
+  key: string;
+  label: string;
+  unit: string;
+  base: number | null;
+  rep: number | null;
+  deltaPct: number;
+  betterLow: boolean;
+  digits: number;
+}
+const mkKpi = (
+  key: string,
+  label: string,
+  unit: string,
+  sel: (d: DailyRec) => number | null,
+  betterLow: boolean,
+  digits: number,
+): PerfKpi => {
+  const base = avgBase(sel);
+  const rep = avgOf(sel);
+  return { key, label, unit, base, rep, deltaPct: ratio(rep, base), betterLow, digits };
+};
+const perfKpis: PerfKpi[] = [
+  mkKpi("sysKwRT", "시스템 효율", "kW/RT", (d) => d.sysKwRT, true, 2),
+  mkKpi("cop", "플랜트 COP", "", (d) => d.copDay, false, 2),
+  mkKpi("dT", "냉수 ΔT", "℃", (d) => d.dT, false, 1),
+  mkKpi("approach", "냉각탑 접근온도", "℃", (d) => d.approach, true, 1),
+];
+
+export interface PerfRow {
+  key: string;
+  name: string;
+  kpiLabel: string;
+  unit: string;
+  base: number | null;
+  rep: number | null;
+  deltaPct: number;
+  digits: number;
+  shareText: string;
+  state: "ok" | "warn";
+  stateLabel: string;
+}
+const cBefore = (key: string) => contrib.find((x) => x.key === key)?.before ?? 0;
+const perfTable: PerfRow[] = [
+  {
+    key: "ch1", name: "냉동기 1 (신설)", kpiLabel: "kW/RT", unit: "kW/RT",
+    base: avgBase((d) => d.ch1KwRT), rep: avgOf((d) => d.ch1KwRT),
+    deltaPct: ratio(avgOf((d) => d.ch1KwRT), avgBase((d) => d.ch1KwRT)), digits: 2,
+    shareText: `냉동기군 기여 ${Math.round(chillerCut * 100)}%`, state: "ok", stateLabel: "정상",
+  },
+  {
+    key: "ch2", name: "냉동기 2 (기존)", kpiLabel: "kW/RT", unit: "kW/RT",
+    base: avgBase((d) => d.ch2KwRT), rep: avgOf((d) => d.ch2KwRT),
+    deltaPct: ratio(avgOf((d) => d.ch2KwRT), avgBase((d) => d.ch2KwRT)), digits: 2,
+    shareText: "기준기간 효율저하 이력", state: "warn", stateLabel: "주의",
+  },
+  {
+    key: "chwp", name: "냉수펌프", kpiLabel: "kWh/일", unit: "kWh/일",
+    base: cBefore("chwp"), rep: cAfter("chwp"), deltaPct: cDelta("chwp"), digits: 0,
+    shareText: `절감 기여 ${Math.round(cShare("chwp") * 100)}%`, state: "ok", stateLabel: "정상",
+  },
+  {
+    key: "cwp", name: "냉각수펌프", kpiLabel: "kWh/일", unit: "kWh/일",
+    base: cBefore("cwp"), rep: cAfter("cwp"), deltaPct: cDelta("cwp"), digits: 0,
+    shareText: `절감 기여 ${Math.round(cShare("cwp") * 100)}%`, state: "ok", stateLabel: "정상",
+  },
+  {
+    key: "ct", name: "냉각탑", kpiLabel: "접근온도 ℃", unit: "℃",
+    base: avgBase((d) => d.approach), rep: avgOf((d) => d.approach),
+    deltaPct: ratio(avgOf((d) => d.approach), avgBase((d) => d.approach)), digits: 1,
+    shareText: `절감 기여 ${Math.round(cShare("ct") * 100)}%`, state: "ok", stateLabel: "정상",
+  },
+];
+
+const events = data.meta.events as unknown as {
+  fouling: [string, string];
+  maintenance: [string, string];
+};
+
 // ---------- MRV Assurance 3단 ----------
 const m = baseline.model;
 export interface AssuranceRow {
@@ -250,6 +392,12 @@ export const mrv = {
   reviewIssues,
   equip,
   assurance,
+  perf: {
+    weekly,
+    kpis: perfKpis,
+    table: perfTable,
+    events: { fouling: events.fouling, maintenance: events.maintenance, install: cfg.installDate as string },
+  },
   coverage: { ...coverage, ok: coverageOk },
   kpi: {
     saveMWh: savings.sumSave / 1000,

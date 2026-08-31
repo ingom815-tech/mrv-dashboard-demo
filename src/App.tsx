@@ -1,5 +1,6 @@
 import { useUI, type MenuKey } from "./store";
 import Overview from "./screens/Overview";
+import EquipPerformance from "./screens/EquipPerformance";
 import Placeholder from "./screens/Placeholder";
 import EvidencePanel from "./components/EvidencePanel";
 
@@ -41,12 +42,7 @@ export default function App() {
       {/* 메인 영역 */}
       <main className="min-w-0 flex-1 overflow-y-auto">
         {menu === "overview" && <Overview />}
-        {menu === "equipment" && (
-          <Placeholder
-            title="설비성과"
-            desc="설비별 성능(COP·kW/RT·ΔT·접근온도)과 시계열·센서 상세를 보여줄 화면입니다. 종합성과 화면 확인 후 제작합니다."
-          />
-        )}
+        {menu === "equipment" && <EquipPerformance />}
         {menu === "verify" && (
           <Placeholder
             title="데이터·검증"
