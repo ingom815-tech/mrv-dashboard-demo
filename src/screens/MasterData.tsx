@@ -208,7 +208,7 @@ export default function MasterData() {
 
   return (
     <div className="flex min-h-screen flex-col gap-3 px-6 py-4">
-      <header className="flex shrink-0 items-center justify-between gap-4">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <h1 className="shrink-0 text-[20px] leading-tight font-bold text-navy">
             기준정보 — 설비·계측·계수 관리
@@ -334,7 +334,7 @@ export default function MasterData() {
 
       {/* ---------- 탭 1: 설비·센서 ---------- */}
       {tab === "asset" && (
-        <section className="grid min-h-0 flex-1 grid-cols-[240px_1fr] gap-3">
+        <section className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[240px_1fr]">
           <div className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[15px] font-semibold text-navy">설비 계층</span>

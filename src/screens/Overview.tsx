@@ -149,8 +149,8 @@ export default function Overview() {
   const passCount = assuranceRows.filter((r) => r.status === "PASS" || r.status === "PASS·EX").length;
 
   return (
-    <div className="flex h-screen min-h-0 flex-col gap-3 px-6 py-4">
-      <header className="flex shrink-0 items-center justify-between gap-4">
+    <div className="flex min-h-screen flex-col gap-3 px-6 py-4 lg:h-screen lg:min-h-0">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <h1 className="text-[21px] leading-tight font-bold text-navy">2026년 상반기 감축성과</h1>
           <span
@@ -168,7 +168,7 @@ export default function Overview() {
       <ContextBar />
 
       {/* 핵심 KPI 4개 */}
-      <section className="grid shrink-0 grid-cols-4 gap-3" aria-label="핵심 성과">
+      <section className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4" aria-label="핵심 성과">
         <button onClick={() => setMenu("equipment")} className="rounded-[10px] border border-line/60 bg-white p-4 text-left transition-colors hover:border-accent/50">
           <div className="text-[13.5px] font-medium text-body">
             {approved ? "검증 완료 절감량" : "잠정 산정 절감량"}
@@ -225,7 +225,7 @@ export default function Overview() {
       </section>
 
       {/* 메인 차트 + MRV Assurance */}
-      <section className="grid min-h-0 flex-1 grid-cols-[1fr_310px] gap-3">
+      <section className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[1fr_310px]">
         <div className="relative flex min-h-0 flex-col rounded-[10px] border border-line/60 bg-white p-4">
           <div className="flex shrink-0 items-center justify-between">
             <div className="text-[15px] font-semibold text-navy">
@@ -251,7 +251,7 @@ export default function Overview() {
               </div>
             </div>
           )}
-          <div className="min-h-0 flex-1 pt-2">
+          <div className="min-h-0 flex-1 pt-2 max-lg:h-[380px] max-lg:flex-none">
             <ResponsiveContainer width="100%" height="100%">
               {cumView ? (
                 <ComposedChart data={calc.monthly} margin={{ top: 22, right: 24, bottom: 0, left: 0 }}>
@@ -350,13 +350,13 @@ export default function Overview() {
           <div className="mt-2.5 flex flex-col gap-1.5">
             {assuranceRows.map((row) => (
               <button key={row.stage} onClick={openEvidence} className="rounded-lg bg-surface/70 px-3 py-2 text-left transition-colors hover:bg-surface">
-                <div className="flex items-center justify-between">
-                  <div className="text-[13px] font-semibold text-navy">
-                    <span className="text-[10px] tracking-wide text-slate-400 uppercase">{row.stage}</span>
-                    <span className="ml-1.5">{row.label}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-baseline gap-1.5 text-[13px] font-semibold text-navy">
+                    <span className="shrink-0 text-[10px] tracking-wide text-slate-400 uppercase">{row.stage}</span>
+                    <span className="truncate">{row.label}</span>
                   </div>
                   <span
-                    className={`tnum flex min-w-[92px] items-center justify-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                    className={`tnum flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${
                       row.status === "PASS" || row.status === "PASS·EX"
                         ? "bg-teal/10 text-teal"
                         : row.status === "FAIL"
@@ -366,10 +366,11 @@ export default function Overview() {
                   >
                     <span className="text-[11px]">{row.status === "PASS" || row.status === "PASS·EX" ? "✓" : "!"}</span>{" "}
                     {row.status}
-                    <span className="font-medium text-slate-400">· {row.evidCount}</span>
                   </span>
                 </div>
-                <div className="tnum mt-0.5 text-[12px] leading-snug text-body">{row.evidence}</div>
+                <div className="tnum mt-0.5 text-[12px] leading-snug text-body">
+                  {row.evidence} · 증적 {row.evidCount}건
+                </div>
               </button>
             ))}
           </div>
@@ -415,7 +416,7 @@ export default function Overview() {
             설비성과 상세 ›
           </button>
         </div>
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
           {mrv.equip
             .filter((e) => equipFilter === "all" || e.group === equipFilter)
             .map((e) => (

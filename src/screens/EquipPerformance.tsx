@@ -95,7 +95,7 @@ export default function EquipPerformance() {
 
   return (
     <div className="flex min-h-screen flex-col gap-3 px-6 py-4">
-      <header className="flex shrink-0 items-center justify-between gap-4">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <h1 className="text-[21px] leading-tight font-bold text-navy">설비성과 — 효율 개선 원인 분석</h1>
           <span
@@ -110,7 +110,7 @@ export default function EquipPerformance() {
       <ContextBar />
 
       {/* 성능 KPI 4개 */}
-      <section className="grid shrink-0 grid-cols-4 gap-3" aria-label="시스템 성능 지표">
+      <section className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4" aria-label="시스템 성능 지표">
         {mrv.perf.kpis.map((k) => {
           const improved = k.betterLow ? k.deltaPct < 0 : k.deltaPct > 0;
           return (
@@ -133,7 +133,7 @@ export default function EquipPerformance() {
       </section>
 
       {/* 부하율–효율 성능곡선 + 절감 기여도 Waterfall */}
-      <section className="grid shrink-0 grid-cols-[1.35fr_1fr] gap-3">
+      <section className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-[1.35fr_1fr]">
         <div className="relative rounded-[10px] border border-line/60 bg-white p-4">
           <div className="flex items-center justify-between">
             <div className="text-[15px] font-semibold text-navy">부하율–효율 성능곡선</div>
@@ -263,7 +263,7 @@ export default function EquipPerformance() {
       </section>
 
       {/* 설비군 KPI 표 + 선택 설비 추세 */}
-      <section className="grid min-h-0 flex-1 grid-cols-[1.15fr_1fr] gap-3">
+      <section className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[1.15fr_1fr]">
         <div className="rounded-[10px] border border-line/60 bg-white p-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[15px] font-semibold text-navy">설비군별 KPI</span>

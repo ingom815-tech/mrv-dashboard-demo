@@ -6,20 +6,20 @@ import { useUI, type Role } from "../store";
 export function TopActions() {
   const { role, setRole, openEvidence, openTrace, openGuide } = useUI();
   return (
-    <div className="flex shrink-0 items-center gap-2">
+    <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
       <button
         onClick={openGuide}
-        className="rounded-md border border-accent/40 bg-accent/5 px-2.5 py-1 text-[12px] font-semibold text-accent transition-colors hover:bg-accent/10"
+        className="rounded-md border border-accent/40 bg-accent/5 px-2.5 py-1 text-[12px] font-semibold whitespace-nowrap text-accent transition-colors hover:bg-accent/10"
       >
         ? 가이드
       </button>
-      <div className="flex items-center gap-1 text-[12px] text-slate-400">
-        역할
+      <div className="flex items-center gap-0.5 rounded-md border border-line bg-white px-1 py-0.5">
+        <span className="hidden px-1 text-[11px] text-slate-400 xl:inline">역할</span>
         {(["일반", "검토자", "승인자"] as Role[]).map((r) => (
           <button
             key={r}
             onClick={() => setRole(r)}
-            className={`rounded px-1.5 py-0.5 text-[12px] transition-colors ${
+            className={`rounded px-1.5 py-0.5 text-[12px] whitespace-nowrap transition-colors ${
               role === r ? "bg-navy font-semibold text-white" : "text-body hover:text-navy"
             }`}
           >
@@ -29,13 +29,13 @@ export function TopActions() {
       </div>
       <button
         onClick={openTrace}
-        className="rounded-md border border-line bg-white px-2.5 py-1 text-[12px] font-medium text-navy transition-colors hover:border-accent/50"
+        className="rounded-md border border-line bg-white px-2.5 py-1 text-[12px] font-medium whitespace-nowrap text-navy transition-colors hover:border-accent/50"
       >
         검증 추적성
       </button>
       <button
         onClick={openEvidence}
-        className="rounded-md bg-accent px-2.5 py-1 text-[12px] font-semibold text-white transition-opacity hover:opacity-90"
+        className="rounded-md bg-accent px-2.5 py-1 text-[12px] font-semibold whitespace-nowrap text-white transition-opacity hover:opacity-90"
       >
         산정근거
       </button>

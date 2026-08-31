@@ -256,7 +256,7 @@ export default function DataVerify() {
 
   return (
     <div className="flex min-h-screen flex-col gap-3 px-6 py-4">
-      <header className="flex shrink-0 items-center justify-between gap-4">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <h1 className="shrink-0 text-[20px] leading-tight font-bold text-navy">
             데이터·검증 — 산정 신뢰성 관리
@@ -297,7 +297,7 @@ export default function DataVerify() {
       {/* ---------- 탭 1: 데이터 품질 (검증 큐 중심) ---------- */}
       {tab === "quality" && (
         <>
-          <section className="grid shrink-0 grid-cols-4 gap-3">
+          <section className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
             <div className="rounded-[10px] border border-line/60 bg-white p-4">
               <div className="text-[13px] font-medium text-body">검증 대상 레코드</div>
               <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
