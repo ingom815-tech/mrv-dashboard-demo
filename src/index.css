@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+/* v2.1 시각 디자인 세부 사양 (간소화 설계지시서 2.5) */
+@theme {
+  --color-navy: #122b4d;
+  --color-teal: #159f9e;
+  --color-accent: #2f6bff;
+  --color-baseline: #1e63c6;
+  --color-review: #f59e0b;
+  --color-risk: #dc4c4c;
+  --color-surface: #f5f7fa;
+  --color-line: #e6eaf0;
+  --font-sans: "Pretendard Variable", Pretendard, "Malgun Gothic", sans-serif;
+  --shadow-card: 0 8px 24px rgb(18 43 77 / 0.06);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-navy);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
