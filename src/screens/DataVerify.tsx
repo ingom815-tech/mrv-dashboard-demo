@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { mrv, EF, reviewItems, type NonRoutine } from "../lib/mrvData";
+import { mrv, reviewItems, type NonRoutine } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
-import { useUI, deriveVerify, type Role } from "../store";
+import { useUI, deriveVerify, activeEf, type Role } from "../store";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -77,6 +77,7 @@ export default function DataVerify() {
   const { role, setRole, reviewStates, markReviewed, approve, audit, resetDemoStates, openEvidence } =
     useUI();
   const calc = useCalc();
+  const ef = activeEf(useUI((s) => s.efList));
   const q = mrv.quality;
   const verify = deriveVerify(reviewStates);
 
@@ -98,7 +99,7 @@ export default function DataVerify() {
       data_origin: "SYNTHETIC",
       calcVersion: calc.version,
       baselineModel: mrv.baseline.version,
-      emissionFactor: EF,
+      emissionFactor: ef,
       verifyState: verify.state,
       kpi: calc.kpi,
       monthly: calc.monthly,
@@ -430,8 +431,8 @@ export default function DataVerify() {
             </div>
             <div className="tnum mb-2 text-[12px] text-body">
               계산버전 <b className="text-navy">{calc.version}</b> · 기준선 모델{" "}
-              <b className="text-navy">{mrv.baseline.version}</b> · 배출계수 {EF.version}{" "}
-              {EF.value} {EF.unit} ({EF.baseYear}) · 검증 상태{" "}
+              <b className="text-navy">{mrv.baseline.version}</b> · 배출계수 {ef.version}{" "}
+              {ef.value} {ef.unit} ({ef.baseYear}) · 검증 상태{" "}
               <b className={verify.state === "승인 완료" ? "text-teal" : "text-review"}>{verify.state}</b>{" "}
               · 모든 다운로드에 DEMO·합성데이터 표기 포함
             </div>

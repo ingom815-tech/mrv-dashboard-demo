@@ -9,9 +9,9 @@ import {
   ResponsiveContainer,
   LabelList,
 } from "recharts";
-import { mrv, EF, reviewItems, type MonthPoint, type EquipGroup } from "../lib/mrvData";
+import { mrv, reviewItems, type MonthPoint, type EquipGroup } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
-import { useUI, deriveVerify } from "../store";
+import { useUI, deriveVerify, activeEf } from "../store";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -127,6 +127,7 @@ export default function Overview() {
   const { openEvidence, setMenu, selectedMonth, selectMonth, equipFilter, setEquipFilter, reviewStates } =
     useUI();
   const calc = useCalc();
+  const ef = activeEf(useUI((s) => s.efList));
   const verify = deriveVerify(reviewStates);
   const ck = calc.kpi;
   const k = mrv.kpi;
@@ -200,7 +201,7 @@ export default function Overview() {
             {fmt(ck.co2, 1)} <span className="text-[14px] font-semibold">tCO₂eq</span>
           </div>
           <div className="tnum mt-2 text-[12px] text-body">
-            배출계수 {EF.value} ({EF.baseYear}) · 냉매 배출 별도
+            배출계수 {ef.value} ({ef.baseYear}) · 냉매 배출 별도
           </div>
         </button>
         <button

@@ -2,7 +2,7 @@ import { useUI, type MenuKey } from "./store";
 import Overview from "./screens/Overview";
 import EquipPerformance from "./screens/EquipPerformance";
 import DataVerify from "./screens/DataVerify";
-import Placeholder from "./screens/Placeholder";
+import MasterData from "./screens/MasterData";
 import EvidencePanel from "./components/EvidencePanel";
 
 const MENUS: Array<{ key: MenuKey; label: string }> = [
@@ -45,12 +45,7 @@ export default function App() {
         {menu === "overview" && <Overview />}
         {menu === "equipment" && <EquipPerformance />}
         {menu === "verify" && <DataVerify />}
-        {menu === "master" && (
-          <Placeholder
-            title="기준정보"
-            desc="설비 계층·센서·태그·배출계수·냉매 GWP·가정단가·사용자 권한을 관리할 화면입니다. 종합성과 화면 확인 후 제작합니다."
-          />
-        )}
+        {menu === "master" && <MasterData />}
       </main>
 
       {evidenceOpen && <EvidencePanel />}

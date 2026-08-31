@@ -85,12 +85,25 @@ export interface CalcBundle {
   };
 }
 
-export function buildCalc(nrStatus: NrStatusMap): CalcBundle {
+export interface CalcOverrides {
+  efValue?: number; // 적용 배출계수 (기본 EF-v1.0)
+  tariffValue?: number; // 가정단가 원/kWh
+  extraVersions?: number; // 배출계수 등록 등 추가 버전 수 (계산버전 번호에 반영)
+}
+
+export function buildCalc(nrStatus: NrStatusMap, overrides: CalcOverrides = {}): CalcBundle {
   const nrList = (data.nonRoutine as NonRoutine[]).map((n) => ({
     ...n,
     status: nrStatus[n.id] ?? n.status,
   }));
-  const sv = MRV.computeSavings(daily, baseline, cfg, nrList, EF, TARIFF);
+  const sv = MRV.computeSavings(
+    daily,
+    baseline,
+    cfg,
+    nrList,
+    { value: overrides.efValue ?? EF.value },
+    { value: overrides.tariffValue ?? TARIFF.value },
+  );
   const svDaily = sv.daily as DailyRec[];
   const monthly = (
     MRV.monthly(sv.daily, { sum: ["adjBaseNR", "kwhDay", "saving"] }) as Array<{
@@ -112,9 +125,10 @@ export function buildCalc(nrStatus: NrStatusMap): CalcBundle {
       estDays: svDaily.filter((d) => d.date.slice(0, 7) === m.month && d.usable && d.estimated).length,
     }));
   // 원본 대비 추가로 승인된 비일상적 조정 수만큼 버전 증가 (기존 확정본 보존 개념)
-  const extra = (data.nonRoutine as NonRoutine[]).filter(
-    (n) => n.status !== "승인 완료" && (nrStatus[n.id] ?? n.status) === "승인 완료",
-  ).length;
+  const extra =
+    (data.nonRoutine as NonRoutine[]).filter(
+      (n) => n.status !== "승인 완료" && (nrStatus[n.id] ?? n.status) === "승인 완료",
+    ).length + (overrides.extraVersions ?? 0);
   return {
     savings: sv,
     monthly,
@@ -482,8 +496,33 @@ const assurance: AssuranceRow[] = [
   },
 ];
 
+// ---------- 기준정보: 태그·계측기·설비 계층·냉매 GWP ----------
+export interface TagMeta {
+  id: string;
+  asset: string;
+  unit: string;
+  kind: string;
+  desc: string;
+}
+export interface MeterMeta {
+  tag: string;
+  meter: string;
+  type: string;
+  accuracy: string;
+  calib: string;
+  expiry: string;
+  src: string;
+  period: number;
+}
+const gwpList = [...new Map(
+  (data.refrigerant as Array<{ type: string; gwp: number }>).map((r) => [r.type, r.gwp]),
+).entries()].map(([type, gwp]) => ({ type, gwp }));
+
 export const mrv = {
   cfg,
+  tags: data.tags as TagMeta[],
+  meters: data.meters as MeterMeta[],
+  gwpList,
   daily,
   baseline,
   savings,

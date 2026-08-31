@@ -1,6 +1,6 @@
-import { mrv, EF } from "../lib/mrvData";
+import { mrv } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
-import { useUI, deriveVerify } from "../store";
+import { useUI, deriveVerify, activeEf } from "../store";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -18,6 +18,7 @@ function Row({ label, value }: { label: string; value: string }) {
 export default function EvidencePanel() {
   const { closeEvidence, setMenu, reviewStates } = useUI();
   const calc = useCalc();
+  const EF = activeEf(useUI((s) => s.efList));
   const verify = deriveVerify(reviewStates);
   const m = mrv.baseline.model;
   if (!m) return null; // OLS 실패 시(합성데이터에서는 발생하지 않음) 패널 미표시
