@@ -36,11 +36,6 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <div className="mt-auto px-5 pb-5 text-[11px] leading-relaxed text-slate-400">
-          DEMO · 합성데이터
-          <br />
-          공식 MRV 사용 불가
-        </div>
       </aside>
 
       {/* 메인 영역 */}
