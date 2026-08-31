@@ -149,7 +149,7 @@ export default function Overview() {
   const passCount = assuranceRows.filter((r) => r.status === "PASS" || r.status === "PASS·EX").length;
 
   return (
-    <div className="flex min-h-screen flex-col gap-3 px-6 py-4 lg:h-screen lg:min-h-0">
+    <div className="flex min-h-screen flex-col gap-3 px-6 py-4 xl:h-screen xl:min-h-0">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <h1 className="text-[21px] leading-tight font-bold text-navy">2026년 상반기 감축성과</h1>
@@ -251,7 +251,7 @@ export default function Overview() {
               </div>
             </div>
           )}
-          <div className="min-h-0 flex-1 pt-2 max-lg:h-[380px] max-lg:flex-none">
+          <div className="min-h-0 flex-1 pt-2 max-xl:h-[380px] max-xl:flex-none">
             <ResponsiveContainer width="100%" height="100%">
               {cumView ? (
                 <ComposedChart data={calc.monthly} margin={{ top: 22, right: 24, bottom: 0, left: 0 }}>
@@ -344,12 +344,22 @@ export default function Overview() {
           </div>
         </div>
 
-        {/* MRV Assurance 4단계 — 행 클릭 시 산정근거 열림 */}
-        <div className="flex min-h-0 flex-col overflow-y-auto rounded-[10px] border border-line/60 bg-white p-4">
-          <div className="shrink-0 text-[15px] font-semibold text-navy">MRV Assurance</div>
-          <div className="mt-2.5 flex flex-col gap-1.5">
+        {/* MRV Assurance 4단계 — 행 클릭 시 산정근거 열림. 내부 스크롤 없이 차트 높이에 맞춤 */}
+        <div className="flex min-h-0 flex-col rounded-[10px] border border-line/60 bg-white p-4">
+          <div className="flex shrink-0 items-center justify-between">
+            <span className="text-[15px] font-semibold text-navy">MRV Assurance</span>
+            <button onClick={() => setMenu("verify")} className="text-[12px] font-medium text-accent hover:underline">
+              검증 상세 ›
+            </button>
+          </div>
+          <div className="mt-2 flex min-h-0 flex-1 flex-col justify-start gap-1.5 overflow-hidden">
             {assuranceRows.map((row) => (
-              <button key={row.stage} onClick={openEvidence} className="rounded-lg bg-surface/70 px-3 py-2 text-left transition-colors hover:bg-surface">
+              <button
+                key={row.stage}
+                onClick={openEvidence}
+                title={`${row.evidence} · 증적 ${row.evidCount}건 — 클릭 시 산정근거`}
+                className="rounded-lg bg-surface/70 px-2.5 py-1.5 text-left transition-colors hover:bg-surface"
+              >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-baseline gap-1.5 text-[13px] font-semibold text-navy">
                     <span className="shrink-0 text-[10px] tracking-wide text-slate-400 uppercase">{row.stage}</span>
@@ -366,30 +376,30 @@ export default function Overview() {
                   >
                     <span className="text-[11px]">{row.status === "PASS" || row.status === "PASS·EX" ? "✓" : "!"}</span>{" "}
                     {row.status}
+                    <span className="font-medium opacity-60">{row.evidCount}</span>
                   </span>
                 </div>
-                <div className="tnum mt-0.5 text-[12px] leading-snug text-body">
-                  {row.evidence} · 증적 {row.evidCount}건
-                </div>
+                <div className="tnum mt-0.5 line-clamp-2 text-[12px] leading-snug text-body">{row.evidence}</div>
               </button>
             ))}
-          </div>
-          {verify.pending > 0 ? (
-            <div className="mt-2.5 rounded-lg bg-review/8 px-3 py-2.5">
-              <div className="text-[12px] font-semibold text-review">검토 필요 {verify.pending}건</div>
-              <div className="mt-0.5 text-[12px] leading-relaxed text-body">
-                {pendingItem?.title}
-                {verify.pending > 1 && ` 외 ${verify.pending - 1}건`}
+            {verify.pending > 0 ? (
+              <button
+                onClick={() => setMenu("verify")}
+                title={`${pendingItem?.title ?? ""}${verify.pending > 1 ? ` 외 ${verify.pending - 1}건` : ""}`}
+                className="rounded-lg bg-review/8 px-2.5 py-1.5 text-left transition-colors hover:bg-review/15"
+              >
+                <div className="text-[12px] font-semibold text-review">검토 필요 {verify.pending}건 — 처리하기 ›</div>
+                <div className="mt-0.5 truncate text-[12px] text-body">
+                  {pendingItem?.title}
+                  {verify.pending > 1 && ` 외 ${verify.pending - 1}건`}
+                </div>
+              </button>
+            ) : (
+              <div className="rounded-lg bg-teal/8 px-2.5 py-1.5 text-[12px] font-medium text-teal">
+                검토 항목 처리 완료 · {verify.state}
               </div>
-            </div>
-          ) : (
-            <div className="mt-2.5 rounded-lg bg-teal/8 px-3 py-2.5 text-[12px] font-medium text-teal">
-              검토 항목 처리 완료 · {verify.state}
-            </div>
-          )}
-          <button onClick={() => setMenu("verify")} className="mt-2 text-left text-[13px] font-medium text-accent hover:underline">
-            검증 상세 보기 ›
-          </button>
+            )}
+          </div>
         </div>
       </section>
 
