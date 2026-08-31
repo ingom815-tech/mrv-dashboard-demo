@@ -1,0 +1,22 @@
+// node test/engine.test.mjs — 산정 엔진 회귀 테스트(합성데이터 기준 기대범위)
+import { generate } from "../engine/synth.js";
+import * as MRV from "../engine/mrv.js";
+const data = generate();
+const cfg = data.meta.assumptions;
+const daily = MRV.aggregateDaily(data);
+const bl = MRV.fitBaseline(daily, cfg);
+const sv = MRV.computeSavings(daily, bl, cfg, data.nonRoutine, { value: 0.4594 }, { value: 145 });
+const q = MRV.quality(data, [cfg.reportStart, cfg.reportEnd]);
+const rf = MRV.refrigerantEmissions(data.refrigerant, [cfg.reportStart, cfg.reportEnd]);
+const ok = (c, m) => { if (!c) { console.error("FAIL", m); process.exitCode = 1; } else console.log("ok  ", m); };
+ok(data.rows.length === 52416, `rows 15분×546일 = ${data.rows.length}`);
+ok(daily.length === 546, `daily ${daily.length}`);
+ok(bl.model && bl.model.r2 > 0.95 && bl.model.cvRmse < 0.1, `baseline R² ${bl.model.r2.toFixed(3)} CV(RMSE) ${(bl.model.cvRmse*100).toFixed(1)}%`);
+ok(bl.excludedDays.length === 2, `기준기간 결측 제외일 ${bl.excludedDays.join(",")}`);
+ok(sv.nExcluded === 12, `보고기간 제외일 ${sv.nExcluded} (정비 11일 + 통신장애 1일)`);
+ok(sv.savePct > 0.2 && sv.savePct < 0.4, `절감률 ${(sv.savePct*100).toFixed(1)}% (데모 가정값 범위)`);
+ok(Math.abs(sv.co2 - sv.sumSave/1000*0.4594) < 1e-6, `감축량 = 절감 MWh × EF`);
+ok(rf.total > 0 && rf.items.some(i => !i.counted), `냉매 별도 산정 ${rf.total.toFixed(2)} tCO₂eq, 초기충전 제외`);
+ok(q.byTag.filter(t => t.expired).length === 1 && q.byTag.find(t => t.tag === "CHW_flow").expired, `교정만료 1건 = CHW_flow`);
+ok(q.issues.map(i => i.id).join(",") === "DQ-05,DQ-06,DQ-03,DQ-04,NR-02", `보고기간 이슈 ${q.issues.map(i=>i.id).join(",")}`);
+ok(data.rows.every(r => r.s.SYS_kW !== undefined), "모든 레코드에 상태코드");
