@@ -1,6 +1,7 @@
 import { useUI, type MenuKey } from "./store";
 import Overview from "./screens/Overview";
 import EquipPerformance from "./screens/EquipPerformance";
+import DataVerify from "./screens/DataVerify";
 import Placeholder from "./screens/Placeholder";
 import EvidencePanel from "./components/EvidencePanel";
 
@@ -43,12 +44,7 @@ export default function App() {
       <main className="min-w-0 flex-1 overflow-y-auto">
         {menu === "overview" && <Overview />}
         {menu === "equipment" && <EquipPerformance />}
-        {menu === "verify" && (
-          <Placeholder
-            title="데이터·검증"
-            desc="데이터 품질·검토 항목·산정근거·승인·증적·보고서를 보여줄 화면입니다. 종합성과 화면 확인 후 제작합니다."
-          />
-        )}
+        {menu === "verify" && <DataVerify />}
         {menu === "master" && (
           <Placeholder
             title="기준정보"

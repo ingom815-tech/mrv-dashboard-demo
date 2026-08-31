@@ -9,8 +9,9 @@ import {
   ResponsiveContainer,
   LabelList,
 } from "recharts";
-import { mrv, EF, type MonthPoint, type EquipGroup } from "../lib/mrvData";
-import { useUI } from "../store";
+import { mrv, EF, reviewItems, type MonthPoint, type EquipGroup } from "../lib/mrvData";
+import { useCalc } from "../lib/useCalc";
+import { useUI, deriveVerify } from "../store";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -123,9 +124,14 @@ const GROUP_FILTERS: Array<{ key: EquipGroup | "all"; label: string }> = [
 ];
 
 export default function Overview() {
-  const { openEvidence, setMenu, selectedMonth, selectMonth, equipFilter, setEquipFilter } = useUI();
+  const { openEvidence, setMenu, selectedMonth, selectMonth, equipFilter, setEquipFilter, reviewStates } =
+    useUI();
+  const calc = useCalc();
+  const verify = deriveVerify(reviewStates);
+  const ck = calc.kpi;
   const k = mrv.kpi;
   const cov = mrv.coverage;
+  const pendingItem = reviewItems.find((r) => reviewStates[r.id] === "검토 필요");
   const sel = selectedMonth ? monthIssues(selectedMonth) : null;
   const updatedAt = new Date(mrv.meta.generatedAt).toLocaleString("ko-KR", {
     month: "2-digit",
@@ -178,11 +184,11 @@ export default function Overview() {
         >
           <div className="text-[13px] font-medium text-body">에너지 절감</div>
           <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-teal">
-            {fmt(k.saveMWh)} <span className="text-[14px] font-semibold">MWh</span>
+            {fmt(ck.saveMWh)} <span className="text-[14px] font-semibold">MWh</span>
           </div>
           <div className="tnum mt-2 text-[12px] text-body">
-            기준선 대비 <span className="font-semibold text-teal">{pct(k.savePct)}</span> · 산정{" "}
-            {k.nDays}일 · 제외 {k.nExcluded}일
+            기준선 대비 <span className="font-semibold text-teal">{pct(ck.savePct)}</span> · 산정{" "}
+            {ck.nDays}일 · 제외 {ck.nExcluded}일
           </div>
         </button>
         <button
@@ -191,7 +197,7 @@ export default function Overview() {
         >
           <div className="text-[13px] font-medium text-body">탄소 감축</div>
           <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
-            {fmt(k.co2, 1)} <span className="text-[14px] font-semibold">tCO₂eq</span>
+            {fmt(ck.co2, 1)} <span className="text-[14px] font-semibold">tCO₂eq</span>
           </div>
           <div className="tnum mt-2 text-[12px] text-body">
             배출계수 {EF.value} ({EF.baseYear}) · 냉매 배출 별도
@@ -203,8 +209,12 @@ export default function Overview() {
         >
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-medium text-body">MRV 신뢰도</span>
-            <span className="rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review">
-              {k.verifyState}
+            <span
+              className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${
+                verify.state === "승인 완료" ? "bg-teal/10 text-teal" : "bg-review/10 text-review"
+              }`}
+            >
+              {verify.state}
             </span>
           </div>
           <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
@@ -213,7 +223,9 @@ export default function Overview() {
           </div>
           <div className="tnum mt-2 text-[12px] text-body">
             정상률 {pct(k.trustRate)} · 검토 필요{" "}
-            <span className="font-semibold text-review">{k.reviewCount}건</span>
+            <span className={`font-semibold ${verify.pending > 0 ? "text-review" : "text-teal"}`}>
+              {verify.pending}건
+            </span>
           </div>
         </button>
         <button
@@ -241,14 +253,14 @@ export default function Overview() {
           {/* 차트 내부 절감 성과 강조 (지시문 §5) */}
           <div className="pointer-events-none absolute top-12 left-16 z-10">
             <div className="tnum text-[22px] leading-none font-bold text-teal">
-              {fmt(k.saveMWh)} MWh 절감
+              {fmt(ck.saveMWh)} MWh 절감
             </div>
-            <div className="tnum mt-1 text-[13px] text-body">기준선 대비 {pct(k.savePct)}</div>
+            <div className="tnum mt-1 text-[13px] text-body">기준선 대비 {pct(ck.savePct)}</div>
           </div>
           <div className="min-h-0 flex-1 pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
-                data={mrv.monthly}
+                data={calc.monthly}
                 margin={{ top: 26, right: 86, bottom: 0, left: 0 }}
                 onClick={(s) => {
                   const label = (s as { activeLabel?: string }).activeLabel;
@@ -358,7 +370,20 @@ export default function Overview() {
         <div className="flex min-h-0 flex-col rounded-[10px] border border-line bg-white p-4">
           <div className="shrink-0 text-[14px] font-semibold text-navy">MRV Assurance</div>
           <div className="mt-3 flex flex-col gap-2.5">
-            {mrv.assurance.map((row) => (
+            {mrv.assurance
+              .map((row) =>
+                row.stage === "Verification"
+                  ? {
+                      ...row,
+                      status: (verify.state === "승인 완료" ? "PASS" : "REVIEW") as typeof row.status,
+                      evidence:
+                        verify.pending > 0
+                          ? `검토 필요 ${verify.pending}건 · 승인 전`
+                          : `검토 항목 처리 완료 · ${verify.state}`,
+                    }
+                  : row,
+              )
+              .map((row) => (
               <div key={row.stage} className="rounded-lg border border-line px-3 py-2.5">
                 <div className="flex items-center justify-between">
                   <div className="text-[12px] font-semibold text-navy">
@@ -383,14 +408,19 @@ export default function Overview() {
               </div>
             ))}
           </div>
-          <div className="mt-3 rounded-lg bg-review/8 px-3 py-2.5">
-            <div className="text-[12px] font-semibold text-review">
-              검토 필요 {k.reviewCount}건
+          {verify.pending > 0 ? (
+            <div className="mt-3 rounded-lg bg-review/8 px-3 py-2.5">
+              <div className="text-[12px] font-semibold text-review">검토 필요 {verify.pending}건</div>
+              <div className="mt-0.5 text-[12px] leading-relaxed text-body">
+                {pendingItem?.title}
+                {verify.pending > 1 && ` 외 ${verify.pending - 1}건`}
+              </div>
             </div>
-            <div className="mt-0.5 text-[12px] leading-relaxed text-body">
-              {mrv.reviewIssues[0]?.title} 외 {k.reviewCount - 1}건
+          ) : (
+            <div className="mt-3 rounded-lg bg-teal/8 px-3 py-2.5 text-[12px] font-medium text-teal">
+              검토 항목 처리 완료 · {verify.state}
             </div>
-          </div>
+          )}
           <button
             onClick={() => setMenu("verify")}
             className="mt-2.5 text-left text-[13px] font-medium text-accent hover:underline"
@@ -409,7 +439,7 @@ export default function Overview() {
         </span>
         ·
         <span>
-          계산버전 <b className="font-semibold text-navy">{mrv.meta.calcVersion}</b>
+          계산버전 <b className="font-semibold text-navy">{calc.version}</b>
         </span>
         ·
         <span>
@@ -417,9 +447,13 @@ export default function Overview() {
         </span>
         ·
         <span>
-          검증 상태 <b className="font-semibold text-review">Pre-review</b>
+          검증 상태{" "}
+          <b className={`font-semibold ${verify.state === "승인 완료" ? "text-teal" : "text-review"}`}>
+            {verify.state}
+          </b>
         </span>
-        ·<span>최종 산정 {updatedAt}</span>·<span>담당 — (승인 전)</span>
+        ·<span>최종 산정 {updatedAt}</span>·
+        <span>담당 {verify.state === "승인 완료" ? "MRV 담당자(데모)" : "— (승인 전)"}</span>
         <button
           onClick={openEvidence}
           className="ml-auto font-medium text-accent hover:underline"

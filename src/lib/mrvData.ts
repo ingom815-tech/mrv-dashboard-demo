@@ -19,7 +19,6 @@ const data = generate();
 const cfg = data.meta.assumptions;
 const daily = MRV.aggregateDaily(data);
 const baseline = MRV.fitBaseline(daily, cfg);
-const savings = MRV.computeSavings(daily, baseline, cfg, data.nonRoutine, EF, TARIFF);
 const quality = MRV.quality(data, [cfg.reportStart, cfg.reportEnd]);
 const refrigerant = MRV.refrigerantEmissions(data.refrigerant, [cfg.reportStart, cfg.reportEnd]);
 
@@ -54,27 +53,88 @@ type DailyRec = {
   ct: number;
 };
 
-const repDaily = savings.daily as DailyRec[];
+// ---------- 산정 번들: 비일상적 조정 승인 상태를 입력으로 재계산 ----------
+// 승인 상태가 바뀌면(NR-01 승인 등) 조정 기준선이 달라지므로 새 계산버전을 생성한다 (CLAUDE.md 확정사항)
+export interface NonRoutine {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  type: string;
+  kwhAdj: number;
+  unit: string;
+  reason: string;
+  status: string;
+  approver: string;
+  approvedAt: string;
+}
+export type NrStatusMap = Record<string, string>;
 
-const monthly = (
-  MRV.monthly(savings.daily, { sum: ["adjBaseNR", "kwhDay", "saving"] }) as Array<{
-    month: string;
-    n: number;
-    nUsed: number;
-    sums: { adjBaseNR?: number; kwhDay?: number; saving?: number };
-  }>
-)
-  .sort((a, b) => (a.month < b.month ? -1 : 1))
-  .map<MonthPoint>((m) => ({
-    month: m.month,
-    label: `${Number(m.month.slice(5))}월`,
-    baseMWh: (m.sums.adjBaseNR ?? 0) / 1000,
-    actMWh: (m.sums.kwhDay ?? 0) / 1000,
-    saveMWh: (m.sums.saving ?? 0) / 1000,
-    nUsed: m.nUsed,
-    nExcluded: m.n - m.nUsed,
-    estDays: repDaily.filter((d) => d.date.slice(0, 7) === m.month && d.usable && d.estimated).length,
+export interface CalcBundle {
+  savings: ReturnType<typeof MRV.computeSavings>;
+  monthly: MonthPoint[];
+  version: string;
+  nrApplied: NonRoutine[];
+  kpi: {
+    saveMWh: number;
+    savePct: number;
+    co2: number;
+    costKrw: number;
+    nDays: number;
+    nExcluded: number;
+  };
+}
+
+export function buildCalc(nrStatus: NrStatusMap): CalcBundle {
+  const nrList = (data.nonRoutine as NonRoutine[]).map((n) => ({
+    ...n,
+    status: nrStatus[n.id] ?? n.status,
   }));
+  const sv = MRV.computeSavings(daily, baseline, cfg, nrList, EF, TARIFF);
+  const svDaily = sv.daily as DailyRec[];
+  const monthly = (
+    MRV.monthly(sv.daily, { sum: ["adjBaseNR", "kwhDay", "saving"] }) as Array<{
+      month: string;
+      n: number;
+      nUsed: number;
+      sums: { adjBaseNR?: number; kwhDay?: number; saving?: number };
+    }>
+  )
+    .sort((a, b) => (a.month < b.month ? -1 : 1))
+    .map<MonthPoint>((m) => ({
+      month: m.month,
+      label: `${Number(m.month.slice(5))}월`,
+      baseMWh: (m.sums.adjBaseNR ?? 0) / 1000,
+      actMWh: (m.sums.kwhDay ?? 0) / 1000,
+      saveMWh: (m.sums.saving ?? 0) / 1000,
+      nUsed: m.nUsed,
+      nExcluded: m.n - m.nUsed,
+      estDays: svDaily.filter((d) => d.date.slice(0, 7) === m.month && d.usable && d.estimated).length,
+    }));
+  // 원본 대비 추가로 승인된 비일상적 조정 수만큼 버전 증가 (기존 확정본 보존 개념)
+  const extra = (data.nonRoutine as NonRoutine[]).filter(
+    (n) => n.status !== "승인 완료" && (nrStatus[n.id] ?? n.status) === "승인 완료",
+  ).length;
+  return {
+    savings: sv,
+    monthly,
+    version: `CALC-2026H1-v${1 + extra}`,
+    nrApplied: nrList,
+    kpi: {
+      saveMWh: sv.sumSave / 1000,
+      savePct: sv.savePct,
+      co2: sv.co2,
+      costKrw: sv.cost,
+      nDays: sv.nDays,
+      nExcluded: sv.nExcluded,
+    },
+  };
+}
+
+const calc0 = buildCalc({});
+const savings = calc0.savings;
+const repDaily = savings.daily as DailyRec[];
+const monthly = calc0.monthly;
 
 // 검토 필요 건수 = 품질 이슈(검토 필요) + 비일상적 조정(검토 필요)
 const reviewIssues = [
@@ -88,6 +148,47 @@ const reviewIssues = [
 
 // 데이터 신뢰도 = 보고기간 전체 태그 기준 (정상 + 추정) 비율
 const trustRate = quality.totals.validRate + quality.totals.estRate;
+
+// ---------- 검토·승인 워크플로우 대상 항목 ----------
+export interface ReviewItem {
+  id: string;
+  kind: string;
+  title: string;
+  period: string;
+  detail: string;
+  impact: string;
+  affectsCalc: boolean; // 승인 시 산정 결과가 바뀌는 항목 여부
+  initialState: string;
+}
+const nr01 = (data.nonRoutine as NonRoutine[]).find((n) => n.id === "NR-01")!;
+const dq04 = quality.issues.find((i: { id: string }) => i.id === "DQ-04") as {
+  title: string;
+  period: string;
+  action: string;
+  impact: string;
+};
+export const reviewItems: ReviewItem[] = [
+  {
+    id: "NR-01",
+    kind: "비일상적 조정",
+    title: nr01.title,
+    period: `${nr01.start} ~ ${nr01.end}`,
+    detail: nr01.reason,
+    impact: `승인 시 조정 기준선 ${nr01.kwhAdj.toLocaleString("ko-KR")} kWh 반영 → 새 계산버전 생성`,
+    affectsCalc: true,
+    initialState: nr01.status,
+  },
+  {
+    id: "DQ-04",
+    kind: "데이터 이슈",
+    title: dq04.title,
+    period: dq04.period,
+    detail: dq04.action,
+    impact: dq04.impact,
+    affectsCalc: false,
+    initialState: "검토 필요",
+  },
+];
 
 // ---------- 계측 커버리지 (물리 계측점만, 계산값 제외) ----------
 type TagQ = {
@@ -399,19 +500,15 @@ export const mrv = {
     events: { fouling: events.fouling, maintenance: events.maintenance, install: cfg.installDate as string },
   },
   coverage: { ...coverage, ok: coverageOk },
+  calc0,
   kpi: {
-    saveMWh: savings.sumSave / 1000,
-    savePct: savings.savePct,
-    co2: savings.co2,
-    costKrw: savings.cost,
+    ...calc0.kpi,
     trustRate,
     collectRate: quality.totals.collectRate,
     missRate: quality.totals.missRate,
     estRate: quality.totals.estRate,
     verifyState: "검토 중", // NR-01·DQ-04 검토 필요 → 승인 전 단계
     reviewCount: reviewIssues.length,
-    nDays: savings.nDays,
-    nExcluded: savings.nExcluded,
   },
   meta: {
     site: "원주공장",

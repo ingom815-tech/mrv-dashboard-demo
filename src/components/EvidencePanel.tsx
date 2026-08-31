@@ -1,5 +1,6 @@
 import { mrv, EF } from "../lib/mrvData";
-import { useUI } from "../store";
+import { useCalc } from "../lib/useCalc";
+import { useUI, deriveVerify } from "../store";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -15,7 +16,9 @@ function Row({ label, value }: { label: string; value: string }) {
 
 /* 산정근거 슬라이드 패널 (v2.1 §4.1) — 기술 통계·모델식은 여기서만 노출 */
 export default function EvidencePanel() {
-  const { closeEvidence, setMenu } = useUI();
+  const { closeEvidence, setMenu, reviewStates } = useUI();
+  const calc = useCalc();
+  const verify = deriveVerify(reviewStates);
   const m = mrv.baseline.model;
   if (!m) return null; // OLS 실패 시(합성데이터에서는 발생하지 않음) 패널 미표시
   return (
@@ -61,9 +64,14 @@ export default function EvidencePanel() {
             <div className="rounded-xl bg-surface px-4 py-3">
               <Row label="보고기간" value={`${mrv.cfg.reportStart} ~ ${mrv.cfg.reportEnd}`} />
               <Row label="산정 일수" value={`${mrv.kpi.nDays}일`} />
-              <Row label="제외 일수" value={`${mrv.kpi.nExcluded}일 (정비·통신장애)`} />
+              <Row label="제외 일수" value={`${calc.kpi.nExcluded}일 (정비·통신장애)`} />
               <Row label="추정 적용 비율" value={`${fmt(mrv.savings.estShare * 100, 1)}%`} />
-              <Row label="비일상적 조정" value="NR-02 승인 완료 · NR-01 검토 중" />
+              <Row
+                label="비일상적 조정"
+                value={calc.nrApplied
+                  .map((n) => `${n.id} ${reviewStates[n.id] ?? n.status}`)
+                  .join(" · ")}
+              />
             </div>
           </section>
 
@@ -80,9 +88,9 @@ export default function EvidencePanel() {
           <section>
             <h3 className="mb-1.5 text-[13px] font-semibold text-navy">계산버전 · 승인</h3>
             <div className="rounded-xl bg-surface px-4 py-3">
-              <Row label="계산버전" value={mrv.meta.calcVersion} />
-              <Row label="검증 상태" value={mrv.kpi.verifyState} />
-              <Row label="승인자" value="— (승인 전)" />
+              <Row label="계산버전" value={calc.version} />
+              <Row label="검증 상태" value={verify.state} />
+              <Row label="승인자" value={verify.state === "승인 완료" ? "MRV 담당자(데모)" : "— (승인 전)"} />
               <Row label="데이터 출처" value="SYNTHETIC (합성)" />
               <Row label="생성 seed" value={String(mrv.meta.seed)} />
             </div>
