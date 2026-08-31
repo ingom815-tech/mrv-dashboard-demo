@@ -70,6 +70,9 @@ const initialMenu: MenuKey =
 interface UIState {
   menu: MenuKey;
   evidenceOpen: boolean;
+  traceOpen: boolean;
+  openTrace: () => void;
+  closeTrace: () => void;
   selectedMonth: string | null;
   equipFilter: EquipGroup | "all";
   selectedEquip: string;
@@ -96,6 +99,9 @@ interface UIState {
 export const useUI = create<UIState>((set, get) => ({
   menu: initialMenu,
   evidenceOpen: false,
+  traceOpen: false,
+  openTrace: () => set({ traceOpen: true }),
+  closeTrace: () => set({ traceOpen: false }),
   selectedMonth: null,
   equipFilter: "all",
   selectedEquip: "ch1",

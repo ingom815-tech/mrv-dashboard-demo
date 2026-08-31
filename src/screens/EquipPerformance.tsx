@@ -16,7 +16,7 @@ import {
 } from "recharts";
 import { mrv, perfCurve, waterfall } from "../lib/mrvData";
 import { useUI } from "../store";
-import ContextBar from "../components/ContextBar";
+import ContextBar, { TopActions } from "../components/ContextBar";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -86,7 +86,7 @@ function WeekTooltip({
 }
 
 export default function EquipPerformance() {
-  const { selectedEquip, setSelectedEquip, setMenu } = useUI();
+  const { selectedEquip, setSelectedEquip, setMenu, openEvidence } = useUI();
   const row = mrv.perf.table.find((r) => r.key === selectedEquip) ?? mrv.perf.table[0];
   const equipBase =
     selectedEquip === "ch1" || selectedEquip === "ch2"
@@ -95,14 +95,17 @@ export default function EquipPerformance() {
 
   return (
     <div className="flex min-h-screen flex-col gap-3 px-6 py-4">
-      <header className="flex shrink-0 items-center gap-2.5">
-        <h1 className="text-[21px] leading-tight font-bold text-navy">설비성과 — 효율 개선 원인 분석</h1>
-        <span
-          className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
-          title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다."
-        >
-          DEMO · 합성데이터
-        </span>
+      <header className="flex shrink-0 items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <h1 className="text-[21px] leading-tight font-bold text-navy">설비성과 — 효율 개선 원인 분석</h1>
+          <span
+            className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
+            title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다."
+          >
+            DEMO · 합성데이터
+          </span>
+        </div>
+        <TopActions />
       </header>
       <ContextBar />
 
@@ -147,12 +150,17 @@ export default function EquipPerformance() {
               </span>
             </div>
           </div>
-          {/* 동일 부하 개선율 주석 */}
-          <div className="pointer-events-none absolute top-16 right-10 z-10 rounded-lg bg-teal/8 px-3 py-2 text-right">
-            <div className="tnum text-[19px] leading-none font-bold text-teal">
+          {/* 동일 부하 개선율 + 분석 표본 정보 */}
+          <div className="pointer-events-none absolute top-16 right-10 z-10 rounded-lg bg-teal/8 px-3.5 py-2.5 text-right">
+            <div className="tnum text-[20px] leading-none font-bold text-teal">
               −{fmt(perfCurve.sameLoadImprovePct * 100, 1)}%
             </div>
             <div className="mt-1 text-[11px] text-body">동일 부하 평균 효율 개선</div>
+            <div className="tnum mt-1.5 border-t border-teal/15 pt-1.5 text-[11px] leading-relaxed text-body">
+              기준 n={perfCurve.nBase} · 보고 n={perfCurve.nRep}
+              <br />
+              비교 구간 {perfCurve.overlapRange[0]}–{perfCurve.overlapRange[1]}% · 제외 12일
+            </div>
           </div>
           <div className="h-[300px] pt-2">
             <ResponsiveContainer width="100%" height="100%">
@@ -182,12 +190,27 @@ export default function EquipPerformance() {
                 />
                 <ZAxis range={[26, 26]} />
                 <Tooltip content={<CurveTooltip />} cursor={{ strokeDasharray: "3 3", stroke: "#c3cdd9" }} />
+                {/* 운전구간 3분할 (아주 옅은 배경) */}
+                <ReferenceArea
+                  x1={perfCurve.domainX[0]}
+                  x2={perfCurve.normalBand[0]}
+                  fill="#d97706"
+                  fillOpacity={0.025}
+                  label={{ value: "저부하 비효율", position: "insideBottom", fontSize: 10.5, fill: "#b9c0cc" }}
+                />
                 <ReferenceArea
                   x1={perfCurve.normalBand[0]}
                   x2={perfCurve.normalBand[1]}
                   fill="#102a43"
-                  fillOpacity={0.035}
-                  label={{ value: "정상 운전영역", position: "insideBottom", fontSize: 11, fill: "#8a94a6" }}
+                  fillOpacity={0.03}
+                  label={{ value: "정상 운전구간", position: "insideBottom", fontSize: 10.5, fill: "#8a94a6" }}
+                />
+                <ReferenceArea
+                  x1={perfCurve.normalBand[1]}
+                  x2={perfCurve.domainX[1]}
+                  fill="#d97706"
+                  fillOpacity={0.02}
+                  label={{ value: "고부하 주의", position: "insideBottom", fontSize: 10.5, fill: "#b9c0cc" }}
                 />
                 <Scatter data={perfCurve.points.filter((p) => p.period === "base")} fill="#9aa5b1" fillOpacity={0.4} isAnimationActive={false} />
                 <Scatter data={perfCurve.points.filter((p) => p.period === "rep")} fill="#159f9e" fillOpacity={0.55} isAnimationActive={false} />
@@ -211,7 +234,7 @@ export default function EquipPerformance() {
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#667085" }} axisLine={{ stroke: "#eaeff5" }} tickLine={false} interval={0} />
                 <YAxis tick={{ fontSize: 12, fill: "#8a94a6" }} axisLine={false} tickLine={false} width={40} tickFormatter={(v: number) => fmt(v)} />
                 <Bar dataKey="base" stackId="wf" fill="transparent" isAnimationActive={false} />
-                <Bar dataKey="val" stackId="wf" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                <Bar dataKey="val" stackId="wf" radius={[3, 3, 0, 0]} isAnimationActive={false} onClick={openEvidence} cursor="pointer">
                   {wfData.map((w) => (
                     <Cell key={w.label} fill={wfColor(w.kind)} />
                   ))}
@@ -232,8 +255,9 @@ export default function EquipPerformance() {
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-          <div className="text-[12px] text-body">
-            일평균 사용량 변화 기준 분해 (MWh) · 잔차는 냉방도일·생산량 보정에 따른 차이
+          <div className="text-[12px] leading-relaxed text-body">
+            기여도는 개별 설비 경계와 조정 규칙에 따라 산정하며 중복 절감을 제외함 · 막대 클릭 시
+            산정근거 확인
           </div>
         </div>
       </section>

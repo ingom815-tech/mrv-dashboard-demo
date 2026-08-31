@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { mrv, TARIFF, assetPassports, type TagMeta, type MeterMeta } from "../lib/mrvData";
+import { mrv, TARIFF, assetPassports, tagKpiMap, type TagMeta, type MeterMeta } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, activeEf, type Role } from "../store";
-import ContextBar from "../components/ContextBar";
+import ContextBar, { TopActions } from "../components/ContextBar";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -36,9 +36,81 @@ const PERMS: Array<{ feature: string; roles: Record<Role, boolean> }> = [
   { feature: "승인 완료 결과 수정", roles: { 일반: false, 검토자: false, 승인자: false } },
 ];
 
+/* 태그 상세 Drawer — Asset & Meter Registry */
+function TagDrawer({ tag, onClose }: { tag: TagMeta; onClose: () => void }) {
+  const m = mrv.meters.find((x) => x.tag === tag.id);
+  const info = tagKpiMap[tag.id];
+  const expired = m?.expiry && m.expiry !== "—" && m.expiry < mrv.cfg.reportEnd;
+  const Row = ({ k, v }: { k: string; v: string }) => (
+    <div className="flex items-baseline justify-between gap-3 py-1.5">
+      <span className="shrink-0 text-[12px] text-slate-400">{k}</span>
+      <span className="tnum text-right text-[12.5px] font-medium text-navy">{v}</span>
+    </div>
+  );
+  return (
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="태그 상세">
+      <div className="absolute inset-0 bg-navy/30" onClick={onClose} />
+      <aside className="absolute inset-y-0 right-0 flex w-[400px] flex-col overflow-y-auto bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-line px-6 py-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[16px] font-bold text-navy">{m?.meter ?? tag.id}</span>
+              {expired ? (
+                <span className="rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-bold text-review">교정 만료</span>
+              ) : (
+                <span className="rounded bg-teal/10 px-1.5 py-0.5 text-[11px] font-bold text-teal">정상</span>
+              )}
+            </div>
+            <div className="mt-0.5 text-[12px] text-slate-400">
+              {tag.id} · {tag.desc}
+            </div>
+          </div>
+          <button onClick={onClose} aria-label="닫기" className="rounded-lg px-2 py-1 text-[18px] leading-none text-slate-400 hover:bg-surface hover:text-navy">
+            ×
+          </button>
+        </div>
+        <div className="flex-1 space-y-4 px-6 py-5">
+          <section className="rounded-xl bg-surface px-4 py-2">
+            <Row k="설비 연결" v={tag.asset} />
+            <Row k="계측기 유형" v={m?.type ?? "—"} />
+            <Row k="정확도" v={m?.accuracy ?? "—"} />
+            <Row k="단위 · 주기" v={`${tag.unit} · ${m?.period ?? 15}분`} />
+            <Row k="데이터 출처" v={m?.src ?? "—"} />
+          </section>
+          <section className="rounded-xl bg-surface px-4 py-2">
+            <Row k="최근 교정일" v={m?.calib ?? "—"} />
+            <Row k="교정 만료일" v={m?.expiry ?? "—"} />
+            {expired && <Row k="검토 상태" v="영향평가 대기 (DQ-04)" />}
+          </section>
+          <section>
+            <div className="mb-1.5 text-[13px] font-semibold text-navy">영향을 받는 계산 KPI</div>
+            <div className="flex flex-wrap gap-1.5">
+              {(info?.kpis ?? []).map((k) => (
+                <span key={k} className="rounded bg-accent/8 px-2 py-0.5 text-[12px] font-medium text-navy">
+                  {k}
+                </span>
+              ))}
+            </div>
+            <div className="mt-2 text-[12px] leading-relaxed text-body">
+              전력 절감량 산정 포함:{" "}
+              <b className={info?.inCalc ? "text-teal" : "text-body"}>{info?.inCalc ? "포함" : "미포함 (참고 KPI)"}</b>
+              {info?.note && <> · {info.note}</>}
+            </div>
+          </section>
+          <section className="rounded-xl bg-surface px-4 py-3 text-[12px] leading-relaxed text-body">
+            증적: 계측기 사양서·교정성적서 (데모 — 파일 미첨부) · 변경이력: 등록 2025-01-01, 이후 변경 없음 ·
+            data_origin = SYNTHETIC
+          </section>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 export default function MasterData() {
   const [tab, setTab] = useState<TabKey>(initialTab);
   const [assetFilter, setAssetFilter] = useState<string | null>(null);
+  const [selTag, setSelTag] = useState<TagMeta | null>(null);
   const { role, efList, registerEf, tariffValue, setTariff } = useUI();
   const calc = useCalc();
   const ef = activeEf(efList);
@@ -63,6 +135,7 @@ export default function MasterData() {
             DEMO · 합성데이터
           </span>
         </div>
+        <TopActions />
       </header>
       <ContextBar />
 
@@ -263,7 +336,7 @@ export default function MasterData() {
                 센서·태그 {assetFilter ? `— ${assetFilter}` : ""}
                 <span className="tnum ml-1.5 text-[12px] font-normal text-body">({tags.length}개)</span>
               </span>
-              <span className="text-[11px] text-body">수집 주기 15분 (생산 60분) · data_origin = SYNTHETIC</span>
+              <span className="text-[12px] text-body">행 클릭 시 계측기 상세 · 수집 주기 15분 (생산 60분)</span>
             </div>
             <table className="tnum w-full text-[12px]">
               <thead>
@@ -285,7 +358,11 @@ export default function MasterData() {
                   const m = meterOf(t.id);
                   const expired = m?.expiry && m.expiry !== "—" && m.expiry < mrv.cfg.reportEnd;
                   return (
-                    <tr key={t.id} className="border-b border-line/60 last:border-0">
+                    <tr
+                      key={t.id}
+                      onClick={() => setSelTag(t)}
+                      className="cursor-pointer border-b border-line/50 transition-colors last:border-0 hover:bg-surface"
+                    >
                       <td className="py-1.5 font-medium text-navy">{t.id}</td>
                       <td className="py-1.5 text-body">{t.desc}</td>
                       <td className="py-1.5 text-body">{t.asset}</td>
@@ -569,6 +646,7 @@ export default function MasterData() {
           </div>
         </section>
       )}
+      {selTag && <TagDrawer tag={selTag} onClose={() => setSelTag(null)} />}
     </div>
   );
 }

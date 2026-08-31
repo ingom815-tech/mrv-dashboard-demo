@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { mrv, reviewItems, issueQueue, qualityHeatmap, type NonRoutine, type HeatStatus } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, deriveVerify, activeEf } from "../store";
-import ContextBar from "../components/ContextBar";
+import ContextBar, { TopActions } from "../components/ContextBar";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -42,11 +42,11 @@ function download(name: string, content: string, type: string) {
 }
 
 const stateBadge = (s: string) =>
-  s === "승인 완료"
+  s === "승인 완료" || s === "조치 완료"
     ? "bg-teal/10 text-teal"
-    : s === "검토 완료"
+    : s === "검토 완료" || s === "신규" || s === "조사 중"
       ? "bg-accent/10 text-accent"
-      : s === "검토 필요"
+      : s === "검토 필요" || s === "처리 대기" || s === "승인 대기"
         ? "bg-review/10 text-review"
         : "bg-line text-body";
 
@@ -67,9 +67,91 @@ const SEV_BADGE: Record<string, string> = {
   Low: "bg-accent/10 text-accent",
 };
 
+/* 히트맵 셀 상세 — 상태별 검증 규칙·산정 영향·처리 근거 */
+const HEAT_DETAIL: Record<
+  HeatStatus,
+  { label: string; rule: string; raw: string; impact: string; action: string; actor: string }
+> = {
+  ok: {
+    label: "정상",
+    rule: "물리범위·변화율·상호일관성 자동검증 통과",
+    raw: "원본값 유지",
+    impact: "산정에 그대로 사용",
+    action: "—",
+    actor: "자동 규칙",
+  },
+  est: {
+    label: "추정·이상",
+    rule: "R-02 물리범위/고착 검출 또는 승인된 비례 추정",
+    raw: "원본값 보존 · 정제값 별도",
+    impact: "해당 구간 제외 후 유효값 기준 추정(ESTIMATED)",
+    action: "라벨 유지, 승인 시 추정률 확인",
+    actor: "자동 규칙 · 계측팀(데모)",
+  },
+  bad: {
+    label: "결측",
+    rule: "R-01 결측 평가 (일 10% 초과 시 산정 제외)",
+    raw: "원본값 NULL",
+    impact: "결측률에 따라 일 제외 또는 비례 추정",
+    action: "게이트웨이·센서 점검, 복구 불가 확인",
+    actor: "계측팀(데모)",
+  },
+  excl: {
+    label: "산정 제외",
+    rule: "승인된 비일상적 조정 (NR-02 정비 제외기간)",
+    raw: "원본값 유지 (산정 미사용)",
+    impact: "해당 일 절감량 산정 제외",
+    action: "제외기간 승인 완료",
+    actor: "MRV 승인자(데모)",
+  },
+};
+
+function HeatDetail({
+  cell,
+  onClose,
+}: {
+  cell: { tag: string; date: string; status: HeatStatus };
+  onClose: () => void;
+}) {
+  const d = HEAT_DETAIL[cell.status];
+  const Row = ({ k, v }: { k: string; v: string }) => (
+    <div className="py-1">
+      <div className="text-[11px] text-slate-400">{k}</div>
+      <div className="text-[12.5px] leading-snug text-navy">{v}</div>
+    </div>
+  );
+  return (
+    <div className="rounded-lg border border-line/70 bg-surface/50 p-3.5">
+      <div className="flex items-center justify-between">
+        <span className="tnum text-[13px] font-semibold text-navy">
+          {cell.date} · {cell.tag}
+        </span>
+        <button onClick={onClose} className="text-[15px] leading-none text-slate-400 hover:text-navy" aria-label="닫기">
+          ×
+        </button>
+      </div>
+      <span
+        className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold ${
+          cell.status === "ok" ? "bg-teal/10 text-teal" : cell.status === "excl" ? "bg-line text-body" : "bg-review/10 text-review"
+        }`}
+      >
+        {d.label}
+      </span>
+      <div className="mt-1 divide-y divide-line/50">
+        <Row k="검증 규칙" v={d.rule} />
+        <Row k="원본값" v={d.raw} />
+        <Row k="산정 영향" v={d.impact} />
+        <Row k="처리" v={d.action} />
+        <Row k="처리자" v={d.actor} />
+      </div>
+    </div>
+  );
+}
+
 export default function DataVerify() {
   const [tab, setTab] = useState<TabKey>(initialTab);
   const [heatMonth, setHeatMonth] = useState("2026-02");
+  const [selCell, setSelCell] = useState<{ tag: string; date: string; status: HeatStatus } | null>(null);
   const { role, reviewStates, markReviewed, approve, audit, resetDemoStates } = useUI();
   const calc = useCalc();
   const ef = activeEf(useUI((s) => s.efList));
@@ -120,6 +202,7 @@ export default function DataVerify() {
             DEMO · 합성데이터
           </span>
         </div>
+        <TopActions />
       </header>
       <ContextBar />
 
@@ -207,28 +290,40 @@ export default function DataVerify() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-col gap-[3px]">
-              {heat.map((row) => (
-                <div key={row.tag} className="flex items-center gap-2">
-                  <span className="tnum w-20 shrink-0 text-right text-[11px] text-body">{row.tag}</span>
-                  <div className="flex flex-1 gap-[3px]">
-                    {row.cells.map((c) => (
-                      <div
-                        key={c.date}
-                        title={`${c.date} · ${row.tag} · ${c.status === "ok" ? "정상" : c.status === "est" ? "추정·이상" : c.status === "bad" ? "결측" : "산정 제외"}`}
-                        className={`h-[13px] flex-1 rounded-[2px] ${HEAT_COLOR[c.status]}`}
-                      />
-                    ))}
+            <div className={`grid gap-4 ${selCell ? "grid-cols-[1fr_280px]" : "grid-cols-1"}`}>
+              <div className="flex flex-col gap-[3px]">
+                {heat.map((row) => (
+                  <div key={row.tag} className="flex items-center gap-2">
+                    <span className="tnum w-20 shrink-0 text-right text-[11.5px] text-body">{row.tag}</span>
+                    <div className="flex flex-1 gap-[3px]">
+                      {row.cells.map((c) => (
+                        <button
+                          key={c.date}
+                          onClick={() =>
+                            setSelCell(
+                              selCell?.tag === row.tag && selCell?.date === c.date
+                                ? null
+                                : { tag: row.tag, date: c.date, status: c.status },
+                            )
+                          }
+                          title={`${c.date} · ${row.tag}`}
+                          className={`h-[14px] flex-1 rounded-[2px] transition-transform hover:scale-y-125 ${HEAT_COLOR[c.status]} ${
+                            selCell?.tag === row.tag && selCell?.date === c.date ? "ring-2 ring-navy" : ""
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <div className="mt-0.5 flex items-center gap-2">
+                  <span className="w-20 shrink-0" />
+                  <div className="tnum flex flex-1 justify-between text-[10px] text-slate-400">
+                    <span>{heatMonth}-01</span>
+                    <span>{heatMonth}-{String(heat[0]?.cells.length ?? 30).padStart(2, "0")}</span>
                   </div>
                 </div>
-              ))}
-              <div className="mt-0.5 flex items-center gap-2">
-                <span className="w-20 shrink-0" />
-                <div className="tnum flex flex-1 justify-between text-[10px] text-slate-400">
-                  <span>{heatMonth}-01</span>
-                  <span>{heatMonth}-{String(heat[0]?.cells.length ?? 30).padStart(2, "0")}</span>
-                </div>
               </div>
+              {selCell && <HeatDetail cell={selCell} onClose={() => setSelCell(null)} />}
             </div>
           </section>
 
@@ -250,6 +345,7 @@ export default function DataVerify() {
                   <th className="py-1.5 font-medium">대상</th>
                   <th className="py-1.5 font-medium">검증 규칙·이슈</th>
                   <th className="py-1.5 font-medium">산정 영향</th>
+                  <th className="py-1.5 font-medium">담당자</th>
                   <th className="py-1.5 pl-3 font-medium">상태</th>
                 </tr>
               </thead>
@@ -271,6 +367,7 @@ export default function DataVerify() {
                         {i.affects ? "영향 있음" : "잠재 영향"}
                       </span>
                     </td>
+                    <td className="py-2 text-body">{i.owner}</td>
                     <td className="py-2 pl-3">
                       <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${stateBadge(i.state)}`}>{i.state}</span>
                     </td>

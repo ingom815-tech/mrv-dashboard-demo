@@ -14,7 +14,7 @@ import {
 import { mrv, reviewItems, type MonthPoint, type EquipGroup } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, deriveVerify, activeEf } from "../store";
-import ContextBar from "../components/ContextBar";
+import ContextBar, { TopActions } from "../components/ContextBar";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -68,14 +68,16 @@ function ChartTooltip({
   );
 }
 
-/* 절감량 월별 라벨 — 기준선 바로 아래 표기 */
+/* 절감량 라벨 — 최대 절감 월 1곳만 상시 표기, 나머지는 툴팁 (정보 위계) */
 const saveLabel = (props: { x?: number | string; y?: number | string; index?: number }, data: MonthPoint[]) => {
   const i = props.index ?? 0;
   const p = data[i];
   if (!p) return null;
+  const maxI = data.reduce((m, x, j) => (x.saveMWh > data[m].saveMWh ? j : m), 0);
+  if (i !== maxI) return null;
   return (
-    <text x={Number(props.x)} y={Number(props.y) + 16} fontSize={11.5} fontWeight={700} fill="#159f9e" textAnchor="middle">
-      ▼{Math.round(p.saveMWh)}
+    <text x={Number(props.x)} y={Number(props.y) + 17} fontSize={12.5} fontWeight={700} fill="#159f9e" textAnchor="middle">
+      ▼{Math.round(p.saveMWh)} MWh
     </text>
   );
 };
@@ -116,54 +118,75 @@ export default function Overview() {
   const [cumView, setCumView] = useState(false);
   const pendingItem = reviewItems.find((r) => reviewStates[r.id] === "검토 필요");
   const selPoint = selectedMonth ? calc.monthly.find((p) => p.month === selectedMonth) : null;
-  const statusLabel = verify.state === "승인 완료" ? "승인" : "잠정";
-
-  const assuranceRows = mrv.assurance.map((row) =>
-    row.stage === "Verification"
-      ? {
+  const approved = verify.state === "승인 완료";
+  const approvedAt = useUI((s) => s.audit).find((a) => a.action === "승인 완료")?.ts;
+  const approvedDate = approvedAt ? approvedAt.slice(0, 10) : "";
+  // 교정 만료(DQ-04) 처리 상태에 따라 Measurement 단계가 CONDITIONAL → PASS·EX로 전환
+  const dq04 = reviewStates["DQ-04"];
+  const assuranceRows = mrv.assurance.map((row) => {
+    if (row.stage === "Measurement") {
+      if (dq04 === "승인 완료")
+        return {
           ...row,
-          status: (verify.state === "승인 완료" ? "PASS" : "REVIEW") as typeof row.status,
-          evidence:
-            verify.pending > 0 ? `검토 대기 ${verify.pending}건 · 승인 전` : `검토 항목 처리 완료 · ${verify.state}`,
-        }
-      : row,
-  );
-  const passCount = assuranceRows.filter((r) => r.status === "PASS").length;
+          status: "PASS·EX" as const,
+          evidence: `정상률 ${pct(k.trustRate)} · 결측 ${pct(k.missRate, 2)} · 교정 만료 영향평가 완료 · 승인번호 VR-2026-014`,
+        };
+      return {
+        ...row,
+        status: "CONDITIONAL" as const,
+        evidence: `정상률 ${pct(k.trustRate)} · 결측 ${pct(k.missRate, 2)} · 교정 만료 1건(열량 KPI) 영향도 검토 필요`,
+      };
+    }
+    if (row.stage === "Verification")
+      return {
+        ...row,
+        status: (approved ? "PASS" : "REVIEW") as typeof row.status,
+        evidence:
+          verify.pending > 0 ? `검토 대기 ${verify.pending}건 · 승인 전` : `검토 항목 처리 완료 · ${verify.state}`,
+      };
+    return row;
+  });
+  const passCount = assuranceRows.filter((r) => r.status === "PASS" || r.status === "PASS·EX").length;
 
   return (
     <div className="flex h-screen min-h-0 flex-col gap-3 px-6 py-4">
-      <header className="flex shrink-0 items-center gap-2.5">
-        <h1 className="text-[21px] leading-tight font-bold text-navy">2026년 상반기 감축성과</h1>
-        <span
-          className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
-          title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다. (data_origin = SYNTHETIC)"
-        >
-          DEMO · 합성데이터
-        </span>
+      <header className="flex shrink-0 items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <h1 className="text-[21px] leading-tight font-bold text-navy">2026년 상반기 감축성과</h1>
+          <span
+            className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
+            title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다. (data_origin = SYNTHETIC)"
+          >
+            DEMO · 합성데이터
+          </span>
+        </div>
+        <TopActions />
       </header>
       <ContextBar />
 
       {/* 핵심 KPI 4개 */}
       <section className="grid shrink-0 grid-cols-4 gap-3" aria-label="핵심 성과">
-        <button onClick={() => setMenu("equipment")} className="rounded-[10px] border border-line/70 bg-white p-4 text-left transition-colors hover:border-accent/50">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-body">검증된 에너지 절감량</span>
-            <span className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${verify.state === "승인 완료" ? "bg-teal/10 text-teal" : "bg-review/10 text-review"}`}>
-              {statusLabel}
-            </span>
+        <button onClick={() => setMenu("equipment")} className="rounded-[10px] border border-line/60 bg-white p-4 text-left transition-colors hover:border-accent/50">
+          <div className="text-[13.5px] font-medium text-body">
+            {approved ? "검증 완료 절감량" : "잠정 산정 절감량"}
           </div>
           <div className="tnum mt-1.5 text-[30px] leading-none font-bold text-teal">
             {fmt(ck.saveMWh)} <span className="text-[15px] font-semibold">MWh</span>
           </div>
           <div className="tnum mt-2 text-[13px] text-body">
-            기준선 대비 <span className="font-semibold text-teal">{pct(ck.savePct)}</span> · 산정 {ck.nDays}일
+            기준선 대비 <span className="font-semibold text-teal">{pct(ck.savePct)}</span> ·{" "}
+            {approved ? `승인일 ${approvedDate}` : `검증 대기 ${verify.pending}건`}
           </div>
         </button>
-        <button onClick={() => setMenu("verify")} className="rounded-[10px] border border-line/70 bg-white p-4 text-left transition-colors hover:border-accent/50">
+        <button onClick={() => setMenu("verify")} className="rounded-[10px] border border-line/60 bg-white p-4 text-left transition-colors hover:border-accent/50">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-body">탄소 감축량</span>
-            <span className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${verify.state === "승인 완료" ? "bg-teal/10 text-teal" : "bg-review/10 text-review"}`}>
-              {statusLabel}
+            <span className="text-[13.5px] font-medium text-body">
+              {approved ? "승인 탄소감축량" : "잠정 탄소감축량"}
+            </span>
+            <span
+              className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${approved ? "bg-teal/10 text-teal" : "bg-review/10 text-review"}`}
+            >
+              {approved ? "승인" : verify.pending > 0 ? "검토 중" : "잠정"}
             </span>
           </div>
           <div className="tnum mt-1.5 text-[30px] leading-none font-bold text-navy">
@@ -183,8 +206,12 @@ export default function Overview() {
             <span className={`font-semibold ${verify.pending > 0 ? "text-review" : "text-teal"}`}>{verify.pending}건</span>
           </div>
         </button>
-        <button onClick={openEvidence} className="rounded-[10px] border border-line/70 bg-white p-4 text-left transition-colors hover:border-accent/50">
-          <div className="text-[13px] font-medium text-body">산정 불확도</div>
+        <button
+          onClick={openEvidence}
+          title="90% 신뢰수준 · 기준선 모델 오차(CV(RMSE))와 보고기간 데이터 수 반영 (IPMVP 근사) · 산정 버전 UNC-v1.0"
+          className="rounded-[10px] border border-line/60 bg-white p-4 text-left transition-colors hover:border-accent/50"
+        >
+          <div className="text-[13.5px] font-medium text-body">산정 불확도</div>
           <div className="tnum mt-1.5 text-[30px] leading-none font-bold text-navy">
             ±{fmt(ck.uncertaintyPct * 100, 1)}<span className="text-[15px] font-semibold">%</span>
           </div>
@@ -258,7 +285,7 @@ export default function Overview() {
                   <Area dataKey="saveMWh" stackId="band" stroke="none" fill="#159f9e" fillOpacity={0.09} isAnimationActive={false} />
                   {/* 조정 기준선 90% 신뢰구간 밴드 */}
                   <Area dataKey="bandLowMWh" stackId="ci" stroke="none" fill="transparent" isAnimationActive={false} />
-                  <Area dataKey="bandWidthMWh" stackId="ci" stroke="none" fill="#1e63c6" fillOpacity={0.1} isAnimationActive={false} />
+                  <Area dataKey="bandWidthMWh" stackId="ci" stroke="none" fill="#1e63c6" fillOpacity={0.16} isAnimationActive={false} />
                   <ReferenceLine x="1월" stroke="#159f9e" strokeDasharray="5 3" label={{ value: "개선 설비 가동", position: "insideBottomLeft", fontSize: 11, fill: "#159f9e" }} />
                   <Line dataKey="baseMWh" stroke="#1e63c6" strokeWidth={2} strokeDasharray="6 4" dot={false} isAnimationActive={false}>
                     <LabelList
@@ -326,11 +353,16 @@ export default function Overview() {
                     <span className="ml-1.5">{row.label}</span>
                   </div>
                   <span
-                    className={`tnum flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                      row.status === "PASS" ? "bg-teal/10 text-teal" : row.status === "REVIEW" ? "bg-review/10 text-review" : "bg-risk/10 text-risk"
+                    className={`tnum flex min-w-[92px] items-center justify-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                      row.status === "PASS" || row.status === "PASS·EX"
+                        ? "bg-teal/10 text-teal"
+                        : row.status === "FAIL"
+                          ? "bg-risk/10 text-risk"
+                          : "bg-review/10 text-review"
                     }`}
                   >
-                    <span className="text-[11px]">{row.status === "PASS" ? "✓" : "!"}</span> {row.status}
+                    <span className="text-[11px]">{row.status === "PASS" || row.status === "PASS·EX" ? "✓" : "!"}</span>{" "}
+                    {row.status}
                     <span className="font-medium text-slate-400">· {row.evidCount}</span>
                   </span>
                 </div>

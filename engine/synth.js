@@ -176,6 +176,16 @@
       // 통신 지연으로 일부 구간 보간 추정값 (월 1회 2시간)
       if (dt.getDate() === 17 && hour >= 2 && hour < 4) { status.CT_kW = STATUS.ESTIMATED; }
 
+      // ---------- 개별 센서 이벤트 (태그별 품질 패턴 다양화 — 전력 합산·기준선 산정에는 영향 없음) ----------
+      // 습구온도 센서 결측 5시간 — 접근온도 KPI만 영향 (WBT는 게이트 조건으로만 사용)
+      if (dateStr === "2026-01-17" && hour >= 3 && hour < 8) { values.WBT = null; status.WBT = STATUS.MISSING; }
+      // 냉수 공급온도 센서 드리프트 의심 2일 — 값 유지, 이상 플래그만
+      if (dateStr >= "2026-03-27" && dateStr <= "2026-03-28") status.CHW_sT = STATUS.OUTLIER;
+      // MES 점검으로 생산량 수기 입력 2일
+      if (dateStr >= "2026-04-02" && dateStr <= "2026-04-03") status.PROD = STATUS.MANUAL;
+      // 냉각수 입구온도 순간 이상 3시간 — 값 유지
+      if (dateStr === "2026-06-11" && hour >= 10 && hour < 13) status.CW_inT = STATUS.OUTLIER;
+
       rows.push({ t, date: dateStr, hour, post, v: values, s: status, excl: inMaint });
     }
 

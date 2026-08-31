@@ -512,10 +512,11 @@ const m = baseline.model;
 const nmbe = m
   ? m.resid.reduce((s: number, r: { r: number }) => s + r.r, 0) / ((m.n - 3) * m.yMean)
   : 0;
+export type AssuranceStatus = "PASS" | "REVIEW" | "FAIL" | "CONDITIONAL" | "PASS·EX";
 export interface AssuranceRow {
   stage: string;
   label: string;
-  status: "PASS" | "REVIEW" | "FAIL";
+  status: AssuranceStatus;
   evidence: string;
   evidCount: number; // 증적 건수 (데모)
 }
@@ -540,7 +541,7 @@ const assurance: AssuranceRow[] = [
     stage: "Calculation",
     label: "산정 재현",
     status: "PASS",
-    evidence: "seed 고정 결정론 산정 · 재현오차 0.00% · 회귀 테스트 11건 통과",
+    evidence: `재현오차 0.00% · 입력 스냅샷 #${((((data.meta.seed as number) >>> 0) * 2654435761) >>> 0).toString(16).slice(0, 6)} 확인 · 회귀 테스트 11건 통과`,
     evidCount: 2,
   },
   {
@@ -618,6 +619,9 @@ export const perfCurve = {
   normalBand: [pctl(loadPoints.filter((p) => p.period === "rep").map((p) => p.loadPct), 0.25), pctl(loadPoints.filter((p) => p.period === "rep").map((p) => p.loadPct), 0.9)] as [number, number],
   sameLoadImprovePct: impN ? impSum / impN : 0,
   domainX: [0, Math.ceil((pctl(loadPoints.map((p) => p.loadPct), 0.995) + 5) / 5) * 5] as [number, number],
+  nBase: loadPoints.filter((p) => p.period === "base").length,
+  nRep: loadPoints.filter((p) => p.period === "rep").length,
+  overlapRange: [Math.round(overlapLo), Math.round(overlapHi)] as [number, number],
 };
 
 // ---------- 절감 기여도 Waterfall (설비성과) ----------
@@ -636,14 +640,14 @@ const chillerMWh = compMWh("ch1") + compMWh("ch2");
 const wfItems = [
   { key: "chiller", label: "냉동기 교체", value: chillerMWh },
   { key: "chwp", label: "펌프 VFD 제어", value: compMWh("chwp") },
-  { key: "cwp", label: "냉각수펌프", value: compMWh("cwp") },
+  { key: "cwp", label: "냉각수계통 개선", value: compMWh("cwp") },
   { key: "ct", label: "냉각탑 최적화", value: compMWh("ct") },
 ];
 const wfSum = wfItems.reduce((s, x) => s + x.value, 0);
 export const waterfall: WaterfallItem[] = [
   ...wfItems.map((x) => ({ ...x, kind: "item" as const })),
-  { key: "resid", label: "기준선 보정 잔차", value: savings.sumSave / 1000 - wfSum, kind: "residual" },
-  { key: "total", label: "검증 절감량", value: savings.sumSave / 1000, kind: "total" },
+  { key: "resid", label: "기준선·생산량 보정", value: savings.sumSave / 1000 - wfSum, kind: "residual" },
+  { key: "total", label: "최종 잠정 절감량", value: savings.sumSave / 1000, kind: "total" },
 ];
 
 // ---------- 데이터 품질 히트맵 (태그 × 일, 월 단위) ----------
@@ -684,9 +688,24 @@ export interface QueueItem {
   rule: string;
   impact: string;
   affects: boolean;
-  state: string;
+  owner: string;
+  state: string; // 신규·조사 중·처리 대기·승인 대기·조치 완료·산정 제외
 }
 const sevMap: Record<string, "High" | "Medium" | "Low"> = { high: "High", mid: "Medium", low: "Low", info: "Low" };
+// 업무상태 통일: 신규 → 조사 중 → 처리 대기 → 승인 대기 → 조치 완료 / 산정 제외
+const queueState: Record<string, string> = {
+  "조치 완료": "조치 완료",
+  "규칙 적용": "조치 완료",
+  "검토 필요": "처리 대기",
+  "승인 완료": "산정 제외",
+};
+const queueOwner: Record<string, string> = {
+  "DQ-05": "계측팀(데모)",
+  "DQ-06": "계측팀(데모)",
+  "DQ-03": "자동 규칙",
+  "DQ-04": "계측팀(데모)",
+  "NR-02": "운영팀(데모)",
+};
 export const issueQueue: QueueItem[] = (
   quality.issues as Array<{ id: string; sev: string; period: string; tag: string; title: string; impact: string; state: string }>
 )
@@ -698,9 +717,34 @@ export const issueQueue: QueueItem[] = (
     rule: i.title,
     impact: i.impact,
     affects: /제외|추정/.test(i.impact),
-    state: i.state,
+    owner: queueOwner[i.id] ?? "—",
+    state: queueState[i.state] ?? i.state,
   }))
   .sort((a, b) => ["High", "Medium", "Low"].indexOf(a.sev) - ["High", "Medium", "Low"].indexOf(b.sev));
+
+// ---------- 태그 → 영향 KPI 매핑 (기준정보 Drawer·추적성) ----------
+export const tagKpiMap: Record<string, { kpis: string[]; inCalc: boolean; note?: string }> = {
+  CH1_kW: { kpis: ["SYS_kW 합산", "냉동기 1 kW/RT", "에너지 절감량"], inCalc: true },
+  CH2_kW: { kpis: ["SYS_kW 합산", "냉동기 2 kW/RT", "에너지 절감량"], inCalc: true },
+  CHWP_kW: { kpis: ["SYS_kW 합산", "반송동력", "에너지 절감량"], inCalc: true },
+  CWP_kW: { kpis: ["SYS_kW 합산", "에너지 절감량"], inCalc: true },
+  CT_kW: { kpis: ["SYS_kW 합산", "에너지 절감량"], inCalc: true },
+  SYS_kW: { kpis: ["일 사용량", "기준선 모델", "에너지 절감량"], inCalc: true },
+  CHW_flow: { kpis: ["Q_th", "COP", "kW/RT"], inCalc: false, note: "전력 산정에는 직접 사용되지 않음 — 열량 KPI 한정, 교정 만료 영향평가 대기" },
+  CHW_sT: { kpis: ["Q_th", "ΔT", "COP"], inCalc: false },
+  CHW_rT: { kpis: ["Q_th", "ΔT", "COP"], inCalc: false },
+  Q_th: { kpis: ["COP", "kW/RT", "부하율"], inCalc: false },
+  CW_inT: { kpis: ["접근온도"], inCalc: false },
+  OAT: { kpis: ["냉방도일(기준선 변수)"], inCalc: true },
+  WBT: { kpis: ["접근온도 산정 게이트"], inCalc: false },
+  PROD: { kpis: ["생산량(기준선 변수)"], inCalc: true },
+  CH_n: { kpis: ["운전대수·부하배분"], inCalc: false },
+};
+
+// 입력 데이터 스냅샷 의사 해시 (seed 기반 결정론 — 재현성 표시용)
+export const snapshotHash = ((((data.meta.seed as number) >>> 0) * 2654435761) >>> 0)
+  .toString(16)
+  .padStart(8, "0");
 
 // ---------- Asset Passport (기준정보, 데모 메타) ----------
 export interface AssetPassport {
