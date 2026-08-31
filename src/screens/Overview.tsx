@@ -224,9 +224,9 @@ export default function Overview() {
         </button>
       </section>
 
-      {/* 메인 차트 + MRV Assurance */}
-      <section className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[1fr_310px]">
-        <div className="relative flex min-h-0 flex-col rounded-[10px] border border-line/60 bg-white p-4">
+      {/* 메인 차트 (전폭) */}
+      <section className="flex min-h-0 flex-1 flex-col">
+        <div className="relative flex min-h-0 flex-1 flex-col rounded-[10px] border border-line/60 bg-white p-4">
           <div className="flex shrink-0 items-center justify-between">
             <div className="text-[15px] font-semibold text-navy">
               {cumView ? "누적 검증 절감량" : "조정 기준선 대비 실제 사용량"}
@@ -344,62 +344,61 @@ export default function Overview() {
           </div>
         </div>
 
-        {/* MRV Assurance 4단계 — 행 클릭 시 산정근거 열림. 내부 스크롤 없이 차트 높이에 맞춤 */}
-        <div className="flex min-h-0 flex-col rounded-[10px] border border-line/60 bg-white p-4">
-          <div className="flex shrink-0 items-center justify-between">
-            <span className="text-[15px] font-semibold text-navy">MRV Assurance</span>
-            <button onClick={() => setMenu("verify")} className="text-[12px] font-medium text-accent hover:underline">
-              검증 상세 ›
-            </button>
-          </div>
-          <div className="mt-2 flex min-h-0 flex-1 flex-col justify-start gap-1.5 overflow-hidden">
-            {assuranceRows.map((row) => (
-              <button
-                key={row.stage}
-                onClick={openEvidence}
-                title={`${row.evidence} · 증적 ${row.evidCount}건 — 클릭 시 산정근거`}
-                className="rounded-lg bg-surface/70 px-2.5 py-1.5 text-left transition-colors hover:bg-surface"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-baseline gap-1.5 text-[13px] font-semibold text-navy">
-                    <span className="shrink-0 text-[10px] tracking-wide text-slate-400 uppercase">{row.stage}</span>
-                    <span className="truncate">{row.label}</span>
-                  </div>
-                  <span
-                    className={`tnum flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${
-                      row.status === "PASS" || row.status === "PASS·EX"
-                        ? "bg-teal/10 text-teal"
-                        : row.status === "FAIL"
-                          ? "bg-risk/10 text-risk"
-                          : "bg-review/10 text-review"
-                    }`}
-                  >
-                    <span className="text-[11px]">{row.status === "PASS" || row.status === "PASS·EX" ? "✓" : "!"}</span>{" "}
-                    {row.status}
-                    <span className="font-medium opacity-60">{row.evidCount}</span>
-                  </span>
-                </div>
-                <div className="tnum mt-0.5 line-clamp-2 text-[12px] leading-snug text-body">{row.evidence}</div>
-              </button>
-            ))}
+      </section>
+
+      {/* MRV Assurance 4단계 — 가로 1줄, 카드 클릭 시 산정근거 열림 */}
+      <section className="shrink-0" aria-label="MRV Assurance">
+        <div className="mb-1.5 flex items-center justify-between">
+          <span className="text-[15px] font-semibold text-navy">MRV Assurance</span>
+          <div className="flex items-center gap-3">
             {verify.pending > 0 ? (
               <button
                 onClick={() => setMenu("verify")}
                 title={`${pendingItem?.title ?? ""}${verify.pending > 1 ? ` 외 ${verify.pending - 1}건` : ""}`}
-                className="rounded-lg bg-review/8 px-2.5 py-1.5 text-left transition-colors hover:bg-review/15"
+                className="rounded bg-review/10 px-2 py-0.5 text-[12px] font-semibold text-review transition-colors hover:bg-review/20"
               >
-                <div className="text-[12px] font-semibold text-review">검토 필요 {verify.pending}건 — 처리하기 ›</div>
-                <div className="mt-0.5 truncate text-[12px] text-body">
-                  {pendingItem?.title}
-                  {verify.pending > 1 && ` 외 ${verify.pending - 1}건`}
-                </div>
+                검토 필요 {verify.pending}건 — 처리하기 ›
               </button>
             ) : (
-              <div className="rounded-lg bg-teal/8 px-2.5 py-1.5 text-[12px] font-medium text-teal">
+              <span className="rounded bg-teal/10 px-2 py-0.5 text-[12px] font-semibold text-teal">
                 검토 항목 처리 완료 · {verify.state}
-              </div>
+              </span>
             )}
+            <button onClick={() => setMenu("verify")} className="text-[12px] font-medium text-accent hover:underline">
+              검증 상세 ›
+            </button>
           </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          {assuranceRows.map((row) => (
+            <button
+              key={row.stage}
+              onClick={openEvidence}
+              title={`${row.evidence} · 증적 ${row.evidCount}건 — 클릭 시 산정근거`}
+              className="rounded-[10px] border border-line/60 bg-white px-3.5 py-2.5 text-left transition-colors hover:border-accent/50"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-baseline gap-1.5 text-[13px] font-semibold text-navy">
+                  <span className="shrink-0 text-[10px] tracking-wide text-slate-400 uppercase">{row.stage}</span>
+                  <span className="truncate">{row.label}</span>
+                </div>
+                <span
+                  className={`tnum flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${
+                    row.status === "PASS" || row.status === "PASS·EX"
+                      ? "bg-teal/10 text-teal"
+                      : row.status === "FAIL"
+                        ? "bg-risk/10 text-risk"
+                        : "bg-review/10 text-review"
+                  }`}
+                >
+                  <span className="text-[11px]">{row.status === "PASS" || row.status === "PASS·EX" ? "✓" : "!"}</span>{" "}
+                  {row.status}
+                  <span className="font-medium opacity-60">{row.evidCount}</span>
+                </span>
+              </div>
+              <div className="tnum mt-1 truncate text-[12px] leading-snug text-body">{row.evidence}</div>
+            </button>
+          ))}
         </div>
       </section>
 
