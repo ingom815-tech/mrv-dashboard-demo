@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ComposedChart,
   Area,
@@ -8,97 +9,84 @@ import {
   Tooltip,
   ResponsiveContainer,
   LabelList,
+  ReferenceLine,
 } from "recharts";
 import { mrv, reviewItems, type MonthPoint, type EquipGroup } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, deriveVerify, activeEf } from "../store";
+import ContextBar from "../components/ContextBar";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
-
 const pct = (n: number, d = 1) => `${fmt(n * 100, d)}%`;
-
-/* 월 클릭 시 해당 월의 데이터 이슈·제외일 연결 (지시문 §9) */
-function monthIssues(month: string) {
-  const issues = mrv.quality.issues.filter((i: { period: string }) => i.period.includes(month));
-  const point = mrv.monthly.find((p) => p.month === month);
-  return { excl: point?.nExcluded ?? 0, est: point?.estDays ?? 0, issues };
-}
 
 function ChartTooltip({
   active,
   payload,
-  label,
 }: {
   active?: boolean;
   payload?: Array<{ payload: MonthPoint }>;
-  label?: string;
 }) {
   if (!active || !payload?.length) return null;
   const p = payload[0].payload;
   return (
-    <div className="rounded-lg border border-line bg-white px-3.5 py-3 text-[13px] shadow-sm">
-      <div className="mb-1.5 font-semibold text-navy">2026년 {label}</div>
+    <div className="rounded-lg border border-line bg-white px-4 py-3 text-[13px] shadow-md">
+      <div className="mb-1.5 font-semibold text-navy">2026년 {p.label}</div>
       <div className="tnum space-y-1 text-body">
-        <div>
-          조정 기준선 <span className="ml-1 font-semibold text-baseline">{fmt(p.baseMWh)} MWh</span>
+        <div className="flex justify-between gap-6">
+          <span>조정 기준선</span>
+          <span className="font-semibold text-baseline">{fmt(p.baseMWh, 1)} MWh</span>
         </div>
-        <div>
-          실제 사용량 <span className="ml-1 font-semibold text-navy">{fmt(p.actMWh)} MWh</span>
+        <div className="flex justify-between gap-6">
+          <span>실제 사용량</span>
+          <span className="font-semibold text-navy">{fmt(p.actMWh, 1)} MWh</span>
         </div>
-        <div>
-          절감량 <span className="ml-1 font-semibold text-teal">{fmt(p.saveMWh)} MWh</span>
+        <div className="flex justify-between gap-6">
+          <span>검증 절감량</span>
+          <span className="font-semibold text-teal">{fmt(p.saveMWh, 1)} MWh</span>
         </div>
-        <div className="pt-1">
-          데이터 상태:{" "}
-          {p.nExcluded > 0 || p.estDays > 0 ? (
-            <span className="text-review">
-              {p.nExcluded > 0 && `제외 ${p.nExcluded}일`}
-              {p.nExcluded > 0 && p.estDays > 0 && " · "}
-              {p.estDays > 0 && `추정 ${p.estDays}일`}
+        {p.nrAdjMWh !== 0 && (
+          <div className="flex justify-between gap-6">
+            <span>비일상 조정</span>
+            <span className="font-semibold text-accent">
+              {p.nrAdjMWh > 0 ? "+" : ""}
+              {fmt(p.nrAdjMWh, 1)} MWh
             </span>
-          ) : (
-            <span className="text-teal">정상</span>
-          )}
+          </div>
+        )}
+        <div className="flex justify-between gap-6">
+          <span>기준선 신뢰구간</span>
+          <span>±{fmt(p.bandMWh, 1)} MWh</span>
         </div>
-        <div className="pt-0.5 text-[11px] text-slate-400">클릭하면 산정근거·이슈를 확인</div>
+        {p.events.length > 0 ? (
+          <div className="border-t border-line/60 pt-1 text-review">{p.events.join(" · ")}</div>
+        ) : (
+          <div className="border-t border-line/60 pt-1 text-teal">데이터 정상</div>
+        )}
       </div>
     </div>
   );
 }
 
-/* 선 끝 직접 라벨 (지시문 §5: 범례 최소화) */
-const endLabel =
-  (text: string, color: string, dy = 4) =>
-  (props: { x?: number | string; y?: number | string; index?: number }) => {
-    if (props.index !== mrv.monthly.length - 1) return null;
-    return (
-      <text
-        x={Number(props.x) + 9}
-        y={Number(props.y) + dy}
-        fontSize={12}
-        fontWeight={600}
-        fill={color}
-      >
-        {text}
-      </text>
-    );
-  };
+/* 절감량 월별 라벨 — 기준선 바로 아래 표기 */
+const saveLabel = (props: { x?: number | string; y?: number | string; index?: number }, data: MonthPoint[]) => {
+  const i = props.index ?? 0;
+  const p = data[i];
+  if (!p) return null;
+  return (
+    <text x={Number(props.x)} y={Number(props.y) + 16} fontSize={11.5} fontWeight={700} fill="#159f9e" textAnchor="middle">
+      ▼{Math.round(p.saveMWh)}
+    </text>
+  );
+};
 
-/* 결측·제외·추정 월 이벤트 마커 (지시문 §5) */
-function eventDot(props: {
-  cx?: number;
-  cy?: number;
-  payload?: MonthPoint;
-  index?: number;
-}) {
+function eventDot(props: { cx?: number; cy?: number; payload?: MonthPoint; index?: number }) {
   const { cx, cy, payload } = props;
   if (cx === undefined || cy === undefined || !payload) return <g key={`d${props.index}`} />;
-  const flagged = payload.nExcluded > 0; // 제외 구간 포함 월만 마커 (추정은 툴팁으로)
   return (
     <g key={`d${props.index}`}>
       <circle cx={cx} cy={cy} r={3} fill="#102a43" />
-      {flagged && (
+      {payload.nExcluded > 0 && (
         <>
           <circle cx={cx} cy={cy} r={6.5} fill="none" stroke="#d97706" strokeWidth={1.5} />
           <text x={cx} y={cy - 11} fontSize={10} fontWeight={700} fill="#d97706" textAnchor="middle">
@@ -110,12 +98,6 @@ function eventDot(props: {
   );
 }
 
-const stateChip = {
-  ok: "bg-teal/10 text-teal",
-  warn: "bg-review/10 text-review",
-  review: "bg-review/10 text-review",
-} as const;
-
 const GROUP_FILTERS: Array<{ key: EquipGroup | "all"; label: string }> = [
   { key: "all", label: "전체" },
   { key: "heat", label: "열원" },
@@ -124,293 +106,240 @@ const GROUP_FILTERS: Array<{ key: EquipGroup | "all"; label: string }> = [
 ];
 
 export default function Overview() {
-  const { openEvidence, setMenu, selectedMonth, selectMonth, equipFilter, setEquipFilter, reviewStates } =
+  const { setMenu, selectedMonth, selectMonth, equipFilter, setEquipFilter, reviewStates, openEvidence } =
     useUI();
   const calc = useCalc();
   const ef = activeEf(useUI((s) => s.efList));
   const verify = deriveVerify(reviewStates);
   const ck = calc.kpi;
   const k = mrv.kpi;
-  const cov = mrv.coverage;
+  const [cumView, setCumView] = useState(false);
   const pendingItem = reviewItems.find((r) => reviewStates[r.id] === "검토 필요");
-  const sel = selectedMonth ? monthIssues(selectedMonth) : null;
-  const updatedAt = new Date(mrv.meta.generatedAt).toLocaleString("ko-KR", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const equipList = mrv.equip.filter((e) => equipFilter === "all" || e.group === equipFilter);
+  const selPoint = selectedMonth ? calc.monthly.find((p) => p.month === selectedMonth) : null;
+  const statusLabel = verify.state === "승인 완료" ? "승인" : "잠정";
+
+  const assuranceRows = mrv.assurance.map((row) =>
+    row.stage === "Verification"
+      ? {
+          ...row,
+          status: (verify.state === "승인 완료" ? "PASS" : "REVIEW") as typeof row.status,
+          evidence:
+            verify.pending > 0 ? `검토 대기 ${verify.pending}건 · 승인 전` : `검토 항목 처리 완료 · ${verify.state}`,
+        }
+      : row,
+  );
+  const passCount = assuranceRows.filter((r) => r.status === "PASS").length;
 
   return (
     <div className="flex h-screen min-h-0 flex-col gap-3 px-6 py-4">
-      {/* 헤더 — 지시문 §3.2: 정보 한 줄 + 주요 버튼 1개 */}
-      <header className="flex shrink-0 items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="shrink-0 text-[20px] leading-tight font-bold text-navy">
-            2026년 상반기 감축성과
-          </h1>
-          <span
-            className="shrink-0 cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
-            title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다. (data_origin = SYNTHETIC)"
-          >
-            DEMO · 합성데이터
-          </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <div className="tnum hidden items-center gap-1.5 text-[12px] text-body xl:flex">
-            <span className="font-semibold text-navy">{mrv.meta.site}</span>·
-            <span>{mrv.meta.boundary}</span>·<span>보고기간 {mrv.meta.periodLabel}</span>·
-            <span>{mrv.meta.aggLabel}</span>·
-            <span>
-              대상 설비 {mrv.meta.equipCount}대 · 계측 {mrv.meta.tagCount}점
-            </span>
-            ·<span>갱신 {updatedAt}</span>
-          </div>
-          <button
-            onClick={openEvidence}
-            className="rounded-lg bg-accent px-3.5 py-1.5 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
-          >
-            산정근거 보기
-          </button>
-        </div>
+      <header className="flex shrink-0 items-center gap-2.5">
+        <h1 className="text-[21px] leading-tight font-bold text-navy">2026년 상반기 감축성과</h1>
+        <span
+          className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
+          title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다. (data_origin = SYNTHETIC)"
+        >
+          DEMO · 합성데이터
+        </span>
       </header>
+      <ContextBar />
 
-      {/* 핵심 KPI 4개 — 지시문 §4 */}
+      {/* 핵심 KPI 4개 */}
       <section className="grid shrink-0 grid-cols-4 gap-3" aria-label="핵심 성과">
-        <button
-          onClick={() => setMenu("equipment")}
-          className="rounded-[10px] border border-line bg-white p-4 text-left transition-colors hover:border-accent/50"
-        >
-          <div className="text-[13px] font-medium text-body">에너지 절감</div>
-          <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-teal">
-            {fmt(ck.saveMWh)} <span className="text-[14px] font-semibold">MWh</span>
-          </div>
-          <div className="tnum mt-2 text-[12px] text-body">
-            기준선 대비 <span className="font-semibold text-teal">{pct(ck.savePct)}</span> · 산정{" "}
-            {ck.nDays}일 · 제외 {ck.nExcluded}일
-          </div>
-        </button>
-        <button
-          onClick={() => setMenu("verify")}
-          className="rounded-[10px] border border-line bg-white p-4 text-left transition-colors hover:border-accent/50"
-        >
-          <div className="text-[13px] font-medium text-body">탄소 감축</div>
-          <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
-            {fmt(ck.co2, 1)} <span className="text-[14px] font-semibold">tCO₂eq</span>
-          </div>
-          <div className="tnum mt-2 text-[12px] text-body">
-            배출계수 {ef.value} ({ef.baseYear}) · 냉매 배출 별도
-          </div>
-        </button>
-        <button
-          onClick={() => setMenu("verify")}
-          className="rounded-[10px] border border-line bg-white p-4 text-left transition-colors hover:border-accent/50"
-        >
+        <button onClick={() => setMenu("equipment")} className="rounded-[10px] border border-line/70 bg-white p-4 text-left transition-colors hover:border-accent/50">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-body">MRV 신뢰도</span>
-            <span
-              className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${
-                verify.state === "승인 완료" ? "bg-teal/10 text-teal" : "bg-review/10 text-review"
-              }`}
-            >
-              {verify.state}
+            <span className="text-[13px] font-medium text-body">검증된 에너지 절감량</span>
+            <span className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${verify.state === "승인 완료" ? "bg-teal/10 text-teal" : "bg-review/10 text-review"}`}>
+              {statusLabel}
             </span>
           </div>
-          <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
-            {fmt(k.trustRate * 100, 1)}
-            <span className="text-[14px] font-semibold">%</span>
+          <div className="tnum mt-1.5 text-[30px] leading-none font-bold text-teal">
+            {fmt(ck.saveMWh)} <span className="text-[15px] font-semibold">MWh</span>
           </div>
-          <div className="tnum mt-2 text-[12px] text-body">
-            정상률 {pct(k.trustRate)} · 검토 필요{" "}
-            <span className={`font-semibold ${verify.pending > 0 ? "text-review" : "text-teal"}`}>
-              {verify.pending}건
-            </span>
+          <div className="tnum mt-2 text-[13px] text-body">
+            기준선 대비 <span className="font-semibold text-teal">{pct(ck.savePct)}</span> · 산정 {ck.nDays}일
           </div>
         </button>
-        <button
-          onClick={() => setMenu("equipment")}
-          className="rounded-[10px] border border-line bg-white p-4 text-left transition-colors hover:border-accent/50"
-        >
-          <div className="text-[13px] font-medium text-body">설비 커버리지</div>
-          <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
-            {cov.collected} <span className="text-[14px] font-semibold">/ {cov.total}점</span>
+        <button onClick={() => setMenu("verify")} className="rounded-[10px] border border-line/70 bg-white p-4 text-left transition-colors hover:border-accent/50">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-medium text-body">탄소 감축량</span>
+            <span className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${verify.state === "승인 완료" ? "bg-teal/10 text-teal" : "bg-review/10 text-review"}`}>
+              {statusLabel}
+            </span>
           </div>
-          <div className="tnum mt-2 text-[12px] text-body">
-            정상 {cov.ok} · <span className="font-semibold text-review">주의 {cov.warn}</span> ·
-            미수집 {cov.missing}
+          <div className="tnum mt-1.5 text-[30px] leading-none font-bold text-navy">
+            {fmt(ck.co2, 1)} <span className="text-[15px] font-semibold">tCO₂eq</span>
+          </div>
+          <div className="tnum mt-2 text-[13px] text-body">
+            배출계수 {ef.version} · {ef.value} <span className="text-slate-400">(소비단·데모)</span>
+          </div>
+        </button>
+        <button onClick={() => setMenu("verify")} className="rounded-[10px] border border-line/70 bg-white p-4 text-left transition-colors hover:border-accent/50">
+          <div className="text-[13px] font-medium text-body">MRV 검증 상태</div>
+          <div className={`tnum mt-1.5 text-[30px] leading-none font-bold ${verify.state === "승인 완료" ? "text-teal" : "text-review"}`}>
+            {verify.state === "승인 완료" ? "PASS" : "REVIEW"}
+          </div>
+          <div className="tnum mt-2 text-[13px] text-body">
+            4단계 중 <span className="font-semibold text-navy">{passCount}단계</span> 통과 · 대기{" "}
+            <span className={`font-semibold ${verify.pending > 0 ? "text-review" : "text-teal"}`}>{verify.pending}건</span>
+          </div>
+        </button>
+        <button onClick={openEvidence} className="rounded-[10px] border border-line/70 bg-white p-4 text-left transition-colors hover:border-accent/50">
+          <div className="text-[13px] font-medium text-body">산정 불확도</div>
+          <div className="tnum mt-1.5 text-[30px] leading-none font-bold text-navy">
+            ±{fmt(ck.uncertaintyPct * 100, 1)}<span className="text-[15px] font-semibold">%</span>
+          </div>
+          <div className="tnum mt-2 text-[13px] text-body">
+            90% 신뢰수준 · CV(RMSE) 기반 · 데이터 정상률 {pct(k.trustRate)}
           </div>
         </button>
       </section>
 
-      {/* 메인 차트 + MRV Assurance — 지시문 §5·§6 */}
-      <section className="grid min-h-0 flex-1 grid-cols-[1fr_300px] gap-3">
-        <div className="relative flex min-h-0 flex-col rounded-[10px] border border-line bg-white p-4">
+      {/* 메인 차트 + MRV Assurance */}
+      <section className="grid min-h-0 flex-1 grid-cols-[1fr_310px] gap-3">
+        <div className="relative flex min-h-0 flex-col rounded-[10px] border border-line/70 bg-white p-4">
           <div className="flex shrink-0 items-center justify-between">
-            <div className="text-[14px] font-semibold text-navy">조정 기준선 대비 실제 사용량</div>
-            <div className="text-[12px] text-body">단위 MWh/월</div>
-          </div>
-          {/* 차트 내부 절감 성과 강조 (지시문 §5) */}
-          <div className="pointer-events-none absolute top-12 left-16 z-10">
-            <div className="tnum text-[22px] leading-none font-bold text-teal">
-              {fmt(ck.saveMWh)} MWh 절감
+            <div className="text-[15px] font-semibold text-navy">
+              {cumView ? "누적 검증 절감량" : "조정 기준선 대비 실제 사용량"}
             </div>
-            <div className="tnum mt-1 text-[13px] text-body">기준선 대비 {pct(ck.savePct)}</div>
+            <div className="flex items-center gap-3">
+              <span className="text-[12px] text-slate-400">단위 MWh/월</span>
+              <div className="flex overflow-hidden rounded-md border border-line text-[12px]">
+                <button onClick={() => setCumView(false)} className={`px-2.5 py-1 ${!cumView ? "bg-navy font-semibold text-white" : "text-body"}`}>
+                  월별
+                </button>
+                <button onClick={() => setCumView(true)} className={`px-2.5 py-1 ${cumView ? "bg-navy font-semibold text-white" : "text-body"}`}>
+                  누적
+                </button>
+              </div>
+            </div>
           </div>
+          {!cumView && (
+            <div className="pointer-events-none absolute top-14 left-16 z-10">
+              <div className="tnum text-[23px] leading-none font-bold text-teal">{fmt(ck.saveMWh)} MWh 절감</div>
+              <div className="tnum mt-1 text-[13px] text-body">
+                기준선 대비 {pct(ck.savePct)} · 불확도 ±{fmt(ck.uncertaintyPct * 100, 1)}%
+              </div>
+            </div>
+          )}
           <div className="min-h-0 flex-1 pt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart
-                data={calc.monthly}
-                margin={{ top: 26, right: 86, bottom: 0, left: 0 }}
-                onClick={(s) => {
-                  const label = (s as { activeLabel?: string }).activeLabel;
-                  const m = mrv.monthly.find((x) => x.label === label);
-                  selectMonth(m ? (selectedMonth === m.month ? null : m.month) : null);
-                }}
-              >
-                <CartesianGrid stroke="#dde4ec" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 12, fill: "#667085" }}
-                  axisLine={{ stroke: "#dde4ec" }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 12, fill: "#667085" }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={44}
-                  tickFormatter={(v: number) => fmt(v)}
-                />
-                <Tooltip
-                  content={<ChartTooltip />}
-                  cursor={{ stroke: "#c3cdd9", strokeDasharray: "3 3" }}
-                />
-                {/* 실제 사용량 위에 절감량을 쌓아 기준선까지의 절감 구간을 면으로 표현 */}
-                <Area
-                  dataKey="actMWh"
-                  stackId="band"
-                  stroke="none"
-                  fill="transparent"
-                  isAnimationActive={false}
-                />
-                <Area
-                  dataKey="saveMWh"
-                  stackId="band"
-                  stroke="none"
-                  fill="#159f9e"
-                  fillOpacity={0.1}
-                  isAnimationActive={false}
-                />
-                <Line
-                  dataKey="baseMWh"
-                  stroke="#1e63c6"
-                  strokeWidth={2}
-                  strokeDasharray="6 4"
-                  dot={false}
-                  isAnimationActive={false}
+              {cumView ? (
+                <ComposedChart data={calc.monthly} margin={{ top: 22, right: 24, bottom: 0, left: 0 }}>
+                  <CartesianGrid stroke="#eaeff5" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 13, fill: "#667085" }} axisLine={{ stroke: "#eaeff5" }} tickLine={false} />
+                  <YAxis tick={{ fontSize: 13, fill: "#8a94a6" }} axisLine={false} tickLine={false} width={44} tickFormatter={(v: number) => fmt(v)} />
+                  <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#c3cdd9", strokeDasharray: "3 3" }} />
+                  <Area dataKey="cumSaveMWh" stroke="#159f9e" strokeWidth={2.5} fill="#159f9e" fillOpacity={0.12} isAnimationActive={false}>
+                    <LabelList
+                      content={(p: { x?: number | string; y?: number | string; index?: number }) => (
+                        <text x={Number(p.x)} y={Number(p.y) - 8} fontSize={11.5} fontWeight={700} fill="#159f9e" textAnchor="middle">
+                          {Math.round(calc.monthly[p.index ?? 0]?.cumSaveMWh ?? 0)}
+                        </text>
+                      )}
+                    />
+                  </Area>
+                </ComposedChart>
+              ) : (
+                <ComposedChart
+                  data={calc.monthly}
+                  margin={{ top: 26, right: 86, bottom: 0, left: 0 }}
+                  onClick={(s) => {
+                    const label = (s as { activeLabel?: string }).activeLabel;
+                    const m = calc.monthly.find((x) => x.label === label);
+                    selectMonth(m ? (selectedMonth === m.month ? null : m.month) : null);
+                  }}
                 >
-                  <LabelList content={endLabel("조정 기준선", "#1e63c6", -2)} />
-                </Line>
-                <Line
-                  dataKey="actMWh"
-                  stroke="#102a43"
-                  strokeWidth={2.5}
-                  dot={eventDot}
-                  isAnimationActive={false}
-                >
-                  <LabelList content={endLabel("실제 사용량", "#102a43", 12)} />
-                </Line>
-              </ComposedChart>
+                  <CartesianGrid stroke="#eaeff5" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 13, fill: "#667085" }} axisLine={{ stroke: "#eaeff5" }} tickLine={false} />
+                  <YAxis tick={{ fontSize: 13, fill: "#8a94a6" }} axisLine={false} tickLine={false} width={44} tickFormatter={(v: number) => fmt(v)} />
+                  <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#c3cdd9", strokeDasharray: "3 3" }} />
+                  {/* 절감 구간 음영 (실제 → 기준선) */}
+                  <Area dataKey="actMWh" stackId="band" stroke="none" fill="transparent" isAnimationActive={false} />
+                  <Area dataKey="saveMWh" stackId="band" stroke="none" fill="#159f9e" fillOpacity={0.09} isAnimationActive={false} />
+                  {/* 조정 기준선 90% 신뢰구간 밴드 */}
+                  <Area dataKey="bandLowMWh" stackId="ci" stroke="none" fill="transparent" isAnimationActive={false} />
+                  <Area dataKey="bandWidthMWh" stackId="ci" stroke="none" fill="#1e63c6" fillOpacity={0.1} isAnimationActive={false} />
+                  <ReferenceLine x="1월" stroke="#159f9e" strokeDasharray="5 3" label={{ value: "개선 설비 가동", position: "insideBottomLeft", fontSize: 11, fill: "#159f9e" }} />
+                  <Line dataKey="baseMWh" stroke="#1e63c6" strokeWidth={2} strokeDasharray="6 4" dot={false} isAnimationActive={false}>
+                    <LabelList
+                      content={(p: { x?: number | string; y?: number | string; index?: number }) =>
+                        p.index === calc.monthly.length - 1 ? (
+                          <text x={Number(p.x) + 9} y={Number(p.y) - 2} fontSize={12} fontWeight={600} fill="#1e63c6">
+                            조정 기준선
+                          </text>
+                        ) : (
+                          saveLabel(p, calc.monthly)
+                        )
+                      }
+                    />
+                  </Line>
+                  <Line dataKey="actMWh" stroke="#102a43" strokeWidth={2.5} dot={eventDot} isAnimationActive={false}>
+                    <LabelList
+                      content={(p: { x?: number | string; y?: number | string; index?: number }) =>
+                        p.index === calc.monthly.length - 1 ? (
+                          <text x={Number(p.x) + 9} y={Number(p.y) + 12} fontSize={12} fontWeight={600} fill="#102a43">
+                            실제 사용량
+                          </text>
+                        ) : null
+                      }
+                    />
+                  </Line>
+                </ComposedChart>
+              )}
             </ResponsiveContainer>
           </div>
           <div className="flex shrink-0 items-center justify-between gap-4 text-[12px]">
             <div className="min-w-0 truncate text-body">
-              {sel ? (
+              {selPoint ? (
                 <span className="tnum">
-                  <span className="font-semibold text-navy">
-                    {Number(selectedMonth!.slice(5))}월
-                  </span>{" "}
-                  — 제외 {sel.excl}일 · 추정 {sel.est}일
-                  {sel.issues.length > 0 && (
-                    <>
-                      {" "}
-                      ·{" "}
-                      {sel.issues
-                        .map((i: { id: string; title: string }) => `${i.id} ${i.title}`)
-                        .join(" · ")}
-                    </>
-                  )}
+                  <span className="font-semibold text-navy">{selPoint.label}</span> — 절감{" "}
+                  <b className="text-teal">{fmt(selPoint.saveMWh, 1)} MWh</b> · 기준선 ±{fmt(selPoint.bandMWh, 1)} ·{" "}
+                  {selPoint.events.length ? selPoint.events.join(" · ") : "데이터 정상"}
                 </span>
               ) : (
                 <span>
-                  <span className="font-semibold text-review">!</span> 표시 월은 산정 제외 구간 포함
-                  · 월 클릭 시 상세
+                  <span className="text-baseline">▨</span> 기준선 신뢰구간(90%) ·{" "}
+                  <span className="font-semibold text-review">!</span> 산정 제외 월 · 월 클릭 시 상세
                 </span>
               )}
             </div>
             <div className="flex shrink-0 gap-4">
-              <button
-                onClick={() => setMenu("verify")}
-                className="font-medium text-accent hover:underline"
-              >
+              <button onClick={() => setMenu("verify")} className="font-medium text-accent hover:underline">
                 데이터 이슈 ›
               </button>
-              <button
-                onClick={() => setMenu("equipment")}
-                className="font-medium text-accent hover:underline"
-              >
+              <button onClick={() => setMenu("equipment")} className="font-medium text-accent hover:underline">
                 설비 원인 ›
               </button>
             </div>
           </div>
         </div>
 
-        {/* MRV Assurance 패널 — 지시문 §6 */}
-        <div className="flex min-h-0 flex-col rounded-[10px] border border-line bg-white p-4">
-          <div className="shrink-0 text-[14px] font-semibold text-navy">MRV Assurance</div>
-          <div className="mt-3 flex flex-col gap-2.5">
-            {mrv.assurance
-              .map((row) =>
-                row.stage === "Verification"
-                  ? {
-                      ...row,
-                      status: (verify.state === "승인 완료" ? "PASS" : "REVIEW") as typeof row.status,
-                      evidence:
-                        verify.pending > 0
-                          ? `검토 필요 ${verify.pending}건 · 승인 전`
-                          : `검토 항목 처리 완료 · ${verify.state}`,
-                    }
-                  : row,
-              )
-              .map((row) => (
-              <div key={row.stage} className="rounded-lg border border-line px-3 py-2.5">
+        {/* MRV Assurance 4단계 — 행 클릭 시 산정근거 열림 */}
+        <div className="flex min-h-0 flex-col overflow-y-auto rounded-[10px] border border-line/70 bg-white p-4">
+          <div className="shrink-0 text-[15px] font-semibold text-navy">MRV Assurance</div>
+          <div className="mt-2.5 flex flex-col gap-1.5">
+            {assuranceRows.map((row) => (
+              <button key={row.stage} onClick={openEvidence} className="rounded-lg bg-surface/70 px-3 py-2 text-left transition-colors hover:bg-surface">
                 <div className="flex items-center justify-between">
-                  <div className="text-[12px] font-semibold text-navy">
-                    <span className="text-[10px] tracking-wide text-slate-400 uppercase">
-                      {row.stage}
-                    </span>
+                  <div className="text-[13px] font-semibold text-navy">
+                    <span className="text-[10px] tracking-wide text-slate-400 uppercase">{row.stage}</span>
                     <span className="ml-1.5">{row.label}</span>
                   </div>
                   <span
-                    className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                      row.status === "PASS"
-                        ? "bg-teal/10 text-teal"
-                        : row.status === "REVIEW"
-                          ? "bg-review/10 text-review"
-                          : "bg-risk/10 text-risk"
+                    className={`tnum flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                      row.status === "PASS" ? "bg-teal/10 text-teal" : row.status === "REVIEW" ? "bg-review/10 text-review" : "bg-risk/10 text-risk"
                     }`}
                   >
-                    {row.status}
+                    <span className="text-[11px]">{row.status === "PASS" ? "✓" : "!"}</span> {row.status}
+                    <span className="font-medium text-slate-400">· {row.evidCount}</span>
                   </span>
                 </div>
-                <div className="tnum mt-1 text-[12px] leading-relaxed text-body">{row.evidence}</div>
-              </div>
+                <div className="tnum mt-0.5 text-[12px] leading-snug text-body">{row.evidence}</div>
+              </button>
             ))}
           </div>
           {verify.pending > 0 ? (
-            <div className="mt-3 rounded-lg bg-review/8 px-3 py-2.5">
+            <div className="mt-2.5 rounded-lg bg-review/8 px-3 py-2.5">
               <div className="text-[12px] font-semibold text-review">검토 필요 {verify.pending}건</div>
               <div className="mt-0.5 text-[12px] leading-relaxed text-body">
                 {pendingItem?.title}
@@ -418,65 +347,28 @@ export default function Overview() {
               </div>
             </div>
           ) : (
-            <div className="mt-3 rounded-lg bg-teal/8 px-3 py-2.5 text-[12px] font-medium text-teal">
+            <div className="mt-2.5 rounded-lg bg-teal/8 px-3 py-2.5 text-[12px] font-medium text-teal">
               검토 항목 처리 완료 · {verify.state}
             </div>
           )}
-          <button
-            onClick={() => setMenu("verify")}
-            className="mt-2.5 text-left text-[13px] font-medium text-accent hover:underline"
-          >
+          <button onClick={() => setMenu("verify")} className="mt-2 text-left text-[13px] font-medium text-accent hover:underline">
             검증 상세 보기 ›
           </button>
         </div>
       </section>
 
-      {/* Traceability Strip — 지시문 §7 */}
-      <div className="tnum flex shrink-0 items-center gap-2 rounded-[10px] border border-line bg-white px-4 py-2 text-[12px] text-body">
-        <span className="font-semibold text-navy">추적성</span>
-        <span className="text-line">|</span>
-        <span>
-          기준선 모델 <b className="font-semibold text-navy">{mrv.baseline.version}</b>
-        </span>
-        ·
-        <span>
-          계산버전 <b className="font-semibold text-navy">{calc.version}</b>
-        </span>
-        ·
-        <span>
-          수집률 <b className="font-semibold text-navy">{pct(k.collectRate)}</b>
-        </span>
-        ·
-        <span>
-          검증 상태{" "}
-          <b className={`font-semibold ${verify.state === "승인 완료" ? "text-teal" : "text-review"}`}>
-            {verify.state}
-          </b>
-        </span>
-        ·<span>최종 산정 {updatedAt}</span>·
-        <span>담당 {verify.state === "승인 완료" ? "MRV 담당자(데모)" : "— (승인 전)"}</span>
-        <button
-          onClick={openEvidence}
-          className="ml-auto font-medium text-accent hover:underline"
-        >
-          산정근거 ›
-        </button>
-      </div>
-
-      {/* 설비군 대표 KPI — 지시문 §8 */}
+      {/* 설비군 대표 KPI */}
       <section className="shrink-0" aria-label="설비별 성과">
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-[14px] font-semibold text-navy">설비별 성과</span>
+            <span className="text-[15px] font-semibold text-navy">설비별 성과</span>
             <div className="flex gap-1">
               {GROUP_FILTERS.map((g) => (
                 <button
                   key={g.key}
                   onClick={() => setEquipFilter(g.key)}
                   className={`rounded px-2 py-0.5 text-[12px] transition-colors ${
-                    equipFilter === g.key
-                      ? "bg-navy font-semibold text-white"
-                      : "bg-white text-body hover:text-navy"
+                    equipFilter === g.key ? "bg-navy font-semibold text-white" : "text-body hover:text-navy"
                   }`}
                 >
                   {g.label}
@@ -484,41 +376,33 @@ export default function Overview() {
               ))}
             </div>
           </div>
-          <button
-            onClick={() => setMenu("equipment")}
-            className="text-[12px] font-medium text-accent hover:underline"
-          >
+          <button onClick={() => setMenu("equipment")} className="text-[12px] font-medium text-accent hover:underline">
             설비성과 상세 ›
           </button>
         </div>
         <div className="grid grid-cols-5 gap-3">
-          {equipList.map((e) => (
-            <button
-              key={e.key}
-              onClick={() => setMenu("equipment")}
-              className="rounded-[10px] border border-line bg-white p-3 text-left transition-colors hover:border-accent/50"
-            >
-              <div className="flex items-center justify-between gap-1">
-                <span className="truncate text-[12px] font-semibold text-navy">{e.name}</span>
-                <span
-                  className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${stateChip[e.state]}`}
-                >
-                  {e.stateLabel}
-                </span>
-              </div>
-              <div className="tnum mt-1.5 text-[19px] leading-none font-bold text-navy">
-                {e.kpiValue} <span className="text-[11px] font-semibold text-body">{e.kpiLabel}</span>
-              </div>
-              <div className="tnum mt-1.5 text-[11px] text-body">
-                {e.deltaLabel}{" "}
-                <span className={`font-semibold ${e.deltaPct < 0 ? "text-teal" : "text-review"}`}>
-                  {e.deltaPct > 0 ? "+" : ""}
-                  {pct(e.deltaPct)}
-                </span>{" "}
-                · {e.shareText}
-              </div>
-            </button>
-          ))}
+          {mrv.equip
+            .filter((e) => equipFilter === "all" || e.group === equipFilter)
+            .map((e) => (
+              <button key={e.key} onClick={() => setMenu("equipment")} className="rounded-[10px] border border-line/70 bg-white p-3 text-left transition-colors hover:border-accent/50">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="truncate text-[12px] font-semibold text-navy">{e.name}</span>
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${e.state === "ok" ? "bg-teal/10 text-teal" : "bg-review/10 text-review"}`}>
+                    {e.stateLabel}
+                  </span>
+                </div>
+                <div className="tnum mt-1.5 text-[20px] leading-none font-bold text-navy">
+                  {e.kpiValue} <span className="text-[11px] font-semibold text-body">{e.kpiLabel}</span>
+                </div>
+                <div className="tnum mt-1.5 text-[12px] text-body">
+                  <span className={`font-semibold ${e.deltaPct < 0 ? "text-teal" : "text-review"}`}>
+                    {e.deltaPct > 0 ? "+" : ""}
+                    {pct(e.deltaPct)}
+                  </span>{" "}
+                  · {e.shareText}
+                </div>
+              </button>
+            ))}
         </div>
       </section>
     </div>

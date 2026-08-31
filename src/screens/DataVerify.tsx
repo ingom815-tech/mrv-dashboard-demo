@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { mrv, reviewItems, type NonRoutine } from "../lib/mrvData";
+import { useMemo, useState } from "react";
+import { mrv, reviewItems, issueQueue, qualityHeatmap, type NonRoutine, type HeatStatus } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
-import { useUI, deriveVerify, activeEf, type Role } from "../store";
+import { useUI, deriveVerify, activeEf } from "../store";
+import ContextBar from "../components/ContextBar";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -20,33 +21,15 @@ type TagQ = {
   expired: boolean | string;
   meter: { type?: string; accuracy?: string; calib?: string; expiry?: string };
 };
-type Issue = {
-  id: string;
-  type: string;
-  sev: string;
-  title: string;
-  period: string;
-  tag: string;
-  impact: string;
-  action: string;
-  state: string;
-};
-
 const TABS = [
   { key: "quality", label: "데이터 품질" },
+  { key: "tags", label: "태그 상세" },
   { key: "approve", label: "검토·승인" },
   { key: "report", label: "보고서·이력" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
 const STATUS_CODES = ["VALID", "MISSING", "OUTLIER", "ESTIMATED", "MANUAL", "SYNTHETIC", "INVALID"];
-
-const sevColor: Record<string, string> = {
-  high: "bg-risk",
-  mid: "bg-review",
-  low: "bg-accent",
-  info: "bg-teal",
-};
 
 function download(name: string, content: string, type: string) {
   const blob = new Blob([content], { type });
@@ -72,14 +55,28 @@ const initialTab = (): TabKey => {
   return (TABS.find((t) => t.key === seg)?.key ?? "quality") as TabKey;
 };
 
+const HEAT_COLOR: Record<HeatStatus, string> = {
+  ok: "bg-teal/25",
+  est: "bg-review/70",
+  bad: "bg-risk/80",
+  excl: "bg-slate-300",
+};
+const SEV_BADGE: Record<string, string> = {
+  High: "bg-risk/10 text-risk",
+  Medium: "bg-review/10 text-review",
+  Low: "bg-accent/10 text-accent",
+};
+
 export default function DataVerify() {
   const [tab, setTab] = useState<TabKey>(initialTab);
-  const { role, setRole, reviewStates, markReviewed, approve, audit, resetDemoStates, openEvidence } =
-    useUI();
+  const [heatMonth, setHeatMonth] = useState("2026-02");
+  const { role, reviewStates, markReviewed, approve, audit, resetDemoStates } = useUI();
   const calc = useCalc();
   const ef = activeEf(useUI((s) => s.efList));
   const q = mrv.quality;
   const verify = deriveVerify(reviewStates);
+  const heat = useMemo(() => qualityHeatmap(heatMonth), [heatMonth]);
+  const affectsCount = issueQueue.filter((i) => i.affects).length;
 
   const csvExport = () => {
     const head = "# DEMO · 합성데이터 — 공식 MRV 사용 불가\n월,조정기준선(MWh),실제(MWh),절감(MWh),절감률,제외일\n";
@@ -123,29 +120,8 @@ export default function DataVerify() {
             DEMO · 합성데이터
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-[12px] text-body">
-            <span>역할</span>
-            {(["일반", "검토자", "승인자"] as Role[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRole(r)}
-                className={`rounded px-2 py-0.5 transition-colors ${
-                  role === r ? "bg-navy font-semibold text-white" : "bg-white text-body hover:text-navy"
-                }`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={openEvidence}
-            className="rounded-lg border border-line bg-white px-3 py-1.5 text-[13px] font-medium text-navy transition-colors hover:border-accent/50"
-          >
-            산정근거
-          </button>
-        </div>
       </header>
+      <ContextBar />
 
       {/* 탭 */}
       <div className="flex shrink-0 gap-1 border-b border-line">
@@ -169,29 +145,150 @@ export default function DataVerify() {
         ))}
       </div>
 
-      {/* ---------- 탭 1: 데이터 품질 ---------- */}
+      {/* ---------- 탭 1: 데이터 품질 (검증 큐 중심) ---------- */}
       {tab === "quality" && (
         <>
           <section className="grid shrink-0 grid-cols-4 gap-3">
-            {[
-              { label: "수집률", v: q.totals.collectRate, good: true },
-              { label: "정상률", v: q.totals.validRate, good: true },
-              { label: "결측률", v: q.totals.missRate, good: false },
-              { label: "추정률", v: q.totals.estRate, good: false },
-            ].map((t) => (
-              <div key={t.label} className="rounded-[10px] border border-line bg-white p-4">
-                <div className="text-[13px] font-medium text-body">{t.label}</div>
-                <div className="tnum mt-1.5 text-[24px] leading-none font-bold text-navy">
-                  {pct(t.v, 2)}
-                </div>
-                <div className="mt-1.5 text-[11px] text-body">
-                  보고기간 전체 태그 15분 레코드 기준
-                </div>
+            <div className="rounded-[10px] border border-line/70 bg-white p-4">
+              <div className="text-[13px] font-medium text-body">검증 대상 레코드</div>
+              <div className="tnum mt-1.5 text-[26px] leading-none font-bold text-navy">
+                {fmt(q.totals.n)} <span className="text-[13px] font-semibold text-body">건</span>
               </div>
-            ))}
+              <div className="mt-1.5 text-[12px] text-body">보고기간 15분 레코드 × 태그 15점</div>
+            </div>
+            <div className="rounded-[10px] border border-line/70 bg-white p-4">
+              <div className="text-[13px] font-medium text-body">자동검증 통과</div>
+              <div className="tnum mt-1.5 text-[26px] leading-none font-bold text-teal">
+                {pct(q.totals.validRate, 2)}
+              </div>
+              <div className="tnum mt-1.5 text-[12px] text-body">
+                결측 {pct(q.totals.missRate, 2)} · 추정 {pct(q.totals.estRate, 2)}
+              </div>
+            </div>
+            <div className="rounded-[10px] border border-line/70 bg-white p-4">
+              <div className="text-[13px] font-medium text-body">처리 대기 이슈</div>
+              <div className={`tnum mt-1.5 text-[26px] leading-none font-bold ${verify.pending > 0 ? "text-review" : "text-teal"}`}>
+                {verify.pending} <span className="text-[13px] font-semibold text-body">건</span>
+              </div>
+              <div className="mt-1.5 text-[12px] text-body">검토·승인 탭에서 처리</div>
+            </div>
+            <div className="rounded-[10px] border border-line/70 bg-white p-4">
+              <div className="text-[13px] font-medium text-body">산정 영향 이슈</div>
+              <div className="tnum mt-1.5 text-[26px] leading-none font-bold text-navy">
+                {affectsCount} <span className="text-[13px] font-semibold text-body">건</span>
+              </div>
+              <div className="mt-1.5 text-[12px] text-body">제외·추정 규칙이 적용된 이슈</div>
+            </div>
           </section>
 
-          <section className="rounded-[10px] border border-line bg-white p-4">
+          {/* 태그 × 일 품질 히트맵 */}
+          <section className="rounded-[10px] border border-line/70 bg-white p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[15px] font-semibold text-navy">데이터 품질 히트맵 (태그 × 일)</span>
+              <div className="flex items-center gap-3">
+                <div className="flex gap-1">
+                  {["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"].map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setHeatMonth(m)}
+                      className={`tnum rounded px-2 py-0.5 text-[12px] transition-colors ${
+                        heatMonth === m ? "bg-navy font-semibold text-white" : "text-body hover:text-navy"
+                      }`}
+                    >
+                      {Number(m.slice(5))}월
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-body">
+                  <span className="flex items-center gap-1"><span className="size-2.5 rounded-[2px] bg-teal/25" /> 정상</span>
+                  <span className="flex items-center gap-1"><span className="size-2.5 rounded-[2px] bg-review/70" /> 추정·이상</span>
+                  <span className="flex items-center gap-1"><span className="size-2.5 rounded-[2px] bg-risk/80" /> 결측</span>
+                  <span className="flex items-center gap-1"><span className="size-2.5 rounded-[2px] bg-slate-300" /> 산정 제외</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col gap-[3px]">
+              {heat.map((row) => (
+                <div key={row.tag} className="flex items-center gap-2">
+                  <span className="tnum w-20 shrink-0 text-right text-[11px] text-body">{row.tag}</span>
+                  <div className="flex flex-1 gap-[3px]">
+                    {row.cells.map((c) => (
+                      <div
+                        key={c.date}
+                        title={`${c.date} · ${row.tag} · ${c.status === "ok" ? "정상" : c.status === "est" ? "추정·이상" : c.status === "bad" ? "결측" : "산정 제외"}`}
+                        className={`h-[13px] flex-1 rounded-[2px] ${HEAT_COLOR[c.status]}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div className="mt-0.5 flex items-center gap-2">
+                <span className="w-20 shrink-0" />
+                <div className="tnum flex flex-1 justify-between text-[10px] text-slate-400">
+                  <span>{heatMonth}-01</span>
+                  <span>{heatMonth}-{String(heat[0]?.cells.length ?? 30).padStart(2, "0")}</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Issue Queue — 심각도순 */}
+          <section className="rounded-[10px] border border-line/70 bg-white p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[15px] font-semibold text-navy">
+                Issue Queue <span className="tnum text-[12px] font-normal text-body">({issueQueue.length}건 · 심각도순)</span>
+              </span>
+              <button onClick={() => setTab("tags")} className="text-[12px] font-medium text-accent hover:underline">
+                정상 태그 전체 보기 ›
+              </button>
+            </div>
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-line text-left text-[12px] text-body">
+                  <th className="py-1.5 font-medium">심각도</th>
+                  <th className="py-1.5 font-medium">발생</th>
+                  <th className="py-1.5 font-medium">대상</th>
+                  <th className="py-1.5 font-medium">검증 규칙·이슈</th>
+                  <th className="py-1.5 font-medium">산정 영향</th>
+                  <th className="py-1.5 pl-3 font-medium">상태</th>
+                </tr>
+              </thead>
+              <tbody className="tnum">
+                {issueQueue.map((i) => (
+                  <tr key={i.id} className="border-b border-line/50 last:border-0">
+                    <td className="py-2">
+                      <span className={`inline-block w-16 rounded px-1.5 py-0.5 text-center text-[11px] font-bold ${SEV_BADGE[i.sev]}`}>
+                        {i.sev}
+                      </span>
+                    </td>
+                    <td className="py-2 text-body">{i.when}</td>
+                    <td className="py-2 font-medium text-navy">{i.tag}</td>
+                    <td className="py-2 text-body">
+                      <span className="font-medium text-navy">{i.id}</span> · {i.rule}
+                    </td>
+                    <td className="py-2">
+                      <span className={i.affects ? "font-semibold text-review" : "text-body"}>
+                        {i.affects ? "영향 있음" : "잠재 영향"}
+                      </span>
+                    </td>
+                    <td className="py-2 pl-3">
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${stateBadge(i.state)}`}>{i.state}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-2 text-[12px] text-body">
+              산정 영향 상세는 각 이슈의 정제 규칙(R-01 결측 10% 초과 일 제외 · R-02 물리범위 이상치 제외)을 따름
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* ---------- 탭 2: 태그 상세 ---------- */}
+      {tab === "tags" && (
+        <>
+          <section className="rounded-[10px] border border-line/70 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[14px] font-semibold text-navy">태그별 데이터 품질</span>
               <div className="flex items-center gap-2 text-[11px] text-body">
@@ -247,36 +344,6 @@ export default function DataVerify() {
             <div className="mt-2 text-[11px] text-body">
               원천값(rows.v)은 수정하지 않으며, 정제·추정 결과는 산정 시점에 별도 적용 (R-01 결측
               10% 초과 일 제외 · R-02 물리범위 이상치 제외)
-            </div>
-          </section>
-
-          <section className="rounded-[10px] border border-line bg-white p-4">
-            <div className="mb-2 text-[14px] font-semibold text-navy">
-              데이터 이슈와 산정 영향 <span className="tnum text-body">({(q.issues as Issue[]).length}건)</span>
-            </div>
-            <div className="flex flex-col gap-2">
-              {(q.issues as Issue[]).map((i) => (
-                <div key={i.id} className="flex items-start gap-3 rounded-lg border border-line px-3 py-2.5">
-                  <span className={`mt-1.5 size-2 shrink-0 rounded-full ${sevColor[i.sev] ?? "bg-body"}`} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-semibold text-navy">
-                        {i.id} · {i.title}
-                      </span>
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${stateBadge(i.state)}`}>
-                        {i.state}
-                      </span>
-                    </div>
-                    <div className="tnum mt-0.5 text-[12px] text-body">
-                      {i.period} · 대상 {i.tag}
-                    </div>
-                    <div className="mt-0.5 text-[12px] text-body">
-                      <span className="font-medium text-navy">산정 영향</span> {i.impact} ·{" "}
-                      <span className="font-medium text-navy">조치</span> {i.action}
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
           </section>
         </>

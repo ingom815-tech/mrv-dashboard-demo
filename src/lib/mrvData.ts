@@ -28,6 +28,12 @@ export interface MonthPoint {
   baseMWh: number;
   actMWh: number;
   saveMWh: number;
+  cumSaveMWh: number; // 누적 절감량
+  nrAdjMWh: number; // 승인된 비일상적 조정 반영량
+  bandMWh: number; // 조정 기준선 90% 신뢰구간 반폭 (±)
+  bandLowMWh: number; // 밴드 하단 (스택 렌더링용)
+  bandWidthMWh: number; // 밴드 폭 (하단→상단)
+  events: string[]; // 해당 월 이벤트 (제외·추정·설정변경·정비)
   nUsed: number;
   nExcluded: number;
   estDays: number; // 비례 추정이 적용된 일수
@@ -51,6 +57,8 @@ type DailyRec = {
   chwp: number;
   cwp: number;
   ct: number;
+  qthKwh: number;
+  nrAdj?: number;
 };
 
 // ---------- 산정 번들: 비일상적 조정 승인 상태를 입력으로 재계산 ----------
@@ -82,6 +90,7 @@ export interface CalcBundle {
     costKrw: number;
     nDays: number;
     nExcluded: number;
+    uncertaintyPct: number; // 절감량 상대 불확도 (90% 신뢰수준, IPMVP 근사식)
   };
 }
 
@@ -105,25 +114,49 @@ export function buildCalc(nrStatus: NrStatusMap, overrides: CalcOverrides = {}):
     { value: overrides.tariffValue ?? TARIFF.value },
   );
   const svDaily = sv.daily as DailyRec[];
+  const rmse = baseline.model ? baseline.model.rmse : 0;
+  let cum = 0;
   const monthly = (
-    MRV.monthly(sv.daily, { sum: ["adjBaseNR", "kwhDay", "saving"] }) as Array<{
+    MRV.monthly(sv.daily, { sum: ["adjBaseNR", "kwhDay", "saving", "nrAdj"] }) as Array<{
       month: string;
       n: number;
       nUsed: number;
-      sums: { adjBaseNR?: number; kwhDay?: number; saving?: number };
+      sums: { adjBaseNR?: number; kwhDay?: number; saving?: number; nrAdj?: number };
     }>
   )
     .sort((a, b) => (a.month < b.month ? -1 : 1))
-    .map<MonthPoint>((m) => ({
-      month: m.month,
-      label: `${Number(m.month.slice(5))}월`,
-      baseMWh: (m.sums.adjBaseNR ?? 0) / 1000,
-      actMWh: (m.sums.kwhDay ?? 0) / 1000,
-      saveMWh: (m.sums.saving ?? 0) / 1000,
-      nUsed: m.nUsed,
-      nExcluded: m.n - m.nUsed,
-      estDays: svDaily.filter((d) => d.date.slice(0, 7) === m.month && d.usable && d.estimated).length,
-    }));
+    .map<MonthPoint>((m) => {
+      const baseMWh = (m.sums.adjBaseNR ?? 0) / 1000;
+      const saveMWh = (m.sums.saving ?? 0) / 1000;
+      cum += saveMWh;
+      // 월 합계 기준선의 90% 신뢰구간: ±1.645 × RMSE × √일수 (일별 오차 독립 가정)
+      const bandMWh = (1.645 * rmse * Math.sqrt(Math.max(1, m.nUsed))) / 1000;
+      const estDays = svDaily.filter(
+        (d) => d.date.slice(0, 7) === m.month && d.usable && d.estimated,
+      ).length;
+      const nExcluded = m.n - m.nUsed;
+      const events: string[] = [];
+      if (nExcluded > 0) events.push(`산정 제외 ${nExcluded}일`);
+      if (estDays > 0) events.push(`비례 추정 ${estDays}일`);
+      if (m.month === "2026-03") events.push("냉동기 2 정비 (NR-02)");
+      if (m.month >= "2026-05") events.push("냉수 공급온도 7→9℃ (NR-01)");
+      return {
+        month: m.month,
+        label: `${Number(m.month.slice(5))}월`,
+        baseMWh,
+        actMWh: (m.sums.kwhDay ?? 0) / 1000,
+        saveMWh,
+        cumSaveMWh: cum,
+        nrAdjMWh: (m.sums.nrAdj ?? 0) / 1000,
+        bandMWh,
+        bandLowMWh: baseMWh - bandMWh,
+        bandWidthMWh: bandMWh * 2,
+        events,
+        nUsed: m.nUsed,
+        nExcluded,
+        estDays,
+      };
+    });
   // 원본 대비 추가로 승인된 비일상적 조정 수만큼 버전 증가 (기존 확정본 보존 개념)
   const extra =
     (data.nonRoutine as NonRoutine[]).filter(
@@ -141,6 +174,12 @@ export function buildCalc(nrStatus: NrStatusMap, overrides: CalcOverrides = {}):
       costKrw: sv.cost,
       nDays: sv.nDays,
       nExcluded: sv.nExcluded,
+      // IPMVP 근사: U = 1.645 × 1.26 × CV(RMSE) × √((1+2/n)/m) ÷ F  (90% 신뢰수준)
+      uncertaintyPct:
+        baseline.model && sv.savePct > 0
+          ? (1.645 * 1.26 * baseline.model.cvRmse * Math.sqrt((1 + 2 / baseline.model.n) / Math.max(1, sv.nDays))) /
+            sv.savePct
+          : 0,
     },
   };
 }
@@ -467,32 +506,223 @@ const events = data.meta.events as unknown as {
   maintenance: [string, string];
 };
 
-// ---------- MRV Assurance 3단 ----------
+// ---------- MRV Assurance 4단계 ----------
 const m = baseline.model;
+// NMBE = Σ잔차 ÷ ((n−p)·ȳ) — 절편 포함 OLS는 0에 수렴 (표시용)
+const nmbe = m
+  ? m.resid.reduce((s: number, r: { r: number }) => s + r.r, 0) / ((m.n - 3) * m.yMean)
+  : 0;
 export interface AssuranceRow {
   stage: string;
   label: string;
   status: "PASS" | "REVIEW" | "FAIL";
   evidence: string;
+  evidCount: number; // 증적 건수 (데모)
 }
 const assurance: AssuranceRow[] = [
   {
     stage: "Measurement",
     label: "계측·수집",
     status: "PASS",
-    evidence: `정상률 ${(trustRate * 100).toFixed(1)}% · 결측률 ${(quality.totals.missRate * 100).toFixed(2)}%`,
+    evidence: `정상률 ${(trustRate * 100).toFixed(1)}% · 결측 ${(quality.totals.missRate * 100).toFixed(2)}% · 교정 주의 1건(열량 KPI 한정)`,
+    evidCount: 14,
   },
   {
     stage: "Baseline",
     label: "기준선 모델",
     status: baseline.pass ? "PASS" : "FAIL",
-    evidence: m ? `CV(RMSE) ${(m.cvRmse * 100).toFixed(1)}% · R² ${m.r2.toFixed(3)} · ${baseline.version}` : "-",
+    evidence: m
+      ? `CV(RMSE) ${(m.cvRmse * 100).toFixed(1)}% · NMBE ${(nmbe * 100).toFixed(1)}% · R² ${m.r2.toFixed(3)}`
+      : "-",
+    evidCount: 3,
+  },
+  {
+    stage: "Calculation",
+    label: "산정 재현",
+    status: "PASS",
+    evidence: "seed 고정 결정론 산정 · 재현오차 0.00% · 회귀 테스트 11건 통과",
+    evidCount: 2,
   },
   {
     stage: "Verification",
     label: "검증·승인",
     status: "REVIEW",
-    evidence: `교정 만료 1건 · 비일상 조정 검토 1건 · 승인 전`,
+    evidence: "검토 대기 2건 · 승인 전",
+    evidCount: 5,
+  },
+];
+export const baselineStats = { nmbe };
+
+// ---------- 부하율–효율 성능곡선 (설비성과) ----------
+// 부하율 = 일 냉열 생산량 ÷ 정격 냉각능력(2대 × 1,400 kW_th × 24h)
+const CAPACITY_KWH_TH = 2 * (cfg.chillerCapacityKw as number) * 24;
+export interface LoadPoint {
+  loadPct: number;
+  kwRT: number;
+  period: "base" | "rep";
+}
+const loadPoints: LoadPoint[] = allDaily
+  .filter((d) => d.usable && d.sysKwRT !== null && d.qthKwh > 0)
+  .map((d) => ({
+    loadPct: (d.qthKwh / CAPACITY_KWH_TH) * 100,
+    kwRT: d.sysKwRT!,
+    period: (d.date >= cfg.reportStart ? "rep" : "base") as "base" | "rep",
+  }))
+  .filter((p) => p.loadPct >= 5 && p.kwRT < 3);
+// 부하 구간(10%p 단위)별 평균 성능곡선
+const curveOf = (period: "base" | "rep") => {
+  const bins = new Map<number, { s: number; n: number }>();
+  for (const p of loadPoints.filter((x) => x.period === period)) {
+    const b = Math.floor(p.loadPct / 10) * 10 + 5;
+    const rec = bins.get(b) ?? { s: 0, n: 0 };
+    rec.s += p.kwRT;
+    rec.n++;
+    bins.set(b, rec);
+  }
+  return [...bins.entries()]
+    .filter(([, v]) => v.n >= 3)
+    .map(([b, v]) => ({ loadPct: b, kwRT: v.s / v.n }))
+    .sort((a, b) => a.loadPct - b.loadPct);
+};
+export const perfCurve = {
+  points: loadPoints,
+  baseCurve: curveOf("base"),
+  repCurve: curveOf("rep"),
+};
+
+// ---------- 절감 기여도 Waterfall (설비성과) ----------
+// 일평균 사용량 변화 × 산정일수 기준 분해. 기준선 모델 보정과의 차이는 잔차 항목으로 표시
+export interface WaterfallItem {
+  key: string;
+  label: string;
+  value: number; // MWh (+절감)
+  kind: "item" | "residual" | "total";
+}
+const compMWh = (k: string) => {
+  const c = contrib.find((x) => x.key === k)!;
+  return ((c.before - c.after) * savings.nDays) / 1000;
+};
+const chillerMWh = compMWh("ch1") + compMWh("ch2");
+const wfItems = [
+  { key: "chiller", label: "냉동기 교체", value: chillerMWh },
+  { key: "chwp", label: "펌프 VFD 제어", value: compMWh("chwp") },
+  { key: "cwp", label: "냉각수펌프", value: compMWh("cwp") },
+  { key: "ct", label: "냉각탑 최적화", value: compMWh("ct") },
+];
+const wfSum = wfItems.reduce((s, x) => s + x.value, 0);
+export const waterfall: WaterfallItem[] = [
+  ...wfItems.map((x) => ({ ...x, kind: "item" as const })),
+  { key: "resid", label: "기준선 보정 잔차", value: savings.sumSave / 1000 - wfSum, kind: "residual" },
+  { key: "total", label: "검증 절감량", value: savings.sumSave / 1000, kind: "total" },
+];
+
+// ---------- 데이터 품질 히트맵 (태그 × 일, 월 단위) ----------
+export type HeatStatus = "ok" | "est" | "bad" | "excl";
+export interface HeatRow {
+  tag: string;
+  cells: Array<{ date: string; status: HeatStatus }>;
+}
+const heatRank: Record<string, number> = { MISSING: 3, INVALID: 3, OUTLIER: 2, ESTIMATED: 2, MANUAL: 1, VALID: 0 };
+export function qualityHeatmap(month: string): HeatRow[] {
+  const rows = (data.rows as unknown as Array<{ date: string; excl: boolean; s: Record<string, string> }>).filter(
+    (r) => r.date.slice(0, 7) === month,
+  );
+  const days = [...new Set(rows.map((r) => r.date))].sort();
+  return (data.tags as TagMeta[]).map((tg) => ({
+    tag: tg.id,
+    cells: days.map((d) => {
+      let worst = 0;
+      let excl = false;
+      for (const r of rows) {
+        if (r.date !== d) continue;
+        if (r.excl) excl = true;
+        const rank = heatRank[r.s[tg.id]] ?? 0;
+        if (rank > worst) worst = rank;
+      }
+      const status: HeatStatus = excl ? "excl" : worst >= 3 ? "bad" : worst >= 1 ? "est" : "ok";
+      return { date: d, status };
+    }),
+  }));
+}
+
+// ---------- Issue Queue (심각도순) ----------
+export interface QueueItem {
+  id: string;
+  sev: "High" | "Medium" | "Low";
+  when: string;
+  tag: string;
+  rule: string;
+  impact: string;
+  affects: boolean;
+  state: string;
+}
+const sevMap: Record<string, "High" | "Medium" | "Low"> = { high: "High", mid: "Medium", low: "Low", info: "Low" };
+export const issueQueue: QueueItem[] = (
+  quality.issues as Array<{ id: string; sev: string; period: string; tag: string; title: string; impact: string; state: string }>
+)
+  .map((i) => ({
+    id: i.id,
+    sev: sevMap[i.sev] ?? "Low",
+    when: i.period.split("~")[0].trim(),
+    tag: i.tag,
+    rule: i.title,
+    impact: i.impact,
+    affects: /제외|추정/.test(i.impact),
+    state: i.state,
+  }))
+  .sort((a, b) => ["High", "Medium", "Low"].indexOf(a.sev) - ["High", "Medium", "Low"].indexOf(b.sev));
+
+// ---------- Asset Passport (기준정보, 데모 메타) ----------
+export interface AssetPassport {
+  asset: string;
+  id: string;
+  maker: string;
+  model: string;
+  rating: string;
+  installed: string;
+  status: string;
+  inMrv: boolean;
+  readiness: string;
+  kpis: string[];
+  history: Array<{ date: string; what: string }>;
+}
+export const assetPassports: AssetPassport[] = [
+  {
+    asset: "CH-01 냉동기 1", id: "CH-01", maker: "터보냉동기 제조사(데모)", model: "TCH-1400N (R-1233zd(E))",
+    rating: "1,400 kW_th (398 RT)", installed: "2026-01-01 (신설 교체)", status: "운전 중", inMrv: true, readiness: "100%",
+    kpis: ["kW/RT", "COP", "부하율"],
+    history: [
+      { date: "2026-01-01", what: "신설 가동 — 개선 조치 (kW/RT −18% 가정)" },
+      { date: "2026-01-05", what: "냉매 초기 충전 420 kg (배출 아님)" },
+    ],
+  },
+  {
+    asset: "CH-02 냉동기 2", id: "CH-02", maker: "원심냉동기 제조사(데모)", model: "CCH-1400 (R-134a)",
+    rating: "1,400 kW_th (398 RT)", installed: "2015-06-01 (기존)", status: "운전 중", inMrv: true, readiness: "100%",
+    kpis: ["kW/RT", "COP", "부하율"],
+    history: [
+      { date: "2025-09-01", what: "응축기 오염 — 효율저하 추세 시작 (kW/RT +10%)" },
+      { date: "2026-03-10", what: "대규모 정비(응축기 세관) — 제외기간 NR-02" },
+      { date: "2026-05-14", what: "정기점검 냉매 보충 9 kg" },
+    ],
+  },
+  {
+    asset: "CHWP 냉수펌프", id: "CHWP", maker: "펌프 제조사(데모)", model: "CP-200 + VFD",
+    rating: "110 kW", installed: "2026-01-01 (VFD 신설)", status: "운전 중", inMrv: true, readiness: "100%",
+    kpis: ["kWh/일", "반송동력비"],
+    history: [{ date: "2026-01-01", what: "인버터(VFD) 설치 — 개선 조치 (−25% 가정)" }],
+  },
+  {
+    asset: "CWP 냉각수펌프", id: "CWP", maker: "펌프 제조사(데모)", model: "CP-250",
+    rating: "132 kW", installed: "2015-06-01", status: "운전 중", inMrv: true, readiness: "100%",
+    kpis: ["kWh/일"],
+    history: [{ date: "2026-01-01", what: "ΔT 3.6→5.0℃ 개선 연동 유량 저감" }],
+  },
+  {
+    asset: "CT-01 냉각탑", id: "CT-01", maker: "냉각탑 제조사(데모)", model: "CT-500",
+    rating: "팬 55 kW", installed: "2015-06-01", status: "운전 중", inMrv: true, readiness: "100%",
+    kpis: ["접근온도", "kWh/일"],
+    history: [{ date: "2026-01-01", what: "팬 제어 최적화 — 개선 조치 (−15% 가정)" }],
   },
 ];
 

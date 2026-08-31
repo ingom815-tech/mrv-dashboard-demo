@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { mrv, TARIFF, type TagMeta, type MeterMeta } from "../lib/mrvData";
+import { mrv, TARIFF, assetPassports, type TagMeta, type MeterMeta } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, activeEf, type Role } from "../store";
+import ContextBar from "../components/ContextBar";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -38,7 +39,7 @@ const PERMS: Array<{ feature: string; roles: Record<Role, boolean> }> = [
 export default function MasterData() {
   const [tab, setTab] = useState<TabKey>(initialTab);
   const [assetFilter, setAssetFilter] = useState<string | null>(null);
-  const { role, setRole, efList, registerEf, tariffValue, setTariff, openEvidence } = useUI();
+  const { role, efList, registerEf, tariffValue, setTariff } = useUI();
   const calc = useCalc();
   const ef = activeEf(efList);
   const [form, setForm] = useState({ value: "", source: "", baseYear: "2025", validFrom: "2026-07-01", validTo: "2027-06-30" });
@@ -62,29 +63,8 @@ export default function MasterData() {
             DEMO · 합성데이터
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-[12px] text-body">
-            <span>역할</span>
-            {(["일반", "검토자", "승인자"] as Role[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRole(r)}
-                className={`rounded px-2 py-0.5 transition-colors ${
-                  role === r ? "bg-navy font-semibold text-white" : "bg-white text-body hover:text-navy"
-                }`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={openEvidence}
-            className="rounded-lg border border-line bg-white px-3 py-1.5 text-[13px] font-medium text-navy transition-colors hover:border-accent/50"
-          >
-            산정근거
-          </button>
-        </div>
       </header>
+      <ContextBar />
 
       <div className="flex shrink-0 gap-1 border-b border-line">
         {TABS.map((t) => (
@@ -144,7 +124,140 @@ export default function MasterData() {
             </div>
           </div>
 
-          <div className="rounded-[10px] border border-line bg-white p-4">
+          {(() => {
+            const passport = assetFilter ? assetPassports.find((p) => p.asset === assetFilter) : null;
+            if (!passport) return null;
+            const pTags = mrv.tags.filter((t) => t.asset === passport.asset);
+            const pMeters = mrv.meters.filter((m) => pTags.some((t) => t.id === m.tag));
+            const perfRow = mrv.perf.table.find((r) => passport.asset.includes(r.name.split(" ")[0]));
+            return (
+              <div className="flex flex-col gap-3">
+                {/* Asset Passport 상단 — 설비 기본 정보 */}
+                <div className="rounded-[10px] border border-line/70 bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[17px] font-bold text-navy">{passport.asset}</span>
+                      <span className="rounded bg-teal/10 px-1.5 py-0.5 text-[11px] font-bold text-teal">{passport.status}</span>
+                      <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[11px] font-bold text-accent">MRV 산정 포함</span>
+                      <span className="tnum rounded bg-line/60 px-1.5 py-0.5 text-[11px] font-medium text-body">데이터 준비도 {passport.readiness}</span>
+                    </div>
+                    <span className="text-[11px] text-slate-400">Asset Passport</span>
+                  </div>
+                  <div className="tnum mt-3 grid grid-cols-4 gap-x-6 gap-y-1.5 text-[13px]">
+                    <div><span className="text-slate-400">설비 ID </span><span className="font-medium text-navy">{passport.id}</span></div>
+                    <div><span className="text-slate-400">제조사 </span><span className="font-medium text-navy">{passport.maker}</span></div>
+                    <div><span className="text-slate-400">모델 </span><span className="font-medium text-navy">{passport.model}</span></div>
+                    <div><span className="text-slate-400">정격 </span><span className="font-medium text-navy">{passport.rating}</span></div>
+                    <div className="col-span-2"><span className="text-slate-400">설치 </span><span className="font-medium text-navy">{passport.installed}</span></div>
+                    <div className="col-span-2">
+                      <span className="text-slate-400">계산 KPI </span>
+                      {passport.kpis.map((k) => (
+                        <span key={k} className="mr-1 rounded bg-surface px-1.5 py-0.5 text-[11px] font-medium text-navy">{k}</span>
+                      ))}
+                      {perfRow && (
+                        <span className="ml-1 text-[12px] text-body">
+                          현재 {perfRow.rep !== null ? perfRow.rep.toFixed(perfRow.digits) : "—"} {perfRow.unit}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 데이터 계보: 계측기 → 태그 → KPI → 산정 */}
+                <div className="rounded-[10px] border border-line/70 bg-white p-4">
+                  <div className="mb-2 text-[14px] font-semibold text-navy">데이터 계보 (계측 → 산정)</div>
+                  <div className="flex items-stretch gap-2 overflow-x-auto text-[12px]">
+                    <div className="flex min-w-32 flex-col gap-1 rounded-lg bg-surface px-3 py-2">
+                      <span className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">계측기</span>
+                      {pMeters.map((m) => (
+                        <span key={m.meter + m.tag} className="tnum font-medium text-navy">{m.meter}</span>
+                      ))}
+                    </div>
+                    <span className="self-center text-[16px] text-slate-300">›</span>
+                    <div className="flex min-w-32 flex-col gap-1 rounded-lg bg-surface px-3 py-2">
+                      <span className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">태그</span>
+                      {pTags.map((t) => (
+                        <span key={t.id} className="tnum font-medium text-navy">{t.id}</span>
+                      ))}
+                    </div>
+                    <span className="self-center text-[16px] text-slate-300">›</span>
+                    <div className="flex min-w-32 flex-col gap-1 rounded-lg bg-surface px-3 py-2">
+                      <span className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">설비 KPI</span>
+                      {passport.kpis.map((k) => (
+                        <span key={k} className="font-medium text-navy">{k}</span>
+                      ))}
+                    </div>
+                    <span className="self-center text-[16px] text-slate-300">›</span>
+                    <div className="flex min-w-36 flex-col justify-center gap-1 rounded-lg bg-navy px-3 py-2 text-white">
+                      <span className="text-[10px] font-semibold tracking-wide text-white/60 uppercase">MRV 산정</span>
+                      <span className="font-semibold">SYS_kW 합산 → 기준선 모델</span>
+                      <span className="font-semibold">→ 검증 절감량</span>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-[11px] text-body">
+                    이 설비의 센서가 어떤 태그·KPI를 거쳐 절감량 산정에 반영되는지의 추적 경로 · 상위 경계: 중앙 냉수플랜트
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {/* 연결 계측기·교정 */}
+                  <div className="rounded-[10px] border border-line/70 bg-white p-4">
+                    <div className="mb-2 text-[14px] font-semibold text-navy">연결 계측기·교정</div>
+                    <table className="tnum w-full text-[12px]">
+                      <thead>
+                        <tr className="border-b border-line text-left text-[11px] text-body">
+                          <th className="py-1 font-medium">계측기</th>
+                          <th className="py-1 font-medium">태그</th>
+                          <th className="py-1 font-medium">정확도</th>
+                          <th className="py-1 font-medium">교정일</th>
+                          <th className="py-1 font-medium">만료</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pMeters.map((m) => {
+                          const expired = m.expiry && m.expiry !== "—" && m.expiry < mrv.cfg.reportEnd;
+                          return (
+                            <tr key={m.tag} className="border-b border-line/50 last:border-0">
+                              <td className="py-1.5 font-medium text-navy">{m.meter}</td>
+                              <td className="py-1.5 text-body">{m.tag}</td>
+                              <td className="py-1.5 text-body">{m.accuracy}</td>
+                              <td className="py-1.5 text-body">{m.calib}</td>
+                              <td className="py-1.5">
+                                {expired ? (
+                                  <span className="rounded bg-review/10 px-1.5 py-0.5 text-[10px] font-bold text-review">만료</span>
+                                ) : (
+                                  <span className="text-body">{m.expiry}</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* 이력 타임라인 */}
+                  <div className="rounded-[10px] border border-line/70 bg-white p-4">
+                    <div className="mb-2 text-[14px] font-semibold text-navy">설비·MRV 이력</div>
+                    <div className="flex flex-col">
+                      {passport.history.map((h, i) => (
+                        <div key={i} className="relative flex gap-3 pb-3 last:pb-0">
+                          <div className="flex flex-col items-center">
+                            <span className="mt-1 size-2 shrink-0 rounded-full bg-accent" />
+                            {i < passport.history.length - 1 && <span className="w-px flex-1 bg-line" />}
+                          </div>
+                          <div>
+                            <div className="tnum text-[11px] text-slate-400">{h.date}</div>
+                            <div className="text-[12px] leading-snug text-navy">{h.what}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })() ?? null}
+          <div className={`rounded-[10px] border border-line/70 bg-white p-4 ${assetFilter && assetPassports.some((p) => p.asset === assetFilter) ? "hidden" : ""}`}>
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[14px] font-semibold text-navy">
                 센서·태그 {assetFilter ? `— ${assetFilter}` : ""}
