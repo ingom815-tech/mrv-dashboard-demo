@@ -151,11 +151,11 @@ function InterfaceDrawer({ onClose }: { onClose: () => void }) {
           <table className="tnum w-full text-[12.5px]">
             <thead>
               <tr className="border-b border-line text-left text-[11px] text-body">
-                <th className="py-1.5 font-medium">데이터 소스</th>
-                <th className="py-1.5 font-medium">연계방식</th>
-                <th className="py-1.5 text-right font-medium">태그</th>
-                <th className="py-1.5 text-right font-medium">주기</th>
-                <th className="py-1.5 pl-3 font-medium">상태</th>
+                <th className="py-2 font-medium">데이터 소스</th>
+                <th className="py-2 font-medium">연계방식</th>
+                <th className="py-2 text-right font-medium">태그</th>
+                <th className="py-2 text-right font-medium">주기</th>
+                <th className="py-2 pl-3 font-medium">상태</th>
               </tr>
             </thead>
             <tbody>
@@ -244,7 +244,7 @@ export default function MasterData() {
       {tab === "plan" && (
         <>
           {/* 준비도 진단 (공동 사전진단 결과) */}
-          <section className="rounded-[10px] border border-line/70 bg-white p-4">
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="text-[15px] font-semibold text-navy">MRV 준비도 진단</span>
@@ -274,7 +274,7 @@ export default function MasterData() {
           </section>
 
           {/* M&V PLAN */}
-          <section className="rounded-[10px] border border-line/70 bg-white p-4">
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="text-[15px] font-semibold text-navy">M&V PLAN · {mvPlan.id}</span>
@@ -320,11 +320,11 @@ export default function MasterData() {
 
           {/* 시스템 경계 */}
           <section className="grid shrink-0 grid-cols-2 gap-3">
-            <div className="rounded-[10px] border border-line/70 bg-white p-4">
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
               <div className="text-[13.5px] font-semibold text-navy">구현 경계 (본 데모)</div>
               <div className="mt-1.5 text-[12.5px] leading-relaxed text-body">{systemBoundary.implemented}</div>
             </div>
-            <div className="rounded-[10px] border border-line/70 bg-white p-4">
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
               <div className="text-[13.5px] font-semibold text-navy">향후 확장 (미구현)</div>
               <div className="mt-1.5 text-[12.5px] leading-relaxed text-body">{systemBoundary.future}</div>
             </div>
@@ -335,9 +335,9 @@ export default function MasterData() {
       {/* ---------- 탭 1: 설비·센서 ---------- */}
       {tab === "asset" && (
         <section className="grid min-h-0 flex-1 grid-cols-[240px_1fr] gap-3">
-          <div className="rounded-[10px] border border-line bg-white p-4">
+          <div className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[14px] font-semibold text-navy">설비 계층</span>
+              <span className="text-[15px] font-semibold text-navy">설비 계층</span>
             </div>
             <button
               onClick={() => setIfaceOpen(true)}
@@ -391,7 +391,7 @@ export default function MasterData() {
             return (
               <div className="flex flex-col gap-3">
                 {/* Asset Passport 상단 — 설비 기본 정보 */}
-                <div className="rounded-[10px] border border-line/70 bg-white p-4">
+                <div className="rounded-[10px] border border-line/60 bg-white p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <span className="text-[17px] font-bold text-navy">{passport.asset}</span>
@@ -422,8 +422,8 @@ export default function MasterData() {
                 </div>
 
                 {/* 데이터 계보: 계측기 → 태그 → KPI → 산정 */}
-                <div className="rounded-[10px] border border-line/70 bg-white p-4">
-                  <div className="mb-2 text-[14px] font-semibold text-navy">데이터 계보 (계측 → 산정)</div>
+                <div className="rounded-[10px] border border-line/60 bg-white p-4">
+                  <div className="mb-2 text-[15px] font-semibold text-navy">데이터 계보 (계측 → 산정)</div>
                   <div className="flex items-stretch gap-2 overflow-x-auto text-[12px]">
                     <div className="flex min-w-32 flex-col gap-1 rounded-lg bg-surface px-3 py-2">
                       <span className="text-[10px] font-semibold tracking-wide text-slate-400 uppercase">계측기</span>
@@ -459,8 +459,8 @@ export default function MasterData() {
 
                 <div className="grid grid-cols-2 gap-3">
                   {/* 연결 계측기·교정 */}
-                  <div className="rounded-[10px] border border-line/70 bg-white p-4">
-                    <div className="mb-2 text-[14px] font-semibold text-navy">연결 계측기·교정</div>
+                  <div className="rounded-[10px] border border-line/60 bg-white p-4">
+                    <div className="mb-2 text-[15px] font-semibold text-navy">연결 계측기·교정</div>
                     <table className="tnum w-full text-[12px]">
                       <thead>
                         <tr className="border-b border-line text-left text-[11px] text-body">
@@ -476,10 +476,10 @@ export default function MasterData() {
                           const expired = m.expiry && m.expiry !== "—" && m.expiry < mrv.cfg.reportEnd;
                           return (
                             <tr key={m.tag} className="border-b border-line/50 last:border-0">
-                              <td className="py-1.5 font-medium text-navy">{m.meter}</td>
-                              <td className="py-1.5 text-body">{m.tag}</td>
-                              <td className="py-1.5 text-body">{m.accuracy}</td>
-                              <td className="py-1.5 text-body">{m.calib}</td>
+                              <td className="py-2 font-medium text-navy">{m.meter}</td>
+                              <td className="py-2 text-body">{m.tag}</td>
+                              <td className="py-2 text-body">{m.accuracy}</td>
+                              <td className="py-2 text-body">{m.calib}</td>
                               <td className="py-1.5">
                                 {expired ? (
                                   <span className="rounded bg-review/10 px-1.5 py-0.5 text-[10px] font-bold text-review">만료</span>
@@ -494,8 +494,8 @@ export default function MasterData() {
                     </table>
                   </div>
                   {/* 이력 타임라인 */}
-                  <div className="rounded-[10px] border border-line/70 bg-white p-4">
-                    <div className="mb-2 text-[14px] font-semibold text-navy">설비·MRV 이력</div>
+                  <div className="rounded-[10px] border border-line/60 bg-white p-4">
+                    <div className="mb-2 text-[15px] font-semibold text-navy">설비·MRV 이력</div>
                     <div className="flex flex-col">
                       {passport.history.map((h, i) => (
                         <div key={i} className="relative flex gap-3 pb-3 last:pb-0">
@@ -515,9 +515,9 @@ export default function MasterData() {
               </div>
             );
           })() ?? null}
-          <div className={`rounded-[10px] border border-line/70 bg-white p-4 ${assetFilter && assetPassports.some((p) => p.asset === assetFilter) ? "hidden" : ""}`}>
+          <div className={`rounded-[10px] border border-line/60 bg-white p-4 ${assetFilter && assetPassports.some((p) => p.asset === assetFilter) ? "hidden" : ""}`}>
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[14px] font-semibold text-navy">
+              <span className="text-[15px] font-semibold text-navy">
                 센서·태그 {assetFilter ? `— ${assetFilter}` : ""}
                 <span className="tnum ml-1.5 text-[12px] font-normal text-body">({tags.length}개)</span>
               </span>
@@ -526,16 +526,16 @@ export default function MasterData() {
             <table className="tnum w-full text-[12px]">
               <thead>
                 <tr className="border-b border-line text-left text-[11px] text-body">
-                  <th className="py-1.5 font-medium">태그</th>
-                  <th className="py-1.5 font-medium">설명</th>
-                  <th className="py-1.5 font-medium">설비</th>
-                  <th className="py-1.5 font-medium">단위</th>
-                  <th className="py-1.5 text-right font-medium">주기(분)</th>
-                  <th className="py-1.5 pl-4 font-medium">계측기</th>
-                  <th className="py-1.5 font-medium">정확도</th>
-                  <th className="py-1.5 font-medium">교정일</th>
-                  <th className="py-1.5 font-medium">교정 만료</th>
-                  <th className="py-1.5 font-medium">출처</th>
+                  <th className="py-2 font-medium">태그</th>
+                  <th className="py-2 font-medium">설명</th>
+                  <th className="py-2 font-medium">설비</th>
+                  <th className="py-2 font-medium">단위</th>
+                  <th className="py-2 text-right font-medium">주기(분)</th>
+                  <th className="py-2 pl-4 font-medium">계측기</th>
+                  <th className="py-2 font-medium">정확도</th>
+                  <th className="py-2 font-medium">교정일</th>
+                  <th className="py-2 font-medium">교정 만료</th>
+                  <th className="py-2 font-medium">출처</th>
                 </tr>
               </thead>
               <tbody>
@@ -548,14 +548,14 @@ export default function MasterData() {
                       onClick={() => setSelTag(t)}
                       className="cursor-pointer border-b border-line/50 transition-colors last:border-0 hover:bg-surface"
                     >
-                      <td className="py-1.5 font-medium text-navy">{t.id}</td>
-                      <td className="py-1.5 text-body">{t.desc}</td>
-                      <td className="py-1.5 text-body">{t.asset}</td>
-                      <td className="py-1.5 text-body">{t.unit}</td>
-                      <td className="py-1.5 text-right text-body">{m?.period ?? 15}</td>
-                      <td className="py-1.5 pl-4 text-body">{m?.meter ?? "—"}</td>
-                      <td className="py-1.5 text-body">{m?.accuracy ?? "—"}</td>
-                      <td className="py-1.5 text-body">{m?.calib ?? "—"}</td>
+                      <td className="py-2 font-medium text-navy">{t.id}</td>
+                      <td className="py-2 text-body">{t.desc}</td>
+                      <td className="py-2 text-body">{t.asset}</td>
+                      <td className="py-2 text-body">{t.unit}</td>
+                      <td className="py-2 text-right text-body">{m?.period ?? 15}</td>
+                      <td className="py-2 pl-4 text-body">{m?.meter ?? "—"}</td>
+                      <td className="py-2 text-body">{m?.accuracy ?? "—"}</td>
+                      <td className="py-2 text-body">{m?.calib ?? "—"}</td>
                       <td className="py-1.5">
                         {expired ? (
                           <span className="rounded bg-review/10 px-1.5 py-0.5 text-[10px] font-bold text-review">
@@ -565,7 +565,7 @@ export default function MasterData() {
                           <span className="text-body">{m?.expiry ?? "—"}</span>
                         )}
                       </td>
-                      <td className="py-1.5 text-body">{m?.src ?? "—"}</td>
+                      <td className="py-2 text-body">{m?.src ?? "—"}</td>
                     </tr>
                   );
                 })}
@@ -578,9 +578,9 @@ export default function MasterData() {
       {/* ---------- 탭 2: 배출계수·가정값 ---------- */}
       {tab === "factor" && (
         <>
-          <section className="rounded-[10px] border border-line bg-white p-4">
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[14px] font-semibold text-navy">전력 배출계수 — 등록·적용·버전관리</span>
+              <span className="text-[15px] font-semibold text-navy">전력 배출계수 — 등록·적용·버전관리</span>
               <span className="tnum text-[12px] text-body">
                 적용 중 <b className="text-navy">{ef.version}</b> → 계산버전{" "}
                 <b className="text-navy">{calc.version}</b> · 탄소 감축{" "}
@@ -590,26 +590,26 @@ export default function MasterData() {
             <table className="tnum w-full text-[12px]">
               <thead>
                 <tr className="border-b border-line text-left text-[11px] text-body">
-                  <th className="py-1.5 font-medium">버전</th>
-                  <th className="py-1.5 text-right font-medium">값</th>
-                  <th className="py-1.5 pl-4 font-medium">단위</th>
-                  <th className="py-1.5 font-medium">출처</th>
-                  <th className="py-1.5 text-right font-medium">기준연도</th>
-                  <th className="py-1.5 pl-4 font-medium">유효기간</th>
-                  <th className="py-1.5 font-medium">등록일</th>
-                  <th className="py-1.5 font-medium">상태</th>
+                  <th className="py-2 font-medium">버전</th>
+                  <th className="py-2 text-right font-medium">값</th>
+                  <th className="py-2 pl-4 font-medium">단위</th>
+                  <th className="py-2 font-medium">출처</th>
+                  <th className="py-2 text-right font-medium">기준연도</th>
+                  <th className="py-2 pl-4 font-medium">유효기간</th>
+                  <th className="py-2 font-medium">등록일</th>
+                  <th className="py-2 font-medium">상태</th>
                 </tr>
               </thead>
               <tbody>
                 {efList.map((e) => (
                   <tr key={e.version} className="border-b border-line/60 last:border-0">
-                    <td className="py-1.5 font-medium text-navy">{e.version}</td>
-                    <td className="py-1.5 text-right text-body">{e.value}</td>
-                    <td className="py-1.5 pl-4 text-body">{e.unit}</td>
-                    <td className="py-1.5 text-body">{e.source}</td>
-                    <td className="py-1.5 text-right text-body">{e.baseYear}</td>
-                    <td className="py-1.5 pl-4 text-body">{e.validFrom} ~ {e.validTo}</td>
-                    <td className="py-1.5 text-body">{e.registeredAt}</td>
+                    <td className="py-2 font-medium text-navy">{e.version}</td>
+                    <td className="py-2 text-right text-body">{e.value}</td>
+                    <td className="py-2 pl-4 text-body">{e.unit}</td>
+                    <td className="py-2 text-body">{e.source}</td>
+                    <td className="py-2 text-right text-body">{e.baseYear}</td>
+                    <td className="py-2 pl-4 text-body">{e.validFrom} ~ {e.validTo}</td>
+                    <td className="py-2 text-body">{e.registeredAt}</td>
                     <td className="py-1.5">
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
@@ -694,20 +694,20 @@ export default function MasterData() {
           </section>
 
           <section className="grid shrink-0 grid-cols-3 gap-3">
-            <div className="rounded-[10px] border border-line bg-white p-4">
-              <div className="mb-2 text-[14px] font-semibold text-navy">냉매 GWP</div>
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="mb-2 text-[15px] font-semibold text-navy">냉매 GWP</div>
               <table className="tnum w-full text-[12px]">
                 <thead>
                   <tr className="border-b border-line text-left text-[11px] text-body">
-                    <th className="py-1.5 font-medium">냉매</th>
-                    <th className="py-1.5 text-right font-medium">GWP (AR5)</th>
+                    <th className="py-2 font-medium">냉매</th>
+                    <th className="py-2 text-right font-medium">GWP (AR5)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {mrv.gwpList.map((g) => (
                     <tr key={g.type} className="border-b border-line/60 last:border-0">
-                      <td className="py-1.5 font-medium text-navy">{g.type}</td>
-                      <td className="py-1.5 text-right text-body">{fmt(g.gwp)}</td>
+                      <td className="py-2 font-medium text-navy">{g.type}</td>
+                      <td className="py-2 text-right text-body">{fmt(g.gwp)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -717,8 +717,8 @@ export default function MasterData() {
               </div>
             </div>
 
-            <div className="rounded-[10px] border border-line bg-white p-4">
-              <div className="mb-2 text-[14px] font-semibold text-navy">가정단가</div>
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="mb-2 text-[15px] font-semibold text-navy">가정단가</div>
               <div className="flex items-end gap-2">
                 <label className="flex flex-col gap-1 text-[12px] text-body">
                   전력 단가 (원/kWh)
@@ -745,8 +745,8 @@ export default function MasterData() {
               </div>
             </div>
 
-            <div className="rounded-[10px] border border-line bg-white p-4">
-              <div className="mb-2 text-[14px] font-semibold text-navy">데모 개선 가정값 (고정)</div>
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="mb-2 text-[15px] font-semibold text-navy">데모 개선 가정값 (고정)</div>
               <div className="tnum flex flex-col gap-1.5 text-[12px] text-body">
                 <div>냉동기 1 신설 kW/RT <b className="text-navy">−{mrv.cfg.post.chillerImprovePct}%</b></div>
                 <div>펌프 VFD <b className="text-navy">−{mrv.cfg.post.pumpVfdSavePct}%</b></div>
@@ -765,12 +765,12 @@ export default function MasterData() {
       {/* ---------- 탭 3: 사용자·권한 ---------- */}
       {tab === "user" && (
         <section className="grid shrink-0 grid-cols-2 gap-3">
-          <div className="rounded-[10px] border border-line bg-white p-4">
-            <div className="mb-2 text-[14px] font-semibold text-navy">역할별 권한</div>
+          <div className="rounded-[10px] border border-line/60 bg-white p-4">
+            <div className="mb-2 text-[15px] font-semibold text-navy">역할별 권한</div>
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b border-line text-left text-[11px] text-body">
-                  <th className="py-1.5 font-medium">기능</th>
+                  <th className="py-2 font-medium">기능</th>
                   {(["일반", "검토자", "승인자"] as Role[]).map((r) => (
                     <th key={r} className={`py-1.5 text-center font-medium ${role === r ? "text-accent" : ""}`}>
                       {r}
@@ -801,14 +801,14 @@ export default function MasterData() {
             </div>
           </div>
 
-          <div className="rounded-[10px] border border-line bg-white p-4">
-            <div className="mb-2 text-[14px] font-semibold text-navy">사용자 (데모)</div>
+          <div className="rounded-[10px] border border-line/60 bg-white p-4">
+            <div className="mb-2 text-[15px] font-semibold text-navy">사용자 (데모)</div>
             <table className="w-full text-[12px]">
               <thead>
                 <tr className="border-b border-line text-left text-[11px] text-body">
-                  <th className="py-1.5 font-medium">이름</th>
-                  <th className="py-1.5 font-medium">역할</th>
-                  <th className="py-1.5 font-medium">소속</th>
+                  <th className="py-2 font-medium">이름</th>
+                  <th className="py-2 font-medium">역할</th>
+                  <th className="py-2 font-medium">소속</th>
                 </tr>
               </thead>
               <tbody>

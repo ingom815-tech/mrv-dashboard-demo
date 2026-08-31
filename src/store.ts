@@ -105,13 +105,14 @@ export const useUI = create<UIState>((set, get) => ({
   traceOpen: false,
   openTrace: () => set({ traceOpen: true }),
   closeTrace: () => set({ traceOpen: false }),
-  // 첫 방문이면 가이드를 자동으로 연다
-  guideOpen: loadJson<boolean>("mrv-guide-seen", false) === false,
+  // 첫 방문이면 가이드를 자동으로 1회 연다 (표시 즉시 seen 처리)
+  guideOpen: (() => {
+    const seen = loadJson<boolean>("mrv-guide-seen", false);
+    if (!seen) saveJson("mrv-guide-seen", true);
+    return !seen;
+  })(),
   openGuide: () => set({ guideOpen: true }),
-  closeGuide: () => {
-    saveJson("mrv-guide-seen", true);
-    set({ guideOpen: false });
-  },
+  closeGuide: () => set({ guideOpen: false }),
   selectedMonth: null,
   equipFilter: "all",
   selectedEquip: "ch1",

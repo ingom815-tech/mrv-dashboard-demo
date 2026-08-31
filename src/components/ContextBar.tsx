@@ -60,7 +60,7 @@ export default function ContextBar() {
     </span>
   );
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-line/50 bg-white px-4 py-2">
+    <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-line/60 bg-white px-4 py-2">
       <Item label="사업장" value={mrv.meta.site} />
       <Item label="경계" value={mrv.meta.boundary} />
       <Item label="기준기간" value="2025.01–12" />

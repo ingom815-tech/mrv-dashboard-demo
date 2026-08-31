@@ -173,7 +173,7 @@ export default function Overview() {
           <div className="text-[13.5px] font-medium text-body">
             {approved ? "검증 완료 절감량" : "잠정 산정 절감량"}
           </div>
-          <div className="tnum mt-1.5 text-[30px] leading-none font-bold text-teal">
+          <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-teal">
             {fmt(ck.saveMWh)} <span className="text-[15px] font-semibold">MWh</span>
           </div>
           <div className="tnum mt-2 text-[13px] text-body">
@@ -192,16 +192,16 @@ export default function Overview() {
               {approved ? "승인" : verify.pending > 0 ? "검토 중" : "잠정"}
             </span>
           </div>
-          <div className="tnum mt-1.5 text-[30px] leading-none font-bold text-navy">
+          <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
             {fmt(ck.co2, 1)} <span className="text-[15px] font-semibold">tCO₂eq</span>
           </div>
           <div className="tnum mt-2 text-[13px] text-body">
             배출계수 {ef.version} · {ef.value} <span className="text-slate-400">(소비단·데모)</span>
           </div>
         </button>
-        <button onClick={() => setMenu("verify")} className="rounded-[10px] border border-line/70 bg-white p-4 text-left transition-colors hover:border-accent/50">
+        <button onClick={() => setMenu("verify")} className="rounded-[10px] border border-line/60 bg-white p-4 text-left transition-colors hover:border-accent/50">
           <div className="text-[13px] font-medium text-body">MRV 검증 상태</div>
-          <div className={`tnum mt-1.5 text-[30px] leading-none font-bold ${verify.state === "승인 완료" ? "text-teal" : "text-review"}`}>
+          <div className={`tnum mt-1.5 text-[28px] leading-none font-bold ${verify.state === "승인 완료" ? "text-teal" : "text-review"}`}>
             {verify.state === "승인 완료" ? "PASS" : "REVIEW"}
           </div>
           <div className="tnum mt-2 text-[13px] text-body">
@@ -215,7 +215,7 @@ export default function Overview() {
           className="rounded-[10px] border border-line/60 bg-white p-4 text-left transition-colors hover:border-accent/50"
         >
           <div className="text-[13.5px] font-medium text-body">산정 불확도</div>
-          <div className="tnum mt-1.5 text-[30px] leading-none font-bold text-navy">
+          <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
             ±{fmt(ck.uncertaintyPct * 100, 1)}<span className="text-[15px] font-semibold">%</span>
           </div>
           <div className="tnum mt-2 text-[13px] text-body">
@@ -226,7 +226,7 @@ export default function Overview() {
 
       {/* 메인 차트 + MRV Assurance */}
       <section className="grid min-h-0 flex-1 grid-cols-[1fr_310px] gap-3">
-        <div className="relative flex min-h-0 flex-col rounded-[10px] border border-line/70 bg-white p-4">
+        <div className="relative flex min-h-0 flex-col rounded-[10px] border border-line/60 bg-white p-4">
           <div className="flex shrink-0 items-center justify-between">
             <div className="text-[15px] font-semibold text-navy">
               {cumView ? "누적 검증 절감량" : "조정 기준선 대비 실제 사용량"}
@@ -345,7 +345,7 @@ export default function Overview() {
         </div>
 
         {/* MRV Assurance 4단계 — 행 클릭 시 산정근거 열림 */}
-        <div className="flex min-h-0 flex-col overflow-y-auto rounded-[10px] border border-line/70 bg-white p-4">
+        <div className="flex min-h-0 flex-col overflow-y-auto rounded-[10px] border border-line/60 bg-white p-4">
           <div className="shrink-0 text-[15px] font-semibold text-navy">MRV Assurance</div>
           <div className="mt-2.5 flex flex-col gap-1.5">
             {assuranceRows.map((row) => (
@@ -419,7 +419,7 @@ export default function Overview() {
           {mrv.equip
             .filter((e) => equipFilter === "all" || e.group === equipFilter)
             .map((e) => (
-              <button key={e.key} onClick={() => setMenu("equipment")} className="rounded-[10px] border border-line/70 bg-white p-3 text-left transition-colors hover:border-accent/50">
+              <button key={e.key} onClick={() => setMenu("equipment")} className="rounded-[10px] border border-line/60 bg-white p-3 text-left transition-colors hover:border-accent/50">
                 <div className="flex items-center justify-between gap-1">
                   <span className="truncate text-[12px] font-semibold text-navy">{e.name}</span>
                   <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${e.state === "ok" ? "bg-teal/10 text-teal" : "bg-review/10 text-review"}`}>

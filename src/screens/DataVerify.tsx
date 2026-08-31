@@ -298,32 +298,32 @@ export default function DataVerify() {
       {tab === "quality" && (
         <>
           <section className="grid shrink-0 grid-cols-4 gap-3">
-            <div className="rounded-[10px] border border-line/70 bg-white p-4">
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
               <div className="text-[13px] font-medium text-body">검증 대상 레코드</div>
-              <div className="tnum mt-1.5 text-[26px] leading-none font-bold text-navy">
+              <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
                 {fmt(q.totals.n)} <span className="text-[13px] font-semibold text-body">건</span>
               </div>
               <div className="mt-1.5 text-[12px] text-body">보고기간 15분 레코드 × 태그 15점</div>
             </div>
-            <div className="rounded-[10px] border border-line/70 bg-white p-4">
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
               <div className="text-[13px] font-medium text-body">자동검증 통과</div>
-              <div className="tnum mt-1.5 text-[26px] leading-none font-bold text-teal">
+              <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-teal">
                 {pct(q.totals.validRate, 2)}
               </div>
               <div className="tnum mt-1.5 text-[12px] text-body">
                 결측 {pct(q.totals.missRate, 2)} · 추정 {pct(q.totals.estRate, 2)}
               </div>
             </div>
-            <div className="rounded-[10px] border border-line/70 bg-white p-4">
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
               <div className="text-[13px] font-medium text-body">처리 대기 이슈</div>
-              <div className={`tnum mt-1.5 text-[26px] leading-none font-bold ${verify.pending > 0 ? "text-review" : "text-teal"}`}>
+              <div className={`tnum mt-1.5 text-[28px] leading-none font-bold ${verify.pending > 0 ? "text-review" : "text-teal"}`}>
                 {verify.pending} <span className="text-[13px] font-semibold text-body">건</span>
               </div>
               <div className="mt-1.5 text-[12px] text-body">검토·승인 탭에서 처리</div>
             </div>
-            <div className="rounded-[10px] border border-line/70 bg-white p-4">
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
               <div className="text-[13px] font-medium text-body">산정 영향 이슈</div>
-              <div className="tnum mt-1.5 text-[26px] leading-none font-bold text-navy">
+              <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
                 {affectsCount} <span className="text-[13px] font-semibold text-body">건</span>
               </div>
               <div className="mt-1.5 text-[12px] text-body">제외·추정 규칙이 적용된 이슈</div>
@@ -331,7 +331,7 @@ export default function DataVerify() {
           </section>
 
           {/* 태그 × 일 품질 히트맵 */}
-          <section className="rounded-[10px] border border-line/70 bg-white p-4">
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[15px] font-semibold text-navy">데이터 품질 히트맵 (태그 × 일)</span>
               <div className="flex items-center gap-3">
@@ -394,7 +394,7 @@ export default function DataVerify() {
           </section>
 
           {/* Issue Queue — 심각도순 */}
-          <section className="rounded-[10px] border border-line/70 bg-white p-4">
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[15px] font-semibold text-navy">
                 Issue Queue <span className="tnum text-[12px] font-normal text-body">({issueQueue.length}건 · 심각도순)</span>
@@ -406,13 +406,13 @@ export default function DataVerify() {
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-line text-left text-[12px] text-body">
-                  <th className="py-1.5 font-medium">심각도</th>
-                  <th className="py-1.5 font-medium">발생</th>
-                  <th className="py-1.5 font-medium">대상</th>
-                  <th className="py-1.5 font-medium">검증 규칙·이슈</th>
-                  <th className="py-1.5 font-medium">산정 영향</th>
-                  <th className="py-1.5 font-medium">담당자</th>
-                  <th className="py-1.5 pl-3 font-medium">상태</th>
+                  <th className="py-2 font-medium">심각도</th>
+                  <th className="py-2 font-medium">발생</th>
+                  <th className="py-2 font-medium">대상</th>
+                  <th className="py-2 font-medium">검증 규칙·이슈</th>
+                  <th className="py-2 font-medium">산정 영향</th>
+                  <th className="py-2 font-medium">담당자</th>
+                  <th className="py-2 pl-3 font-medium">상태</th>
                 </tr>
               </thead>
               <tbody className="tnum">
@@ -451,9 +451,9 @@ export default function DataVerify() {
       {/* ---------- 탭 2: 태그 상세 ---------- */}
       {tab === "tags" && (
         <>
-          <section className="rounded-[10px] border border-line/70 bg-white p-4">
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[14px] font-semibold text-navy">태그별 데이터 품질</span>
+              <span className="text-[15px] font-semibold text-navy">태그별 데이터 품질</span>
               <div className="flex items-center gap-2 text-[11px] text-body">
                 상태코드 {STATUS_CODES.join(" · ")}
               </div>
@@ -461,27 +461,27 @@ export default function DataVerify() {
             <table className="tnum w-full text-[12px]">
               <thead>
                 <tr className="border-b border-line text-left text-[11px] text-body">
-                  <th className="py-1.5 font-medium">태그</th>
-                  <th className="py-1.5 font-medium">설비</th>
-                  <th className="py-1.5 font-medium">계측기</th>
-                  <th className="py-1.5 font-medium">정확도</th>
-                  <th className="py-1.5 text-right font-medium">수집률</th>
-                  <th className="py-1.5 text-right font-medium">정상률</th>
-                  <th className="py-1.5 text-right font-medium">결측</th>
-                  <th className="py-1.5 text-right font-medium">이상</th>
-                  <th className="py-1.5 text-right font-medium">추정</th>
-                  <th className="py-1.5 pl-3 font-medium">교정 만료</th>
+                  <th className="py-2 font-medium">태그</th>
+                  <th className="py-2 font-medium">설비</th>
+                  <th className="py-2 font-medium">계측기</th>
+                  <th className="py-2 font-medium">정확도</th>
+                  <th className="py-2 text-right font-medium">수집률</th>
+                  <th className="py-2 text-right font-medium">정상률</th>
+                  <th className="py-2 text-right font-medium">결측</th>
+                  <th className="py-2 text-right font-medium">이상</th>
+                  <th className="py-2 text-right font-medium">추정</th>
+                  <th className="py-2 pl-3 font-medium">교정 만료</th>
                 </tr>
               </thead>
               <tbody>
                 {(q.byTag as TagQ[]).map((t) => (
                   <tr key={t.tag} className="border-b border-line/60 last:border-0">
-                    <td className="py-1.5 font-medium text-navy">{t.tag}</td>
-                    <td className="py-1.5 text-body">{t.asset}</td>
-                    <td className="py-1.5 text-body">{t.meter.type ?? "—"}</td>
-                    <td className="py-1.5 text-body">{t.meter.accuracy ?? "—"}</td>
-                    <td className="py-1.5 text-right text-body">{pct(t.collectRate, 1)}</td>
-                    <td className="py-1.5 text-right text-body">{pct(t.validRate, 1)}</td>
+                    <td className="py-2 font-medium text-navy">{t.tag}</td>
+                    <td className="py-2 text-body">{t.asset}</td>
+                    <td className="py-2 text-body">{t.meter.type ?? "—"}</td>
+                    <td className="py-2 text-body">{t.meter.accuracy ?? "—"}</td>
+                    <td className="py-2 text-right text-body">{pct(t.collectRate, 1)}</td>
+                    <td className="py-2 text-right text-body">{pct(t.validRate, 1)}</td>
                     <td className={`py-1.5 text-right ${t.missRate > 0 ? "font-semibold text-risk" : "text-body"}`}>
                       {pct(t.missRate, 2)}
                     </td>
@@ -491,7 +491,7 @@ export default function DataVerify() {
                     <td className={`py-1.5 text-right ${t.estRate > 0 ? "font-semibold text-review" : "text-body"}`}>
                       {pct(t.estRate, 2)}
                     </td>
-                    <td className="py-1.5 pl-3">
+                    <td className="py-2 pl-3">
                       {t.expired ? (
                         <span className="rounded bg-review/10 px-1.5 py-0.5 text-[10px] font-bold text-review">
                           만료 {t.meter.expiry}
@@ -515,9 +515,9 @@ export default function DataVerify() {
       {/* ---------- 탭 2: 검토·승인 ---------- */}
       {tab === "approve" && (
         <>
-          <section className="rounded-[10px] border border-line bg-white p-4">
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-1 flex items-center justify-between">
-              <span className="text-[14px] font-semibold text-navy">
+              <span className="text-[15px] font-semibold text-navy">
                 검토 워크플로우 <span className="text-[12px] font-normal text-body">검토 필요 → 검토 완료(검토자) → 승인 완료(승인자) · 역할 분리</span>
               </span>
               <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${stateBadge(verify.state)}`}>
@@ -593,9 +593,9 @@ export default function DataVerify() {
             )}
           </section>
 
-          <section className="rounded-[10px] border border-line bg-white p-4">
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[14px] font-semibold text-navy">비일상적 조정 목록</span>
+              <span className="text-[15px] font-semibold text-navy">비일상적 조정 목록</span>
               <button onClick={resetDemoStates} className="text-[12px] font-medium text-accent hover:underline">
                 데모 상태 초기화
               </button>
@@ -603,12 +603,12 @@ export default function DataVerify() {
             <table className="tnum w-full text-[12px]">
               <thead>
                 <tr className="border-b border-line text-left text-[11px] text-body">
-                  <th className="py-1.5 font-medium">ID</th>
-                  <th className="py-1.5 font-medium">내용</th>
-                  <th className="py-1.5 font-medium">기간</th>
-                  <th className="py-1.5 text-right font-medium">조정량</th>
-                  <th className="py-1.5 pl-3 font-medium">상태</th>
-                  <th className="py-1.5 font-medium">승인자</th>
+                  <th className="py-2 font-medium">ID</th>
+                  <th className="py-2 font-medium">내용</th>
+                  <th className="py-2 font-medium">기간</th>
+                  <th className="py-2 text-right font-medium">조정량</th>
+                  <th className="py-2 pl-3 font-medium">상태</th>
+                  <th className="py-2 font-medium">승인자</th>
                 </tr>
               </thead>
               <tbody>
@@ -643,7 +643,7 @@ export default function DataVerify() {
 
       {/* ---------- 탭: 증적 레지스트리 ---------- */}
       {tab === "evidence" && (
-        <section className="rounded-[10px] border border-line/70 bg-white p-4">
+        <section className="rounded-[10px] border border-line/60 bg-white p-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[15px] font-semibold text-navy">
               증적 레지스트리{" "}
@@ -654,14 +654,14 @@ export default function DataVerify() {
           <table className="tnum w-full text-[13px]">
             <thead>
               <tr className="border-b border-line text-left text-[12px] text-body">
-                <th className="py-1.5 font-medium">증적번호</th>
-                <th className="py-1.5 font-medium">문서유형</th>
-                <th className="py-1.5 font-medium">연결 대상</th>
-                <th className="py-1.5 font-medium">발행일</th>
-                <th className="py-1.5 font-medium">유효기간</th>
-                <th className="py-1.5 font-medium">연결 계산버전</th>
-                <th className="py-1.5 font-medium">파일 해시</th>
-                <th className="py-1.5 pl-3 font-medium">검토 상태</th>
+                <th className="py-2 font-medium">증적번호</th>
+                <th className="py-2 font-medium">문서유형</th>
+                <th className="py-2 font-medium">연결 대상</th>
+                <th className="py-2 font-medium">발행일</th>
+                <th className="py-2 font-medium">유효기간</th>
+                <th className="py-2 font-medium">연결 계산버전</th>
+                <th className="py-2 font-medium">파일 해시</th>
+                <th className="py-2 pl-3 font-medium">검토 상태</th>
               </tr>
             </thead>
             <tbody>
@@ -700,9 +700,9 @@ export default function DataVerify() {
       {/* ---------- 탭 3: 보고서·이력 ---------- */}
       {tab === "report" && (
         <>
-          <section className="rounded-[10px] border border-line bg-white p-4">
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[14px] font-semibold text-navy">월별 확정성과</span>
+              <span className="text-[15px] font-semibold text-navy">월별 확정성과</span>
               <div className="flex items-center gap-2">
                 <button onClick={() => window.print()} className="rounded-lg border border-line px-3 py-1.5 text-[12px] font-medium text-navy hover:border-accent/50">
                   인쇄
@@ -725,23 +725,23 @@ export default function DataVerify() {
             <table className="tnum w-full text-[13px]">
               <thead>
                 <tr className="border-b border-line text-left text-[11px] text-body">
-                  <th className="py-1.5 font-medium">월</th>
-                  <th className="py-1.5 text-right font-medium">조정 기준선 (MWh)</th>
-                  <th className="py-1.5 text-right font-medium">실제 (MWh)</th>
-                  <th className="py-1.5 text-right font-medium">절감 (MWh)</th>
-                  <th className="py-1.5 text-right font-medium">절감률</th>
-                  <th className="py-1.5 text-right font-medium">제외일</th>
+                  <th className="py-2 font-medium">월</th>
+                  <th className="py-2 text-right font-medium">조정 기준선 (MWh)</th>
+                  <th className="py-2 text-right font-medium">실제 (MWh)</th>
+                  <th className="py-2 text-right font-medium">절감 (MWh)</th>
+                  <th className="py-2 text-right font-medium">절감률</th>
+                  <th className="py-2 text-right font-medium">제외일</th>
                 </tr>
               </thead>
               <tbody>
                 {calc.monthly.map((m) => (
                   <tr key={m.month} className="border-b border-line/60">
-                    <td className="py-1.5 font-medium text-navy">{m.month}</td>
-                    <td className="py-1.5 text-right text-body">{fmt(m.baseMWh, 1)}</td>
-                    <td className="py-1.5 text-right text-body">{fmt(m.actMWh, 1)}</td>
-                    <td className="py-1.5 text-right font-semibold text-teal">{fmt(m.saveMWh, 1)}</td>
-                    <td className="py-1.5 text-right text-body">{pct(m.saveMWh / m.baseMWh)}</td>
-                    <td className="py-1.5 text-right text-body">{m.nExcluded}</td>
+                    <td className="py-2 font-medium text-navy">{m.month}</td>
+                    <td className="py-2 text-right text-body">{fmt(m.baseMWh, 1)}</td>
+                    <td className="py-2 text-right text-body">{fmt(m.actMWh, 1)}</td>
+                    <td className="py-2 text-right font-semibold text-teal">{fmt(m.saveMWh, 1)}</td>
+                    <td className="py-2 text-right text-body">{pct(m.saveMWh / m.baseMWh)}</td>
+                    <td className="py-2 text-right text-body">{m.nExcluded}</td>
                   </tr>
                 ))}
                 <tr className="font-semibold">
@@ -757,7 +757,7 @@ export default function DataVerify() {
           </section>
 
           {/* 계산버전 비교 — 버전관리·감사추적 증명 */}
-          <section className="rounded-[10px] border border-line/70 bg-white p-4">
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[15px] font-semibold text-navy">계산버전 비교</span>
               <span className="tnum text-[12px] text-body">
@@ -773,10 +773,10 @@ export default function DataVerify() {
               <table className="tnum w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-line text-left text-[12px] text-body">
-                    <th className="py-1.5 font-medium">항목</th>
-                    <th className="py-1.5 text-right font-medium">v1 (확정본)</th>
-                    <th className="py-1.5 text-right font-medium">{calc.version.replace("CALC-2026H1-", "")} (현재)</th>
-                    <th className="py-1.5 pl-4 font-medium">변화 원인</th>
+                    <th className="py-2 font-medium">항목</th>
+                    <th className="py-2 text-right font-medium">v1 (확정본)</th>
+                    <th className="py-2 text-right font-medium">{calc.version.replace("CALC-2026H1-", "")} (현재)</th>
+                    <th className="py-2 pl-4 font-medium">변화 원인</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -810,20 +810,20 @@ export default function DataVerify() {
             )}
           </section>
 
-          <section className="rounded-[10px] border border-line bg-white p-4">
-            <div className="mb-2 text-[14px] font-semibold text-navy">
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
+            <div className="mb-2 text-[15px] font-semibold text-navy">
               냉매 비산배출 — 전력 감축량과 합산하지 않는 별도 항목
             </div>
             <table className="tnum w-full text-[13px]">
               <thead>
                 <tr className="border-b border-line text-left text-[11px] text-body">
-                  <th className="py-1.5 font-medium">일자</th>
-                  <th className="py-1.5 font-medium">설비</th>
-                  <th className="py-1.5 font-medium">냉매</th>
-                  <th className="py-1.5 text-right font-medium">GWP</th>
-                  <th className="py-1.5 pl-5 font-medium">구분</th>
-                  <th className="py-1.5 text-right font-medium">양 (kg)</th>
-                  <th className="py-1.5 text-right font-medium">배출 (tCO₂eq)</th>
+                  <th className="py-2 font-medium">일자</th>
+                  <th className="py-2 font-medium">설비</th>
+                  <th className="py-2 font-medium">냉매</th>
+                  <th className="py-2 text-right font-medium">GWP</th>
+                  <th className="py-2 pl-5 font-medium">구분</th>
+                  <th className="py-2 text-right font-medium">양 (kg)</th>
+                  <th className="py-2 text-right font-medium">배출 (tCO₂eq)</th>
                 </tr>
               </thead>
               <tbody>
@@ -831,13 +831,13 @@ export default function DataVerify() {
                   date: string; asset: string; type: string; gwp: number; kind: string; kg: number; tco2: number; counted: boolean;
                 }>).map((r) => (
                   <tr key={r.date + r.asset} className="border-b border-line/60">
-                    <td className="py-1.5 text-body">{r.date}</td>
-                    <td className="py-1.5 text-body">{r.asset}</td>
-                    <td className="py-1.5 text-body">{r.type}</td>
-                    <td className="py-1.5 text-right text-body">{fmt(r.gwp)}</td>
-                    <td className="py-1.5 pl-5 text-body">{r.kind}{!r.counted && " (배출 아님)"}</td>
-                    <td className="py-1.5 text-right text-body">{fmt(r.kg)}</td>
-                    <td className="py-1.5 text-right font-medium text-navy">
+                    <td className="py-2 text-body">{r.date}</td>
+                    <td className="py-2 text-body">{r.asset}</td>
+                    <td className="py-2 text-body">{r.type}</td>
+                    <td className="py-2 text-right text-body">{fmt(r.gwp)}</td>
+                    <td className="py-2 pl-5 text-body">{r.kind}{!r.counted && " (배출 아님)"}</td>
+                    <td className="py-2 text-right text-body">{fmt(r.kg)}</td>
+                    <td className="py-2 text-right font-medium text-navy">
                       {r.counted ? fmt(r.tco2, 2) : "—"}
                     </td>
                   </tr>
@@ -852,8 +852,8 @@ export default function DataVerify() {
             </table>
           </section>
 
-          <section className="rounded-[10px] border border-line bg-white p-4">
-            <div className="mb-2 text-[14px] font-semibold text-navy">
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
+            <div className="mb-2 text-[15px] font-semibold text-navy">
               변경이력·감사로그 <span className="tnum text-[12px] font-normal text-body">({audit.length}건 · localStorage 보존)</span>
             </div>
             {audit.length === 0 ? (

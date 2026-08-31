@@ -59,7 +59,7 @@ export default function GuideModal() {
           ×
         </button>
 
-        <div className="text-[22px] font-bold text-navy">이 시스템은 무엇을 하나요?</div>
+        <div className="text-[22px] font-bold text-navy">시스템 개요</div>
         <p className="mt-2 text-[15px] leading-relaxed text-navy">
           공장의 냉방설비를 개선한 뒤 <b className="text-teal">전기를 얼마나 아꼈는지 계산</b>하고, 그
           숫자를 <b className="text-accent">제3자가 믿을 수 있도록 검증·승인</b>하는 화면입니다.
@@ -84,7 +84,7 @@ export default function GuideModal() {
 
         {/* 메뉴 지도 */}
         <div className="mt-5">
-          <div className="text-[14px] font-semibold text-navy">왼쪽 메뉴 4개</div>
+          <div className="text-[15px] font-semibold text-navy">왼쪽 메뉴 4개</div>
           <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1.5 text-[13px]">
             <div><b className="text-navy">종합성과</b> <span className="text-body">— 결론: 얼마나 아꼈고 믿을 수 있는가</span></div>
             <div><b className="text-navy">설비성과</b> <span className="text-body">— 원인: 어떤 설비가 왜 아꼈는가</span></div>
@@ -95,7 +95,7 @@ export default function GuideModal() {
 
         {/* 시연 순서 */}
         <div className="mt-5">
-          <div className="text-[14px] font-semibold text-navy">추천 시연 순서 (약 5분)</div>
+          <div className="text-[15px] font-semibold text-navy">추천 시연 순서 (약 5분)</div>
           <div className="mt-2 flex flex-col gap-1.5">
             {steps.map((s) => (
               <button

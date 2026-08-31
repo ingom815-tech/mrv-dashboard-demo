@@ -114,9 +114,9 @@ export default function EquipPerformance() {
         {mrv.perf.kpis.map((k) => {
           const improved = k.betterLow ? k.deltaPct < 0 : k.deltaPct > 0;
           return (
-            <div key={k.key} className="rounded-[10px] border border-line/70 bg-white p-4">
+            <div key={k.key} className="rounded-[10px] border border-line/60 bg-white p-4">
               <div className="text-[13px] font-medium text-body">{k.label}</div>
-              <div className="tnum mt-1.5 text-[27px] leading-none font-bold text-navy">
+              <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
                 {k.rep !== null ? fmt(k.rep, k.digits) : "—"}{" "}
                 <span className="text-[13px] font-semibold text-body">{k.unit}</span>
               </div>
@@ -134,7 +134,7 @@ export default function EquipPerformance() {
 
       {/* 부하율–효율 성능곡선 + 절감 기여도 Waterfall */}
       <section className="grid shrink-0 grid-cols-[1.35fr_1fr] gap-3">
-        <div className="relative rounded-[10px] border border-line/70 bg-white p-4">
+        <div className="relative rounded-[10px] border border-line/60 bg-white p-4">
           <div className="flex items-center justify-between">
             <div className="text-[15px] font-semibold text-navy">부하율–효율 성능곡선</div>
             <div className="flex items-center gap-3 text-[12px] text-body">
@@ -225,7 +225,7 @@ export default function EquipPerformance() {
           </div>
         </div>
 
-        <div className="rounded-[10px] border border-line/70 bg-white p-4">
+        <div className="rounded-[10px] border border-line/60 bg-white p-4">
           <div className="text-[15px] font-semibold text-navy">절감 기여도 분해</div>
           <div className="h-[300px] pt-2">
             <ResponsiveContainer width="100%" height="100%">
@@ -264,7 +264,7 @@ export default function EquipPerformance() {
 
       {/* 설비군 KPI 표 + 선택 설비 추세 */}
       <section className="grid min-h-0 flex-1 grid-cols-[1.15fr_1fr] gap-3">
-        <div className="rounded-[10px] border border-line/70 bg-white p-4">
+        <div className="rounded-[10px] border border-line/60 bg-white p-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[15px] font-semibold text-navy">설비군별 KPI</span>
             <span className="text-[12px] text-slate-400">행 선택 시 우측에 추세 표시</span>
@@ -314,7 +314,7 @@ export default function EquipPerformance() {
           </div>
         </div>
 
-        <div className="flex flex-col rounded-[10px] border border-line/70 bg-white p-4">
+        <div className="flex flex-col rounded-[10px] border border-line/60 bg-white p-4">
           <div className="flex items-center justify-between">
             <span className="text-[15px] font-semibold text-navy">{row.name} 주별 전력</span>
             <span className="text-[12px] text-slate-400">kWh/일 평균</span>
