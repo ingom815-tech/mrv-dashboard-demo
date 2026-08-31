@@ -569,25 +569,55 @@ const loadPoints: LoadPoint[] = allDaily
     period: (d.date >= cfg.reportStart ? "rep" : "base") as "base" | "rep",
   }))
   .filter((p) => p.loadPct >= 5 && p.kwRT < 3);
-// 부하 구간(10%p 단위)별 평균 성능곡선
-const curveOf = (period: "base" | "rep") => {
-  const bins = new Map<number, { s: number; n: number }>();
-  for (const p of loadPoints.filter((x) => x.period === period)) {
-    const b = Math.floor(p.loadPct / 10) * 10 + 5;
-    const rec = bins.get(b) ?? { s: 0, n: 0 };
-    rec.s += p.kwRT;
-    rec.n++;
-    bins.set(b, rec);
-  }
-  return [...bins.entries()]
-    .filter(([, v]) => v.n >= 3)
-    .map(([b, v]) => ({ loadPct: b, kwRT: v.s / v.n }))
-    .sort((a, b) => a.loadPct - b.loadPct);
+// 기간별 2차 회귀 성능곡선: kW/RT = a + b·부하율 + c·부하율² (관측 5~95백분위 구간만 표시)
+const pctl = (arr: number[], q: number) => {
+  const s = [...arr].sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.floor(q * s.length))];
 };
+const fitCurve = (period: "base" | "rep") => {
+  const pts = loadPoints.filter((x) => x.period === period);
+  const fit = MRV.ols(pts.map((p) => [p.loadPct, p.loadPct * p.loadPct, p.kwRT]));
+  if (!fit) return [];
+  const loads = pts.map((p) => p.loadPct);
+  const lo = pctl(loads, 0.03);
+  const hi = pctl(loads, 0.985);
+  const out: Array<{ loadPct: number; kwRT: number }> = [];
+  for (let x = lo; x <= hi; x += (hi - lo) / 40) {
+    out.push({ loadPct: x, kwRT: fit.a + fit.b * x + fit.c * x * x });
+  }
+  return out;
+};
+const baseCurve = fitCurve("base");
+const repCurve = fitCurve("rep");
+// 동일 부하 구간(두 기간 공통 범위)에서의 평균 효율 개선율
+const overlapLo = Math.max(baseCurve[0]?.loadPct ?? 0, repCurve[0]?.loadPct ?? 0);
+const overlapHi = Math.min(
+  baseCurve[baseCurve.length - 1]?.loadPct ?? 0,
+  repCurve[repCurve.length - 1]?.loadPct ?? 0,
+);
+const curveAt = (curve: Array<{ loadPct: number; kwRT: number }>, x: number) => {
+  let best = curve[0];
+  for (const p of curve) if (Math.abs(p.loadPct - x) < Math.abs(best.loadPct - x)) best = p;
+  return best?.kwRT ?? 0;
+};
+let impSum = 0;
+let impN = 0;
+for (let x = overlapLo; x <= overlapHi; x += 2) {
+  const b = curveAt(baseCurve, x);
+  const r = curveAt(repCurve, x);
+  if (b > 0) {
+    impSum += (b - r) / b;
+    impN++;
+  }
+}
 export const perfCurve = {
   points: loadPoints,
-  baseCurve: curveOf("base"),
-  repCurve: curveOf("rep"),
+  baseCurve,
+  repCurve,
+  // 정상 운전영역: 보고기간 부하율 25~90백분위
+  normalBand: [pctl(loadPoints.filter((p) => p.period === "rep").map((p) => p.loadPct), 0.25), pctl(loadPoints.filter((p) => p.period === "rep").map((p) => p.loadPct), 0.9)] as [number, number],
+  sameLoadImprovePct: impN ? impSum / impN : 0,
+  domainX: [0, Math.ceil((pctl(loadPoints.map((p) => p.loadPct), 0.995) + 5) / 5) * 5] as [number, number],
 };
 
 // ---------- 절감 기여도 Waterfall (설비성과) ----------

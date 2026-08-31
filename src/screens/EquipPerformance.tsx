@@ -11,6 +11,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  ReferenceArea,
   LabelList,
 } from "recharts";
 import { mrv, perfCurve, waterfall } from "../lib/mrvData";
@@ -130,39 +131,48 @@ export default function EquipPerformance() {
 
       {/* 부하율–효율 성능곡선 + 절감 기여도 Waterfall */}
       <section className="grid shrink-0 grid-cols-[1.35fr_1fr] gap-3">
-        <div className="rounded-[10px] border border-line/70 bg-white p-4">
+        <div className="relative rounded-[10px] border border-line/70 bg-white p-4">
           <div className="flex items-center justify-between">
             <div className="text-[15px] font-semibold text-navy">부하율–효율 성능곡선</div>
             <div className="flex items-center gap-3 text-[12px] text-body">
-              <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-slate-400/50" /> 기준기간 일별</span>
-              <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-teal/70" /> 보고기간 일별</span>
+              <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-slate-400/60" /> 기준기간 일별</span>
+              <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-teal/80" /> 보고기간 일별</span>
               <span className="flex items-center gap-1.5">
-                <svg width="18" height="6" aria-hidden><line x1="0" y1="3" x2="18" y2="3" stroke="#102a43" strokeWidth="2" /></svg>
-                기준 곡선
+                <svg width="18" height="6" aria-hidden><line x1="0" y1="3" x2="18" y2="3" stroke="#102a43" strokeWidth="2.5" /></svg>
+                기준 성능곡선
               </span>
               <span className="flex items-center gap-1.5">
-                <svg width="18" height="6" aria-hidden><line x1="0" y1="3" x2="18" y2="3" stroke="#159f9e" strokeWidth="2" strokeDasharray="4 3" /></svg>
+                <svg width="18" height="6" aria-hidden><line x1="0" y1="3" x2="18" y2="3" stroke="#159f9e" strokeWidth="2.5" strokeDasharray="4 3" /></svg>
                 개선 후
               </span>
             </div>
           </div>
+          {/* 동일 부하 개선율 주석 */}
+          <div className="pointer-events-none absolute top-16 right-10 z-10 rounded-lg bg-teal/8 px-3 py-2 text-right">
+            <div className="tnum text-[19px] leading-none font-bold text-teal">
+              −{fmt(perfCurve.sameLoadImprovePct * 100, 1)}%
+            </div>
+            <div className="mt-1 text-[11px] text-body">동일 부하 평균 효율 개선</div>
+          </div>
           <div className="h-[300px] pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart margin={{ top: 12, right: 16, bottom: 4, left: 0 }}>
-                <CartesianGrid stroke="#eaeff5" vertical={false} />
+                <CartesianGrid stroke="#eef2f7" vertical={false} />
                 <XAxis
                   type="number"
                   dataKey="loadPct"
-                  domain={[0, 90]}
+                  domain={perfCurve.domainX}
                   tick={{ fontSize: 12, fill: "#8a94a6" }}
                   axisLine={{ stroke: "#eaeff5" }}
                   tickLine={false}
-                  label={{ value: "냉동부하율 (%)", position: "insideBottomRight", offset: -2, fontSize: 11, fill: "#8a94a6" }}
+                  tickFormatter={(v: number) => `${v}%`}
+                  label={{ value: "냉동부하율", position: "insideBottomRight", offset: -2, fontSize: 11, fill: "#8a94a6" }}
                 />
                 <YAxis
                   type="number"
                   dataKey="kwRT"
-                  domain={[0.4, 2.0]}
+                  domain={[0.5, 2.1]}
+                  allowDataOverflow
                   tick={{ fontSize: 12, fill: "#8a94a6" }}
                   axisLine={false}
                   tickLine={false}
@@ -170,17 +180,25 @@ export default function EquipPerformance() {
                   tickFormatter={(v: number) => v.toFixed(1)}
                   label={{ value: "kW/RT", position: "insideTopLeft", offset: 8, fontSize: 11, fill: "#8a94a6" }}
                 />
-                <ZAxis range={[14, 14]} />
+                <ZAxis range={[26, 26]} />
                 <Tooltip content={<CurveTooltip />} cursor={{ strokeDasharray: "3 3", stroke: "#c3cdd9" }} />
-                <Scatter data={perfCurve.points.filter((p) => p.period === "base")} fill="#9aa5b1" fillOpacity={0.3} isAnimationActive={false} />
-                <Scatter data={perfCurve.points.filter((p) => p.period === "rep")} fill="#159f9e" fillOpacity={0.45} isAnimationActive={false} />
-                <Line data={perfCurve.baseCurve} dataKey="kwRT" stroke="#102a43" strokeWidth={2.5} dot={false} isAnimationActive={false} />
-                <Line data={perfCurve.repCurve} dataKey="kwRT" stroke="#159f9e" strokeWidth={2.5} strokeDasharray="6 4" dot={false} isAnimationActive={false} />
+                <ReferenceArea
+                  x1={perfCurve.normalBand[0]}
+                  x2={perfCurve.normalBand[1]}
+                  fill="#102a43"
+                  fillOpacity={0.035}
+                  label={{ value: "정상 운전영역", position: "insideBottom", fontSize: 11, fill: "#8a94a6" }}
+                />
+                <Scatter data={perfCurve.points.filter((p) => p.period === "base")} fill="#9aa5b1" fillOpacity={0.4} isAnimationActive={false} />
+                <Scatter data={perfCurve.points.filter((p) => p.period === "rep")} fill="#159f9e" fillOpacity={0.55} isAnimationActive={false} />
+                <Line data={perfCurve.baseCurve} dataKey="kwRT" type="monotone" stroke="#102a43" strokeWidth={2.5} dot={false} isAnimationActive={false} />
+                <Line data={perfCurve.repCurve} dataKey="kwRT" type="monotone" stroke="#159f9e" strokeWidth={2.5} strokeDasharray="6 4" dot={false} isAnimationActive={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
           <div className="text-[12px] text-body">
-            동일 부하 구간에서 개선 후 곡선이 아래에 위치 — 부하 변동이 아닌 <b className="text-navy">설비 효율 개선</b>이 절감 원인임을 보여줌
+            2차 회귀 성능곡선(관측 구간) · 동일 부하에서 개선 후 곡선이 아래 — 부하 변동이 아닌{" "}
+            <b className="text-navy">설비 효율 개선</b>이 절감 원인 · 저부하(≤15%) 고효율비는 겨울철 저부하 운전 특성
           </div>
         </div>
 
