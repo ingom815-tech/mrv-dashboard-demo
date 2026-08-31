@@ -517,38 +517,41 @@ export interface AssuranceRow {
   stage: string;
   label: string;
   status: AssuranceStatus;
-  evidence: string;
-  evidCount: number; // 증적 건수 (데모)
+  metrics: string; // 2번째 줄: 핵심 수치
+  note: string; // 3번째 줄: 비고·예외·판단 근거
+  evidCount: number; // 4번째 줄: 증적 건수 (데모)
 }
 const assurance: AssuranceRow[] = [
   {
     stage: "Measurement",
     label: "계측·수집",
     status: "PASS",
-    evidence: `정상률 ${(trustRate * 100).toFixed(1)}% · 결측 ${(quality.totals.missRate * 100).toFixed(2)}% · 교정 주의 1건(열량 KPI 한정)`,
+    metrics: `정상률 ${(trustRate * 100).toFixed(1)}% · 결측 ${(quality.totals.missRate * 100).toFixed(2)}%`,
+    note: "교정 주의 1건 (열량 KPI 한정)",
     evidCount: 14,
   },
   {
     stage: "Baseline",
     label: "기준선 모델",
     status: baseline.pass ? "PASS" : "FAIL",
-    evidence: m
-      ? `CV(RMSE) ${(m.cvRmse * 100).toFixed(1)}% · NMBE ${(nmbe * 100).toFixed(1)}% · R² ${m.r2.toFixed(3)}`
-      : "-",
+    metrics: m ? `CV(RMSE) ${(m.cvRmse * 100).toFixed(1)}% · R² ${m.r2.toFixed(3)}` : "-",
+    note: `NMBE ${(nmbe * 100).toFixed(1)}% · 잔차 편향 없음`,
     evidCount: 3,
   },
   {
     stage: "Calculation",
     label: "산정 재현",
     status: "PASS",
-    evidence: `재현오차 0.00% · 입력 스냅샷 #${((((data.meta.seed as number) >>> 0) * 2654435761) >>> 0).toString(16).slice(0, 6)} 확인 · 회귀 테스트 11건 통과`,
+    metrics: "재현오차 0.00% · 회귀 테스트 22건",
+    note: `입력 스냅샷 #${((((data.meta.seed as number) >>> 0) * 2654435761) >>> 0).toString(16).slice(0, 6)} 확인`,
     evidCount: 2,
   },
   {
     stage: "Verification",
     label: "검증·승인",
     status: "REVIEW",
-    evidence: "검토 대기 2건 · 승인 전",
+    metrics: "검토 대기 2건",
+    note: "승인 전 · 검토자·승인자 역할 분리",
     evidCount: 5,
   },
 ];
