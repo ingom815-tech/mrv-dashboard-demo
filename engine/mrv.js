@@ -96,10 +96,10 @@
     const base = daily.filter(x => x.date >= cfg.baselineStart && x.date <= cfg.baselineEnd && x.usable && x.validShare >= 0.9);
     const fit = ols(base.map(x => [x.cdd, x.prod, x.kwhDay]));
     const excluded = daily.filter(x => x.date >= cfg.baselineStart && x.date <= cfg.baselineEnd && !(x.usable && x.validShare >= 0.9));
-    // 적합도 판정 기준(ASHRAE Guideline 14, 일별): CV(RMSE) ≤ 25%, R² ≥ 0.75 — 테스트 표시용
+    // 데모 모델 적합성 내부 기준 (일별): CV(RMSE) ≤ 25%, R² ≥ 0.75
     const pass = fit && fit.cvRmse <= 0.25 && fit.r2 >= 0.75;
     return { model: fit, form: "kWh/일 = a + b × 냉방도일(℃·day, 기준 18℃) + c × 생산량(ton/일)", nDays: base.length, excludedDays: excluded.map(x => x.date), pass,
-      criteria: "CV(RMSE) ≤ 25%, R² ≥ 0.75 (ASHRAE Guideline 14, 일별 모델)", version: "BL-v1.0", trainRange: [cfg.baselineStart, cfg.baselineEnd] };
+      criteria: "데모 모델 적합성 내부 기준: CV(RMSE) ≤ 25% · R² ≥ 0.75 — 실제 적용기준은 데이터 간격 및 승인된 M&V 계획에 따라 확정", version: "BL-v1.0", trainRange: [cfg.baselineStart, cfg.baselineEnd] };
   }
 
   // ---------- 성과 산정 ----------

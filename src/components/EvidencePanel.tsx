@@ -1,4 +1,4 @@
-import { mrv } from "../lib/mrvData";
+import { mrv, baselineStats } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, deriveVerify, activeEf } from "../store";
 
@@ -54,6 +54,19 @@ export default function EvidencePanel() {
                 <Row label="학습 일수" value={`${mrv.baseline.nDays}일 (제외 ${mrv.baseline.excludedDays.length}일)`} />
                 <Row label="R²" value={fmt(m.r2, 3)} />
                 <Row label="CV(RMSE)" value={`${fmt(m.cvRmse * 100, 1)}%`} />
+                <Row label="NMBE (잔차 편향)" value={`${fmt(baselineStats.nmbe * 100, 2)}% (편향 없음)`} />
+                <Row
+                  label="학습/제외 데이터"
+                  value={`${baselineStats.nTrain}일 / ${baselineStats.nExclTrain}일`}
+                />
+                <Row
+                  label="모델 적용범위"
+                  value={`냉방도일 ${fmt(baselineStats.cddRange[0], 1)}~${fmt(baselineStats.cddRange[1], 1)} · 생산 ${fmt(baselineStats.prodRange[0])}~${fmt(baselineStats.prodRange[1])} ton`}
+                />
+                <Row
+                  label="보고기간 범위 이탈"
+                  value={baselineStats.outOfRangeDays === 0 ? "없음 (외삽 미사용)" : `${baselineStats.outOfRangeDays}일 (외삽 주의)`}
+                />
                 <Row label="판정" value={mrv.baseline.pass ? "기준 충족" : "기준 미충족"} />
                 <div className="mt-1 text-[11px] leading-relaxed text-slate-400">{mrv.baseline.criteria}</div>
               </div>

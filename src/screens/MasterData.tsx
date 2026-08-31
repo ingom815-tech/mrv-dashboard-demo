@@ -1,5 +1,17 @@
 import { useState } from "react";
-import { mrv, TARIFF, assetPassports, tagKpiMap, type TagMeta, type MeterMeta } from "../lib/mrvData";
+import {
+  mrv,
+  TARIFF,
+  assetPassports,
+  tagKpiMap,
+  mvPlan,
+  readiness,
+  readinessSummary,
+  systemBoundary,
+  interfaceSources,
+  type TagMeta,
+  type MeterMeta,
+} from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, activeEf, type Role } from "../store";
 import ContextBar, { TopActions } from "../components/ContextBar";
@@ -8,6 +20,7 @@ const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
 
 const TABS = [
+  { key: "plan", label: "MRV 계획" },
   { key: "asset", label: "설비·센서" },
   { key: "factor", label: "배출계수·가정값" },
   { key: "user", label: "사용자·권한" },
@@ -16,7 +29,13 @@ type TabKey = (typeof TABS)[number]["key"];
 
 const initialTab = (): TabKey => {
   const seg = window.location.hash.split("/")[2];
-  return (TABS.find((t) => t.key === seg)?.key ?? "asset") as TabKey;
+  return (TABS.find((t) => t.key === seg)?.key ?? "plan") as TabKey;
+};
+
+const READY_BADGE: Record<string, string> = {
+  충족: "bg-teal/10 text-teal",
+  "부분 충족": "bg-accent/10 text-accent",
+  "검토 필요": "bg-review/10 text-review",
 };
 
 /* 설비 계층 (합성 시나리오 고정 구성) */
@@ -107,10 +126,76 @@ function TagDrawer({ tag, onClose }: { tag: TagMeta; onClose: () => void }) {
   );
 }
 
+/* 데이터 연계 현황 Drawer — 가상 연계 구조 */
+function InterfaceDrawer({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="데이터 연계 현황">
+      <div className="absolute inset-0 bg-navy/30" onClick={onClose} />
+      <aside className="absolute inset-y-0 right-0 flex w-[520px] flex-col overflow-y-auto bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-line px-6 py-4">
+          <div>
+            <div className="text-[16px] font-bold text-navy">데이터 연계 현황</div>
+            <div className="mt-0.5 text-[12px] text-slate-400">
+              소스 5종 · 계측 태그 13점 매핑 · Read Only · 원본 데이터 보존
+            </div>
+          </div>
+          <button onClick={onClose} aria-label="닫기" className="rounded-lg px-2 py-1 text-[18px] leading-none text-slate-400 hover:bg-surface hover:text-navy">
+            ×
+          </button>
+        </div>
+        <div className="flex-1 space-y-4 px-6 py-5">
+          <div className="rounded-lg bg-review/8 px-3.5 py-2.5 text-[12px] leading-relaxed text-body">
+            인터페이스 구조를 검증하기 위한 <b className="text-navy">가상 연계</b>이며 실제 현장 접속
+            상태가 아닙니다. 모든 연계는 Read Only이고 원본 데이터는 수정 없이 보존됩니다.
+          </div>
+          <table className="tnum w-full text-[12.5px]">
+            <thead>
+              <tr className="border-b border-line text-left text-[11px] text-body">
+                <th className="py-1.5 font-medium">데이터 소스</th>
+                <th className="py-1.5 font-medium">연계방식</th>
+                <th className="py-1.5 text-right font-medium">태그</th>
+                <th className="py-1.5 text-right font-medium">주기</th>
+                <th className="py-1.5 pl-3 font-medium">상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              {interfaceSources.map((s) => (
+                <tr key={s.source} className="border-b border-line/50 last:border-0 align-top">
+                  <td className="py-2 font-medium text-navy">{s.source}</td>
+                  <td className="py-2 text-body">{s.method}</td>
+                  <td className="py-2 text-right text-body">{s.tags}</td>
+                  <td className="py-2 text-right text-body">{s.interval}</td>
+                  <td className="py-2 pl-3">
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                        s.stateKind === "ok" ? "bg-teal/10 text-teal" : "bg-review/10 text-review"
+                      }`}
+                    >
+                      {s.state}
+                    </span>
+                    <div className="mt-1 text-[11px] leading-snug text-slate-400">
+                      수신 {s.lastRecv} · {s.sync} · 지연 {s.delay}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="rounded-xl bg-surface px-4 py-3 text-[12px] leading-relaxed text-body">
+            실제 구축 단계에서는 BMS·PLC·MES 실연결, 수집 서버·이력 DB, 시간동기화 감시, 수집 지연
+            경보가 추가됩니다 (본 데모 범위 외).
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 export default function MasterData() {
   const [tab, setTab] = useState<TabKey>(initialTab);
   const [assetFilter, setAssetFilter] = useState<string | null>(null);
   const [selTag, setSelTag] = useState<TagMeta | null>(null);
+  const [ifaceOpen, setIfaceOpen] = useState(false);
   const { role, efList, registerEf, tariffValue, setTariff } = useUI();
   const calc = useCalc();
   const ef = activeEf(efList);
@@ -155,11 +240,111 @@ export default function MasterData() {
         ))}
       </div>
 
+      {/* ---------- 탭 0: MRV 계획·준비도 ---------- */}
+      {tab === "plan" && (
+        <>
+          {/* 준비도 진단 (공동 사전진단 결과) */}
+          <section className="rounded-[10px] border border-line/70 bg-white p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-[15px] font-semibold text-navy">MRV 준비도 진단</span>
+                <span className="rounded bg-accent/10 px-2 py-0.5 text-[12px] font-bold text-accent">
+                  {readinessSummary.grade}
+                </span>
+                <span className="tnum text-[12.5px] text-body">
+                  {readinessSummary.total}개 영역 중 {readinessSummary.ok}개 충족 · 보완{" "}
+                  {readinessSummary.need}건
+                </span>
+              </div>
+              <span className="text-[12px] text-slate-400">공동 사전진단(2~4주) 결과 요약 — 데모</span>
+            </div>
+            <div className="mt-3 grid grid-cols-4 gap-2.5">
+              {readiness.map((r) => (
+                <div key={r.area} className="rounded-lg bg-surface/70 px-3 py-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-semibold text-navy">{r.area}</span>
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${READY_BADGE[r.state]}`}>
+                      {r.state}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-[12px] leading-snug text-body">{r.result}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* M&V PLAN */}
+          <section className="rounded-[10px] border border-line/70 bg-white p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-[15px] font-semibold text-navy">M&V PLAN · {mvPlan.id}</span>
+                <span className="rounded bg-review/10 px-2 py-0.5 text-[11px] font-bold text-review">
+                  {mvPlan.status}
+                </span>
+                <span className="tnum text-[12px] text-body">계획서 {mvPlan.version}</span>
+              </div>
+              <span className="text-[12px] text-slate-400">
+                본 대시보드는 아래 합의 기준을 실행·검증합니다
+              </span>
+            </div>
+            <div className="tnum mt-3 grid grid-cols-2 gap-x-8 gap-y-0.5">
+              {(
+                [
+                  ["프로젝트", mvPlan.project],
+                  ["대상 사업장", mvPlan.site],
+                  ["측정경계", mvPlan.boundary],
+                  ["대상 설비", mvPlan.equipment],
+                  ["M&V 방법", mvPlan.option],
+                  ["기준기간", mvPlan.baselinePeriod],
+                  ["보고기간", mvPlan.reportPeriod],
+                  ["수집주기", mvPlan.interval],
+                  ["종속변수", mvPlan.dependent],
+                  ["독립변수", mvPlan.independent],
+                  ["기준선 모델식", mvPlan.modelForm],
+                  ["데이터 제외기준", mvPlan.exclusionRule],
+                  ["일상적 조정", mvPlan.routineAdj],
+                  ["비일상적 조정", mvPlan.nonRoutineAdj],
+                  ["모델 적합성 기준", mvPlan.fitCriteria],
+                  ["불확도 산정", mvPlan.uncertainty],
+                  ["검토자", mvPlan.reviewer],
+                  ["승인자", mvPlan.approver],
+                ] as Array<[string, string]>
+              ).map(([k, v]) => (
+                <div key={k} className="flex gap-3 border-b border-line/40 py-1.5 last:border-0">
+                  <span className="w-28 shrink-0 text-[12px] text-slate-400">{k}</span>
+                  <span className="text-[12.5px] leading-snug font-medium text-navy">{v}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* 시스템 경계 */}
+          <section className="grid shrink-0 grid-cols-2 gap-3">
+            <div className="rounded-[10px] border border-line/70 bg-white p-4">
+              <div className="text-[13.5px] font-semibold text-navy">구현 경계 (본 데모)</div>
+              <div className="mt-1.5 text-[12.5px] leading-relaxed text-body">{systemBoundary.implemented}</div>
+            </div>
+            <div className="rounded-[10px] border border-line/70 bg-white p-4">
+              <div className="text-[13.5px] font-semibold text-navy">향후 확장 (미구현)</div>
+              <div className="mt-1.5 text-[12.5px] leading-relaxed text-body">{systemBoundary.future}</div>
+            </div>
+          </section>
+        </>
+      )}
+
       {/* ---------- 탭 1: 설비·센서 ---------- */}
       {tab === "asset" && (
         <section className="grid min-h-0 flex-1 grid-cols-[240px_1fr] gap-3">
           <div className="rounded-[10px] border border-line bg-white p-4">
-            <div className="mb-2 text-[14px] font-semibold text-navy">설비 계층</div>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[14px] font-semibold text-navy">설비 계층</span>
+            </div>
+            <button
+              onClick={() => setIfaceOpen(true)}
+              className="mb-2 w-full rounded-lg border border-line bg-white px-2 py-1.5 text-[12px] font-medium text-navy transition-colors hover:border-accent/50"
+            >
+              데이터 연계 현황 ›
+            </button>
             <div className="text-[12px] text-body">원주공장 › 중앙 냉수플랜트</div>
             <div className="mt-2 flex flex-col gap-2">
               <button
@@ -647,6 +832,7 @@ export default function MasterData() {
         </section>
       )}
       {selTag && <TagDrawer tag={selTag} onClose={() => setSelTag(null)} />}
+      {ifaceOpen && <InterfaceDrawer onClose={() => setIfaceOpen(false)} />}
     </div>
   );
 }

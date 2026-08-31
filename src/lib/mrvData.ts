@@ -552,7 +552,161 @@ const assurance: AssuranceRow[] = [
     evidCount: 5,
   },
 ];
-export const baselineStats = { nmbe };
+// 모델 적용범위: 기준기간 학습 변수 범위와 보고기간 이탈 일수 (외삽 사용 여부 판정)
+const trainCdd = baseDays.map((d) => (d as unknown as { cdd: number }).cdd);
+const trainProd = baseDays.map((d) => (d as unknown as { prod: number }).prod);
+const rng2 = (a: number[]) => [Math.min(...a), Math.max(...a)] as [number, number];
+const cddRange = rng2(trainCdd);
+const prodRange = rng2(trainProd);
+const repUsableAll = (savings.daily as Array<{ usable: boolean; cdd: number; prod: number }>).filter(
+  (d) => d.usable,
+);
+const outOfRangeDays = repUsableAll.filter(
+  (d) => d.cdd < cddRange[0] || d.cdd > cddRange[1] || d.prod < prodRange[0] || d.prod > prodRange[1],
+).length;
+export const baselineStats = { nmbe, cddRange, prodRange, outOfRangeDays, nTrain: baseline.nDays, nExclTrain: baseline.excludedDays.length };
+
+// ---------- M&V 계획 (기준정보 › MRV 계획 탭) ----------
+export const mvPlan = {
+  id: "MVP-2026-01",
+  version: "v0.9 (사전검토 완료)",
+  status: "고객 승인 전",
+  project: "냉열원·공조 시스템 개선 성과검증 (데모)",
+  site: "원주공장",
+  boundary: "중앙 냉수플랜트 (전력 사용량 경계)",
+  equipment: "냉동기 2대 · 냉수펌프 · 냉각수펌프 · 냉각탑",
+  option: "IPMVP Option B 후보 (경계 내 전체 계측)",
+  baselinePeriod: "2025.01.01 – 2025.12.31 (12개월)",
+  reportPeriod: "2026.01.01 – 2026.06.30",
+  interval: "15분 (생산 60분)",
+  dependent: "일 전력 사용량 (kWh/일)",
+  independent: "냉방도일(기준 18℃) · 생산량(ton/일)",
+  modelForm: "kWh/일 = a + b × 냉방도일 + c × 생산량 (OLS)",
+  exclusionRule: "R-01 일 결측 10% 초과 시 제외 · R-02 물리범위 이상치 구간 제외",
+  routineAdj: "냉방도일·생산량은 모델 변수로 일상적 조정",
+  nonRoutineAdj: "설정변경·정비 등은 사유·기간·조정량을 등록하고 승인된 건만 반영",
+  fitCriteria: "데모 내부 기준 CV(RMSE) ≤ 25% · R² ≥ 0.75 — 실제 기준은 승인된 계획에 따라 확정",
+  uncertainty: "90% 신뢰수준, 기준선 모델오차·보고기간 데이터 수 반영 (UNC-v1.0, 계측 합성 불확도 미포함)",
+  reviewer: "MRV 검토자(데모)",
+  approver: "MRV 승인자(데모)",
+};
+
+export interface ReadinessItem {
+  area: string;
+  state: "충족" | "부분 충족" | "검토 필요";
+  result: string;
+}
+export const readiness: ReadinessItem[] = [
+  { area: "설비 경계", state: "충족", result: "중앙 냉수플랜트 경계 확정" },
+  { area: "에너지 데이터", state: "충족", result: "15분 전력데이터 확보" },
+  { area: "생산 데이터", state: "부분 충족", result: "MES 60분 주기 · 수기보정 이력" },
+  { area: "기상 데이터", state: "충족", result: "외기온도·습구온도 확보" },
+  { area: "열량 계측", state: "검토 필요", result: "유량계(FM-CHW) 교정 만료" },
+  { area: "기준기간", state: "충족", result: "12개월 연속 데이터 확보" },
+  { area: "기준선 모델", state: "충족", result: "설명변수 적합 (CV 3.9%)" },
+  { area: "증적자료", state: "부분 충족", result: "교정성적서 갱신본 추가 필요" },
+];
+export const readinessSummary = (() => {
+  const ok = readiness.filter((r) => r.state === "충족").length;
+  const need = readiness.length - ok;
+  return {
+    grade: readiness.some((r) => r.state === "검토 필요") ? "조건부 적합" : need > 0 ? "조건부 적합" : "적합",
+    ok,
+    need,
+    total: readiness.length,
+  };
+})();
+
+export const systemBoundary = {
+  implemented: "중앙 냉수플랜트 — 냉동기·냉수펌프·냉각수펌프·냉각탑 (전기식 열원)",
+  future: "흡수식 냉온수기 · GHP · 축열 · AHU·FCU 공기측 (본 데모 미구현 — 확장 대상)",
+};
+
+// ---------- 증적 레지스트리 ----------
+export interface EvidenceItem {
+  id: string;
+  type: string;
+  target: string;
+  version: string;
+  issued: string;
+  validTo: string;
+  state: string;
+  calcVersion: string;
+  hash: string;
+  doc: { title: string; org: string; fields: Array<[string, string]>; body: string };
+}
+const evHash = (s: string) => {
+  let h = 2166136261;
+  for (const c of s) h = (h ^ c.charCodeAt(0)) * 16777619;
+  return (h >>> 0).toString(16).padStart(8, "0");
+};
+export const evidenceRegistry: EvidenceItem[] = [
+  {
+    id: "EV-2026-011", type: "교정성적서", target: "FM-CHW 유량계", version: "v1.0",
+    issued: "2025-04-30", validTo: "2026-04-30", state: "만료·재교정 필요", calcVersion: "CALC-2026H1-v1", hash: evHash("EV-2026-011"),
+    doc: {
+      title: "계측기 교정성적서", org: "교정기관(데모) — KOLAS 상당",
+      fields: [["대상 계측기", "FM-CHW 전자유량계"], ["설치 위치", "냉수 헤더"], ["교정일", "2025-04-30"], ["유효기간", "2026-04-30"], ["기준기 대비 오차", "±0.31% (허용 ±0.5%)"], ["판정", "적합 (교정 시점 기준)"]],
+      body: "본 성적서는 데모용 샘플 문서입니다. 유효기간이 만료되어 재교정 및 영향평가(DQ-04)가 필요합니다. 열량·COP KPI에 사용되며 전력 절감량 산정에는 직접 사용되지 않습니다.",
+    },
+  },
+  {
+    id: "EV-2026-012", type: "기준선 모델 검토서", target: "BL-v1.0", version: "v1.0",
+    issued: "2026-01-15", validTo: "—", state: "검토 완료", calcVersion: "CALC-2026H1-v1", hash: evHash("EV-2026-012"),
+    doc: {
+      title: "기준선 모델 적합성 검토서", org: "MRV 검토자(데모)",
+      fields: [["모델식", "kWh/일 = a + b×냉방도일 + c×생산량"], ["학습 기간", "2025.01–12 (363일, 제외 2일)"], ["R²", "0.973"], ["CV(RMSE)", "3.9%"], ["NMBE", "0.0%"], ["판정", "데모 내부 기준 충족"]],
+      body: "잔차에 계절 편향이 관찰되지 않으며, 설명변수 2종으로 일 사용량 변동의 97% 이상을 설명합니다. 데모용 샘플 검토서입니다.",
+    },
+  },
+  {
+    id: "EV-2026-013", type: "비일상적 조정 승인서", target: "NR-02 정비 제외기간", version: "v1.0",
+    issued: "2026-03-25", validTo: "—", state: "승인 완료", calcVersion: "CALC-2026H1-v1", hash: evHash("EV-2026-013"),
+    doc: {
+      title: "비일상적 조정 승인서", org: "MRV 승인자(데모)",
+      fields: [["조정 ID", "NR-02"], ["내용", "냉동기 2 정지 대규모 정비(응축기 세관)"], ["기간", "2026-03-10 ~ 2026-03-20"], ["처리", "산정 제외기간 (11일)"], ["승인자", "MRV 담당자(데모)"], ["승인일시", "2026-03-25 10:20"]],
+      body: "정비기간 운전조건이 기준선 조건과 상이하여 해당 기간을 산정에서 제외합니다. 데모용 샘플 승인서입니다.",
+    },
+  },
+  {
+    id: "EV-2026-014", type: "정비 작업내역서", target: "CH-02 냉동기 2", version: "v1.0",
+    issued: "2026-03-21", validTo: "—", state: "등록 완료", calcVersion: "CALC-2026H1-v1", hash: evHash("EV-2026-014"),
+    doc: {
+      title: "설비 정비 작업내역서", org: "설비 정비업체(데모)",
+      fields: [["대상 설비", "CH-02 원심냉동기"], ["작업", "응축기 세관·냉매 계통 점검"], ["기간", "2026-03-10 ~ 2026-03-20"], ["냉매 보충", "2026-05-14 R-134a 9 kg (별도 산정)"], ["결과", "정상 복귀"]],
+      body: "기준기간 말 관찰된 효율저하(kW/RT +10%)의 원인인 응축기 오염을 제거했습니다. 데모용 샘플 문서입니다.",
+    },
+  },
+  {
+    id: "EV-2026-015", type: "배출계수 근거문서", target: "EF-v1.0", version: "v1.0",
+    issued: "2026-01-01", validTo: "2026-12-31", state: "적용 중", calcVersion: "CALC-2026H1-v1", hash: evHash("EV-2026-015"),
+    doc: {
+      title: "전력 배출계수 적용 근거", org: "MRV 담당(데모)",
+      fields: [["값", "0.4594 tCO₂eq/MWh"], ["구분", "소비단 (데모 가정)"], ["기준연도", "2024"], ["유효기간", "2026.01.01 – 12.31"], ["출처", "데모 입력값 — 공식 계수 아님"]],
+      body: "본 값은 데모 입력값이며 공식 MRV 보고에 사용할 수 없습니다. 실제 적용 시 공인 계수의 출처·버전·발전단/소비단 구분을 등록해야 합니다.",
+    },
+  },
+];
+
+// ---------- 데이터 연계 현황 (가상 연계) ----------
+export interface InterfaceSource {
+  source: string;
+  method: string;
+  tags: number;
+  interval: string;
+  state: string;
+  stateKind: "ok" | "warn";
+  lastRecv: string;
+  sync: string;
+  delay: string;
+}
+export const interfaceSources: InterfaceSource[] = [
+  { source: "전력계 (PM-*)", method: "Modbus RTU 가상연계", tags: 5, interval: "15분", state: "정상", stateKind: "ok", lastRecv: "3분 전", sync: "NTP 동기", delay: "≤ 1분" },
+  { source: "PLC", method: "OPC-UA 가상연계", tags: 1, interval: "15분", state: "정상", stateKind: "ok", lastRecv: "3분 전", sync: "NTP 동기", delay: "≤ 1분" },
+  { source: "BMS", method: "REST API 가상연계", tags: 1, interval: "15분", state: "정상", stateKind: "ok", lastRecv: "5분 전", sync: "NTP 동기", delay: "≤ 5분" },
+  { source: "MES", method: "DB/CSV 가상연계", tags: 1, interval: "60분", state: "수기보정 2일", stateKind: "warn", lastRecv: "42분 전", sync: "서버 시각", delay: "≤ 60분" },
+  { source: "기상 센서 (WS-01)", method: "현장센서 가상연계", tags: 2, interval: "15분", state: "부분결측 1건", stateKind: "warn", lastRecv: "3분 전", sync: "NTP 동기", delay: "≤ 1분" },
+];
 
 // ---------- 부하율–효율 성능곡선 (설비성과) ----------
 // 부하율 = 일 냉열 생산량 ÷ 정격 냉각능력(2대 × 1,400 kW_th × 24h)

@@ -208,7 +208,7 @@ export default function Overview() {
         </button>
         <button
           onClick={openEvidence}
-          title="90% 신뢰수준 · 기준선 모델 오차(CV(RMSE))와 보고기간 데이터 수 반영 (IPMVP 근사) · 산정 버전 UNC-v1.0"
+          title="90% 신뢰수준의 데모 추정값 (UNC-v1.0) · 기준선 모델오차와 보고기간 데이터 수 반영 · 계측기별 합성 불확도는 미포함 · 공식 M&V 적용 시 승인된 불확도 산정방법으로 재계산"
           className="rounded-[10px] border border-line/60 bg-white p-4 text-left transition-colors hover:border-accent/50"
         >
           <div className="text-[13.5px] font-medium text-body">산정 불확도</div>

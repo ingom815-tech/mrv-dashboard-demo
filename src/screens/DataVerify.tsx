@@ -1,5 +1,14 @@
 import { useMemo, useState } from "react";
-import { mrv, reviewItems, issueQueue, qualityHeatmap, type NonRoutine, type HeatStatus } from "../lib/mrvData";
+import {
+  mrv,
+  reviewItems,
+  issueQueue,
+  qualityHeatmap,
+  evidenceRegistry,
+  type EvidenceItem,
+  type NonRoutine,
+  type HeatStatus,
+} from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, deriveVerify, activeEf } from "../store";
 import ContextBar, { TopActions } from "../components/ContextBar";
@@ -25,6 +34,7 @@ const TABS = [
   { key: "quality", label: "데이터 품질" },
   { key: "tags", label: "태그 상세" },
   { key: "approve", label: "검토·승인" },
+  { key: "evidence", label: "증적" },
   { key: "report", label: "보고서·이력" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
@@ -148,10 +158,66 @@ function HeatDetail({
   );
 }
 
+/* 샘플 증적 문서 뷰어 — 공문서 양식의 인앱 미리보기 */
+function EvidenceDoc({ item, onClose }: { item: EvidenceItem; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-navy/40" onClick={onClose} />
+      <div className="relative max-h-[86vh] w-[620px] overflow-y-auto rounded-lg bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-line px-6 py-3">
+          <span className="tnum text-[12px] text-body">
+            {item.id} · {item.version} · SHA-256 {item.hash}…
+          </span>
+          <button onClick={onClose} aria-label="닫기" className="rounded px-2 py-0.5 text-[17px] leading-none text-slate-400 hover:bg-surface hover:text-navy">
+            ×
+          </button>
+        </div>
+        <div className="relative px-10 py-8">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span className="rotate-[-24deg] text-[44px] font-black tracking-widest text-review/10 select-none">
+              DEMO · 합성데이터
+            </span>
+          </div>
+          <div className="text-center">
+            <div className="text-[20px] font-bold tracking-wide text-navy">{item.doc.title}</div>
+            <div className="mt-1 text-[12px] text-body">{item.doc.org}</div>
+          </div>
+          <table className="tnum mt-6 w-full border-t-2 border-navy text-[13px]">
+            <tbody>
+              {item.doc.fields.map(([k, v]) => (
+                <tr key={k} className="border-b border-line">
+                  <td className="w-36 bg-surface/70 px-3 py-2 font-medium text-body">{k}</td>
+                  <td className="px-3 py-2 text-navy">{v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-5 text-[13px] leading-relaxed text-navy">{item.doc.body}</p>
+          <div className="mt-8 flex items-end justify-between">
+            <div className="tnum text-[12px] text-body">
+              발행일 {item.issued}
+              {item.validTo !== "—" && <> · 유효기간 {item.validTo}</>}
+              <br />
+              연결 계산버전 {item.calcVersion}
+            </div>
+            <div className="text-right text-[13px] text-navy">
+              {item.doc.org}
+              <span className="ml-2 inline-block rounded-full border-2 border-risk/40 px-2 py-1 text-[11px] font-bold text-risk/60">
+                (인)
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DataVerify() {
   const [tab, setTab] = useState<TabKey>(initialTab);
   const [heatMonth, setHeatMonth] = useState("2026-02");
   const [selCell, setSelCell] = useState<{ tag: string; date: string; status: HeatStatus } | null>(null);
+  const [selEvidence, setSelEvidence] = useState<EvidenceItem | null>(null);
   const { role, reviewStates, markReviewed, approve, audit, resetDemoStates } = useUI();
   const calc = useCalc();
   const ef = activeEf(useUI((s) => s.efList));
@@ -575,6 +641,62 @@ export default function DataVerify() {
         </>
       )}
 
+      {/* ---------- 탭: 증적 레지스트리 ---------- */}
+      {tab === "evidence" && (
+        <section className="rounded-[10px] border border-line/70 bg-white p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[15px] font-semibold text-navy">
+              증적 레지스트리{" "}
+              <span className="tnum text-[12px] font-normal text-body">({evidenceRegistry.length}건 · 행 클릭 시 문서 미리보기)</span>
+            </span>
+            <span className="text-[12px] text-slate-400">모든 문서는 데모용 샘플 · 파일 해시로 위변조 확인(개념)</span>
+          </div>
+          <table className="tnum w-full text-[13px]">
+            <thead>
+              <tr className="border-b border-line text-left text-[12px] text-body">
+                <th className="py-1.5 font-medium">증적번호</th>
+                <th className="py-1.5 font-medium">문서유형</th>
+                <th className="py-1.5 font-medium">연결 대상</th>
+                <th className="py-1.5 font-medium">발행일</th>
+                <th className="py-1.5 font-medium">유효기간</th>
+                <th className="py-1.5 font-medium">연결 계산버전</th>
+                <th className="py-1.5 font-medium">파일 해시</th>
+                <th className="py-1.5 pl-3 font-medium">검토 상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              {evidenceRegistry.map((e) => (
+                <tr
+                  key={e.id}
+                  onClick={() => setSelEvidence(e)}
+                  className="cursor-pointer border-b border-line/50 transition-colors last:border-0 hover:bg-surface"
+                >
+                  <td className="py-2.5 font-medium text-accent">{e.id}</td>
+                  <td className="py-2.5 text-navy">{e.type}</td>
+                  <td className="py-2.5 text-body">{e.target}</td>
+                  <td className="py-2.5 text-body">{e.issued}</td>
+                  <td className="py-2.5 text-body">{e.validTo}</td>
+                  <td className="py-2.5 text-body">{e.calcVersion}</td>
+                  <td className="py-2.5 text-slate-400">{e.hash}…</td>
+                  <td className="py-2.5 pl-3">
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                        e.state.includes("만료") ? "bg-review/10 text-review" : "bg-teal/10 text-teal"
+                      }`}
+                    >
+                      {e.state}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-2 text-[12px] text-body">
+            증적은 계산버전과 연결되어 보존되며, 산정근거·Assurance 각 단계의 증적 건수가 이 레지스트리를 참조합니다.
+          </div>
+        </section>
+      )}
+
       {/* ---------- 탭 3: 보고서·이력 ---------- */}
       {tab === "report" && (
         <>
@@ -632,6 +754,60 @@ export default function DataVerify() {
                 </tr>
               </tbody>
             </table>
+          </section>
+
+          {/* 계산버전 비교 — 버전관리·감사추적 증명 */}
+          <section className="rounded-[10px] border border-line/70 bg-white p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[15px] font-semibold text-navy">계산버전 비교</span>
+              <span className="tnum text-[12px] text-body">
+                CALC-2026H1-v1 (확정본 보존) vs 현재 {calc.version}
+              </span>
+            </div>
+            {calc.version === "CALC-2026H1-v1" ? (
+              <div className="text-[12.5px] text-body">
+                현재 버전이 v1입니다 — 비일상적 조정 승인 또는 배출계수 등록 시 새 버전이 생성되고 여기서
+                v1과의 차이를 비교합니다.
+              </div>
+            ) : (
+              <table className="tnum w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-line text-left text-[12px] text-body">
+                    <th className="py-1.5 font-medium">항목</th>
+                    <th className="py-1.5 text-right font-medium">v1 (확정본)</th>
+                    <th className="py-1.5 text-right font-medium">{calc.version.replace("CALC-2026H1-", "")} (현재)</th>
+                    <th className="py-1.5 pl-4 font-medium">변화 원인</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(
+                    [
+                      ["조정 기준선 (MWh)", mrv.calc0.savings.sumBase / 1000, calc.savings.sumBase / 1000, 1,
+                        reviewStates["NR-01"] === "승인 완료" ? "NR-01 설정온도 조정 승인" : "—"],
+                      ["절감량 (MWh)", mrv.calc0.kpi.saveMWh, calc.kpi.saveMWh, 1, "조정 기준선 변경"],
+                      ["탄소감축량 (tCO₂eq)", mrv.calc0.kpi.co2, calc.kpi.co2, 1,
+                        ef.version !== "EF-v1.0" ? `배출계수 ${ef.version} 적용` : "절감량 변경"],
+                      ["배출계수", 0.4594, ef.value, 4, ef.version !== "EF-v1.0" ? "신규 등록" : "변경 없음"],
+                    ] as Array<[string, number, number, number, string]>
+                  ).map(([label, v1, v2, d, why]) => (
+                    <tr key={label} className="border-b border-line/50 last:border-0">
+                      <td className="py-2 font-medium text-navy">{label}</td>
+                      <td className="py-2 text-right text-body">{fmt(v1, d)}</td>
+                      <td className={`py-2 text-right font-semibold ${Math.abs(v1 - v2) > 1e-9 ? "text-accent" : "text-body"}`}>
+                        {fmt(v2, d)}
+                        {Math.abs(v1 - v2) > 1e-9 && (
+                          <span className="ml-1 text-[11px] font-medium text-slate-400">
+                            ({v2 - v1 > 0 ? "+" : ""}
+                            {fmt(v2 - v1, d)})
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2 pl-4 text-body">{Math.abs(v1 - v2) > 1e-9 ? why : "변경 없음"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </section>
 
           <section className="rounded-[10px] border border-line bg-white p-4">
@@ -702,6 +878,7 @@ export default function DataVerify() {
           </section>
         </>
       )}
+      {selEvidence && <EvidenceDoc item={selEvidence} onClose={() => setSelEvidence(null)} />}
     </div>
   );
 }
