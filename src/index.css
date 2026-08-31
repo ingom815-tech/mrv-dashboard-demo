@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
-/* v2.1 시각 디자인 세부 사양 (간소화 설계지시서 2.5) */
+/* v3 통합 설계 지시문 §10 디자인 시스템 */
 @theme {
-  --color-navy: #122b4d;
+  --color-navy: #102a43;
   --color-teal: #159f9e;
   --color-accent: #2f6bff;
   --color-baseline: #1e63c6;
-  --color-review: #f59e0b;
-  --color-risk: #dc4c4c;
-  --color-surface: #f5f7fa;
-  --color-line: #e6eaf0;
+  --color-review: #d97706;
+  --color-risk: #dc3545;
+  --color-surface: #f3f6f9;
+  --color-line: #dde4ec;
+  --color-body: #667085;
   --font-sans: "Pretendard Variable", Pretendard, "Malgun Gothic", sans-serif;
-  --shadow-card: 0 8px 24px rgb(18 43 77 / 0.06);
 }
 
 html,
@@ -25,4 +25,9 @@ body {
   color: var(--color-navy);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+/* KPI·표 숫자는 고정폭 숫자로 정렬 유지 (§10 타이포그래피) */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }

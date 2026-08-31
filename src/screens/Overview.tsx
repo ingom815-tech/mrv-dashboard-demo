@@ -7,20 +7,21 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  LabelList,
 } from "recharts";
-import { mrv, type MonthPoint } from "../lib/mrvData";
+import { mrv, EF, type MonthPoint, type EquipGroup } from "../lib/mrvData";
 import { useUI } from "../store";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
 
-/* 월 클릭 시 해당 월의 데이터 이슈·제외일 연결 (v2.1 §4.1) */
+const pct = (n: number, d = 1) => `${fmt(n * 100, d)}%`;
+
+/* 월 클릭 시 해당 월의 데이터 이슈·제외일 연결 (지시문 §9) */
 function monthIssues(month: string) {
-  const excl = mrv.savings.daily.filter(
-    (x: { date: string; saving: number | null }) => x.date.slice(0, 7) === month && x.saving === null,
-  ).length;
   const issues = mrv.quality.issues.filter((i: { period: string }) => i.period.includes(month));
-  return { excl, issues };
+  const point = mrv.monthly.find((p) => p.month === month);
+  return { excl: point?.nExcluded ?? 0, est: point?.estDays ?? 0, issues };
 }
 
 function ChartTooltip({
@@ -35,9 +36,9 @@ function ChartTooltip({
   if (!active || !payload?.length) return null;
   const p = payload[0].payload;
   return (
-    <div className="rounded-xl border border-line bg-white px-3.5 py-3 text-[13px] shadow-card">
+    <div className="rounded-lg border border-line bg-white px-3.5 py-3 text-[13px] shadow-sm">
       <div className="mb-1.5 font-semibold text-navy">2026년 {label}</div>
-      <div className="space-y-1 text-slate-500">
+      <div className="tnum space-y-1 text-body">
         <div>
           조정 기준선 <span className="ml-1 font-semibold text-baseline">{fmt(p.baseMWh)} MWh</span>
         </div>
@@ -47,46 +48,118 @@ function ChartTooltip({
         <div>
           절감량 <span className="ml-1 font-semibold text-teal">{fmt(p.saveMWh)} MWh</span>
         </div>
-        {p.nExcluded > 0 && <div className="pt-1 text-review">산정 제외 {p.nExcluded}일 포함</div>}
-        <div className="pt-1 text-[12px] text-slate-400">클릭하면 이슈·제외 내역을 아래에 표시</div>
+        <div className="pt-1">
+          데이터 상태:{" "}
+          {p.nExcluded > 0 || p.estDays > 0 ? (
+            <span className="text-review">
+              {p.nExcluded > 0 && `제외 ${p.nExcluded}일`}
+              {p.nExcluded > 0 && p.estDays > 0 && " · "}
+              {p.estDays > 0 && `추정 ${p.estDays}일`}
+            </span>
+          ) : (
+            <span className="text-teal">정상</span>
+          )}
+        </div>
+        <div className="pt-0.5 text-[11px] text-slate-400">클릭하면 산정근거·이슈를 확인</div>
       </div>
     </div>
   );
 }
 
+/* 선 끝 직접 라벨 (지시문 §5: 범례 최소화) */
+const endLabel =
+  (text: string, color: string, dy = 4) =>
+  (props: { x?: number | string; y?: number | string; index?: number }) => {
+    if (props.index !== mrv.monthly.length - 1) return null;
+    return (
+      <text
+        x={Number(props.x) + 9}
+        y={Number(props.y) + dy}
+        fontSize={12}
+        fontWeight={600}
+        fill={color}
+      >
+        {text}
+      </text>
+    );
+  };
+
+/* 결측·제외·추정 월 이벤트 마커 (지시문 §5) */
+function eventDot(props: {
+  cx?: number;
+  cy?: number;
+  payload?: MonthPoint;
+  index?: number;
+}) {
+  const { cx, cy, payload } = props;
+  if (cx === undefined || cy === undefined || !payload) return <g key={`d${props.index}`} />;
+  const flagged = payload.nExcluded > 0; // 제외 구간 포함 월만 마커 (추정은 툴팁으로)
+  return (
+    <g key={`d${props.index}`}>
+      <circle cx={cx} cy={cy} r={3} fill="#102a43" />
+      {flagged && (
+        <>
+          <circle cx={cx} cy={cy} r={6.5} fill="none" stroke="#d97706" strokeWidth={1.5} />
+          <text x={cx} y={cy - 11} fontSize={10} fontWeight={700} fill="#d97706" textAnchor="middle">
+            !
+          </text>
+        </>
+      )}
+    </g>
+  );
+}
+
+const stateChip = {
+  ok: "bg-teal/10 text-teal",
+  warn: "bg-review/10 text-review",
+  review: "bg-review/10 text-review",
+} as const;
+
+const GROUP_FILTERS: Array<{ key: EquipGroup | "all"; label: string }> = [
+  { key: "all", label: "전체" },
+  { key: "heat", label: "열원" },
+  { key: "pump", label: "펌프" },
+  { key: "air", label: "공기측" },
+];
+
 export default function Overview() {
-  const { openEvidence, setMenu, selectedMonth, selectMonth } = useUI();
+  const { openEvidence, setMenu, selectedMonth, selectMonth, equipFilter, setEquipFilter } = useUI();
   const k = mrv.kpi;
+  const cov = mrv.coverage;
   const sel = selectedMonth ? monthIssues(selectedMonth) : null;
-  const topReview = mrv.reviewIssues[0];
+  const updatedAt = new Date(mrv.meta.generatedAt).toLocaleString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const equipList = mrv.equip.filter((e) => equipFilter === "all" || e.group === equipFilter);
 
   return (
-    <div className="flex h-screen min-h-0 flex-col gap-4 px-7 py-5">
-      {/* 상단: 제목·DEMO 배지·필터 한 줄 + 우측 버튼 1개 (v2.1 §2.6) */}
-      <header className="flex shrink-0 items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-[26px] leading-tight font-bold text-navy">2026년 상반기 감축성과</h1>
-            <span
-              className="cursor-help rounded-md bg-review/15 px-2 py-0.5 text-[11px] font-semibold text-review"
-              title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다. (data_origin = SYNTHETIC)"
-            >
-              DEMO · 합성데이터
-            </span>
-          </div>
-          <p className="mt-1 text-[13px] text-slate-500">
-            기준선 대비 에너지를{" "}
-            <span className="font-semibold text-teal">
-              {fmt(k.saveMWh)} MWh · {fmt(k.savePct * 100, 1)}%
-            </span>{" "}
-            절감했습니다.
-          </p>
+    <div className="flex h-screen min-h-0 flex-col gap-3 px-6 py-4">
+      {/* 헤더 — 지시문 §3.2: 정보 한 줄 + 주요 버튼 1개 */}
+      <header className="flex shrink-0 items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <h1 className="shrink-0 text-[20px] leading-tight font-bold text-navy">
+            2026년 상반기 감축성과
+          </h1>
+          <span
+            className="shrink-0 cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
+            title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다. (data_origin = SYNTHETIC)"
+          >
+            DEMO · 합성데이터
+          </span>
         </div>
-        <div className="flex items-center gap-2 pb-1">
-          <div className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-[13px] text-slate-500">
-            <span className="font-medium text-navy">{mrv.meta.site}</span>·
+        <div className="flex shrink-0 items-center gap-3">
+          <div className="tnum hidden items-center gap-1.5 text-[12px] text-body xl:flex">
+            <span className="font-semibold text-navy">{mrv.meta.site}</span>·
             <span>{mrv.meta.boundary}</span>·<span>보고기간 {mrv.meta.periodLabel}</span>·
-            <span>{mrv.meta.aggLabel}</span>
+            <span>{mrv.meta.aggLabel}</span>·
+            <span>
+              대상 설비 {mrv.meta.equipCount}대 · 계측 {mrv.meta.tagCount}점
+            </span>
+            ·<span>갱신 {updatedAt}</span>
           </div>
           <button
             onClick={openEvidence}
@@ -97,105 +170,118 @@ export default function Overview() {
         </div>
       </header>
 
-      {/* 핵심 KPI 3개 — 클릭 시 상세 화면 이동 (v2.1 §3.2·§4.1) */}
-      <section className="grid shrink-0 grid-cols-3 gap-4" aria-label="핵심 성과">
+      {/* 핵심 KPI 4개 — 지시문 §4 */}
+      <section className="grid shrink-0 grid-cols-4 gap-3" aria-label="핵심 성과">
         <button
-          onClick={() => setMenu("analysis")}
-          className="rounded-2xl border border-line bg-white p-5 text-left shadow-card transition-colors hover:border-accent/40"
+          onClick={() => setMenu("equipment")}
+          className="rounded-[10px] border border-line bg-white p-4 text-left transition-colors hover:border-accent/50"
         >
-          <div className="text-[13px] font-medium text-slate-500">에너지 절감</div>
-          <div className="mt-1.5 text-[32px] leading-none font-bold text-teal">
-            {fmt(k.saveMWh)} <span className="text-[15px] font-semibold">MWh</span>
+          <div className="text-[13px] font-medium text-body">에너지 절감</div>
+          <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-teal">
+            {fmt(k.saveMWh)} <span className="text-[14px] font-semibold">MWh</span>
           </div>
-          <div className="mt-2 text-[13px] text-slate-500">
-            기준선 대비 <span className="font-semibold text-teal">{fmt(k.savePct * 100, 1)}%</span> ·
-            산정일 {k.nDays}일
+          <div className="tnum mt-2 text-[12px] text-body">
+            기준선 대비 <span className="font-semibold text-teal">{pct(k.savePct)}</span> · 산정{" "}
+            {k.nDays}일 · 제외 {k.nExcluded}일
           </div>
-        </button>
-        <button
-          onClick={() => setMenu("analysis")}
-          className="rounded-2xl border border-line bg-white p-5 text-left shadow-card transition-colors hover:border-accent/40"
-        >
-          <div className="text-[13px] font-medium text-slate-500">탄소 감축</div>
-          <div className="mt-1.5 text-[32px] leading-none font-bold text-navy">
-            {fmt(k.co2, 1)} <span className="text-[15px] font-semibold">tCO₂eq</span>
-          </div>
-          <div className="mt-2 text-[13px] text-slate-500">전력 절감분 환산 · 냉매 배출은 별도 관리</div>
         </button>
         <button
           onClick={() => setMenu("verify")}
-          className="rounded-2xl border border-line bg-white p-5 text-left shadow-card transition-colors hover:border-accent/40"
+          className="rounded-[10px] border border-line bg-white p-4 text-left transition-colors hover:border-accent/50"
+        >
+          <div className="text-[13px] font-medium text-body">탄소 감축</div>
+          <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
+            {fmt(k.co2, 1)} <span className="text-[14px] font-semibold">tCO₂eq</span>
+          </div>
+          <div className="tnum mt-2 text-[12px] text-body">
+            배출계수 {EF.value} ({EF.baseYear}) · 냉매 배출 별도
+          </div>
+        </button>
+        <button
+          onClick={() => setMenu("verify")}
+          className="rounded-[10px] border border-line bg-white p-4 text-left transition-colors hover:border-accent/50"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-slate-500">성과 신뢰도</span>
-            <span className="rounded-md bg-review/15 px-2 py-0.5 text-[11px] font-semibold text-review">
+            <span className="text-[13px] font-medium text-body">MRV 신뢰도</span>
+            <span className="rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review">
               {k.verifyState}
             </span>
           </div>
-          <div className="mt-1.5 text-[32px] leading-none font-bold text-navy">
+          <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
             {fmt(k.trustRate * 100, 1)}
-            <span className="text-[15px] font-semibold">%</span>
+            <span className="text-[14px] font-semibold">%</span>
           </div>
-          <div className="mt-2 text-[13px] text-slate-500">
-            검토 필요 <span className="font-semibold text-review">{k.reviewCount}건</span> · 승인 전
-            단계
+          <div className="tnum mt-2 text-[12px] text-body">
+            정상률 {pct(k.trustRate)} · 검토 필요{" "}
+            <span className="font-semibold text-review">{k.reviewCount}건</span>
+          </div>
+        </button>
+        <button
+          onClick={() => setMenu("equipment")}
+          className="rounded-[10px] border border-line bg-white p-4 text-left transition-colors hover:border-accent/50"
+        >
+          <div className="text-[13px] font-medium text-body">설비 커버리지</div>
+          <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
+            {cov.collected} <span className="text-[14px] font-semibold">/ {cov.total}점</span>
+          </div>
+          <div className="tnum mt-2 text-[12px] text-body">
+            정상 {cov.ok} · <span className="font-semibold text-review">주의 {cov.warn}</span> ·
+            미수집 {cov.missing}
           </div>
         </button>
       </section>
 
-      {/* 중심 차트 + 신뢰도 요약 (v2.1 §2.1) */}
-      <section className="grid min-h-0 flex-1 grid-cols-[1fr_300px] gap-4">
-        <div className="flex min-h-0 flex-col rounded-2xl border border-line bg-white p-5 shadow-card">
+      {/* 메인 차트 + MRV Assurance — 지시문 §5·§6 */}
+      <section className="grid min-h-0 flex-1 grid-cols-[1fr_300px] gap-3">
+        <div className="relative flex min-h-0 flex-col rounded-[10px] border border-line bg-white p-4">
           <div className="flex shrink-0 items-center justify-between">
             <div className="text-[14px] font-semibold text-navy">조정 기준선 대비 실제 사용량</div>
-            <div className="flex items-center gap-4 text-[13px] text-slate-600">
-              <span className="flex items-center gap-1.5">
-                <svg width="20" height="6" aria-hidden>
-                  <line x1="0" y1="3" x2="20" y2="3" stroke="#1e63c6" strokeWidth="2" strokeDasharray="5 3" />
-                </svg>
-                조정 기준선
-              </span>
-              <span className="flex items-center gap-1.5">
-                <svg width="20" height="6" aria-hidden>
-                  <line x1="0" y1="3" x2="20" y2="3" stroke="#122b4d" strokeWidth="2.5" />
-                </svg>
-                실제 사용량
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-4 rounded-sm bg-teal/15" aria-hidden />
-                절감량
-              </span>
-              <span className="text-slate-500">단위 MWh/월</span>
-            </div>
+            <div className="text-[12px] text-body">단위 MWh/월</div>
           </div>
-          <div className="min-h-0 flex-1 pt-3">
+          {/* 차트 내부 절감 성과 강조 (지시문 §5) */}
+          <div className="pointer-events-none absolute top-12 left-16 z-10">
+            <div className="tnum text-[22px] leading-none font-bold text-teal">
+              {fmt(k.saveMWh)} MWh 절감
+            </div>
+            <div className="tnum mt-1 text-[13px] text-body">기준선 대비 {pct(k.savePct)}</div>
+          </div>
+          <div className="min-h-0 flex-1 pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={mrv.monthly}
-                margin={{ top: 8, right: 12, bottom: 0, left: 0 }}
+                margin={{ top: 26, right: 86, bottom: 0, left: 0 }}
                 onClick={(s) => {
                   const label = (s as { activeLabel?: string }).activeLabel;
                   const m = mrv.monthly.find((x) => x.label === label);
                   selectMonth(m ? (selectedMonth === m.month ? null : m.month) : null);
                 }}
               >
-                <CartesianGrid stroke="#e6eaf0" vertical={false} />
+                <CartesianGrid stroke="#dde4ec" vertical={false} />
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 13, fill: "#475569" }}
-                  axisLine={{ stroke: "#e6eaf0" }}
+                  tick={{ fontSize: 12, fill: "#667085" }}
+                  axisLine={{ stroke: "#dde4ec" }}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 13, fill: "#64748b" }}
+                  tick={{ fontSize: 12, fill: "#667085" }}
                   axisLine={false}
                   tickLine={false}
                   width={44}
                   tickFormatter={(v: number) => fmt(v)}
                 />
-                <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#cbd5e1", strokeDasharray: "3 3" }} />
+                <Tooltip
+                  content={<ChartTooltip />}
+                  cursor={{ stroke: "#c3cdd9", strokeDasharray: "3 3" }}
+                />
                 {/* 실제 사용량 위에 절감량을 쌓아 기준선까지의 절감 구간을 면으로 표현 */}
-                <Area dataKey="actMWh" stackId="band" stroke="none" fill="transparent" isAnimationActive={false} />
+                <Area
+                  dataKey="actMWh"
+                  stackId="band"
+                  stroke="none"
+                  fill="transparent"
+                  isAnimationActive={false}
+                />
                 <Area
                   dataKey="saveMWh"
                   stackId="band"
@@ -206,30 +292,34 @@ export default function Overview() {
                 />
                 <Line
                   dataKey="baseMWh"
-                  name="조정 기준선"
                   stroke="#1e63c6"
                   strokeWidth={2}
                   strokeDasharray="6 4"
                   dot={false}
                   isAnimationActive={false}
-                />
+                >
+                  <LabelList content={endLabel("조정 기준선", "#1e63c6", -2)} />
+                </Line>
                 <Line
                   dataKey="actMWh"
-                  name="실제 사용량"
-                  stroke="#122b4d"
+                  stroke="#102a43"
                   strokeWidth={2.5}
-                  dot={{ r: 3, fill: "#122b4d", strokeWidth: 0 }}
+                  dot={eventDot}
                   isAnimationActive={false}
-                />
+                >
+                  <LabelList content={endLabel("실제 사용량", "#102a43", 12)} />
+                </Line>
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex shrink-0 items-center justify-between gap-4 pt-2 text-[13px]">
-            <div className="min-w-0 truncate text-slate-500">
-              {sel && (
-                <span>
-                  <span className="font-semibold text-navy">{Number(selectedMonth!.slice(5))}월</span>{" "}
-                  — 산정 제외 {sel.excl}일
+          <div className="flex shrink-0 items-center justify-between gap-4 text-[12px]">
+            <div className="min-w-0 truncate text-body">
+              {sel ? (
+                <span className="tnum">
+                  <span className="font-semibold text-navy">
+                    {Number(selectedMonth!.slice(5))}월
+                  </span>{" "}
+                  — 제외 {sel.excl}일 · 추정 {sel.est}일
                   {sel.issues.length > 0 && (
                     <>
                       {" "}
@@ -240,59 +330,160 @@ export default function Overview() {
                     </>
                   )}
                 </span>
+              ) : (
+                <span>
+                  <span className="font-semibold text-review">!</span> 표시 월은 산정 제외 구간 포함
+                  · 월 클릭 시 상세
+                </span>
               )}
             </div>
             <div className="flex shrink-0 gap-4">
-              <button onClick={() => setMenu("verify")} className="font-medium text-accent hover:underline">
+              <button
+                onClick={() => setMenu("verify")}
+                className="font-medium text-accent hover:underline"
+              >
                 데이터 이슈 ›
               </button>
-              <button onClick={() => setMenu("analysis")} className="font-medium text-accent hover:underline">
+              <button
+                onClick={() => setMenu("equipment")}
+                className="font-medium text-accent hover:underline"
+              >
                 설비 원인 ›
               </button>
             </div>
           </div>
         </div>
 
-        {/* 신뢰도 요약 — 상태 2줄 + 검토 필요 박스 + 상세 링크 (v2.1 §2.1) */}
-        <div className="flex min-h-0 flex-col rounded-2xl border border-line bg-white p-5 shadow-card">
-          <div className="shrink-0 text-[14px] font-semibold text-navy">신뢰도 요약</div>
-          <div className="mt-4 space-y-4">
-            <div className="flex items-start gap-2.5">
-              <span className="mt-1 size-2 shrink-0 rounded-full bg-teal" aria-hidden />
-              <div>
-                <div className="text-[13px] font-semibold text-navy">데이터 정상</div>
-                <div className="mt-0.5 text-[13px] leading-relaxed text-slate-500">
-                  수집률 {fmt(k.collectRate * 100, 1)}% · 추정 {fmt(k.estRate * 100, 1)}%
+        {/* MRV Assurance 패널 — 지시문 §6 */}
+        <div className="flex min-h-0 flex-col rounded-[10px] border border-line bg-white p-4">
+          <div className="shrink-0 text-[14px] font-semibold text-navy">MRV Assurance</div>
+          <div className="mt-3 flex flex-col gap-2.5">
+            {mrv.assurance.map((row) => (
+              <div key={row.stage} className="rounded-lg border border-line px-3 py-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="text-[12px] font-semibold text-navy">
+                    <span className="text-[10px] tracking-wide text-slate-400 uppercase">
+                      {row.stage}
+                    </span>
+                    <span className="ml-1.5">{row.label}</span>
+                  </div>
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                      row.status === "PASS"
+                        ? "bg-teal/10 text-teal"
+                        : row.status === "REVIEW"
+                          ? "bg-review/10 text-review"
+                          : "bg-risk/10 text-risk"
+                    }`}
+                  >
+                    {row.status}
+                  </span>
                 </div>
+                <div className="tnum mt-1 text-[12px] leading-relaxed text-body">{row.evidence}</div>
               </div>
-            </div>
-            <div className="flex items-start gap-2.5">
-              <span className="mt-1 size-2 shrink-0 rounded-full bg-teal" aria-hidden />
-              <div>
-                <div className="text-[13px] font-semibold text-navy">기준선 적합</div>
-                <div className="mt-0.5 text-[13px] leading-relaxed text-slate-500">
-                  적합도 기준 충족 · 상세는 산정근거
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl bg-review/10 px-4 py-3">
-              <div className="text-[13px] font-semibold text-review">검토 필요 {k.reviewCount}건</div>
-              {topReview && (
-                <div className="mt-1 text-[13px] leading-relaxed text-slate-600">
-                  {topReview.title} 외 {k.reviewCount - 1}건
-                </div>
-              )}
-              <div className="mt-1 text-[12px] leading-relaxed text-slate-500">
-                검증 결과에 미치는 영향 확인 필요
-              </div>
-            </div>
-            <button
-              onClick={() => setMenu("verify")}
-              className="text-[13px] font-medium text-accent hover:underline"
-            >
-              검증 상세 보기 ›
-            </button>
+            ))}
           </div>
+          <div className="mt-3 rounded-lg bg-review/8 px-3 py-2.5">
+            <div className="text-[12px] font-semibold text-review">
+              검토 필요 {k.reviewCount}건
+            </div>
+            <div className="mt-0.5 text-[12px] leading-relaxed text-body">
+              {mrv.reviewIssues[0]?.title} 외 {k.reviewCount - 1}건
+            </div>
+          </div>
+          <button
+            onClick={() => setMenu("verify")}
+            className="mt-2.5 text-left text-[13px] font-medium text-accent hover:underline"
+          >
+            검증 상세 보기 ›
+          </button>
+        </div>
+      </section>
+
+      {/* Traceability Strip — 지시문 §7 */}
+      <div className="tnum flex shrink-0 items-center gap-2 rounded-[10px] border border-line bg-white px-4 py-2 text-[12px] text-body">
+        <span className="font-semibold text-navy">추적성</span>
+        <span className="text-line">|</span>
+        <span>
+          기준선 모델 <b className="font-semibold text-navy">{mrv.baseline.version}</b>
+        </span>
+        ·
+        <span>
+          계산버전 <b className="font-semibold text-navy">{mrv.meta.calcVersion}</b>
+        </span>
+        ·
+        <span>
+          수집률 <b className="font-semibold text-navy">{pct(k.collectRate)}</b>
+        </span>
+        ·
+        <span>
+          검증 상태 <b className="font-semibold text-review">Pre-review</b>
+        </span>
+        ·<span>최종 산정 {updatedAt}</span>·<span>담당 — (승인 전)</span>
+        <button
+          onClick={openEvidence}
+          className="ml-auto font-medium text-accent hover:underline"
+        >
+          산정근거 ›
+        </button>
+      </div>
+
+      {/* 설비군 대표 KPI — 지시문 §8 */}
+      <section className="shrink-0" aria-label="설비별 성과">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-[14px] font-semibold text-navy">설비별 성과</span>
+            <div className="flex gap-1">
+              {GROUP_FILTERS.map((g) => (
+                <button
+                  key={g.key}
+                  onClick={() => setEquipFilter(g.key)}
+                  className={`rounded px-2 py-0.5 text-[12px] transition-colors ${
+                    equipFilter === g.key
+                      ? "bg-navy font-semibold text-white"
+                      : "bg-white text-body hover:text-navy"
+                  }`}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={() => setMenu("equipment")}
+            className="text-[12px] font-medium text-accent hover:underline"
+          >
+            설비성과 상세 ›
+          </button>
+        </div>
+        <div className="grid grid-cols-5 gap-3">
+          {equipList.map((e) => (
+            <button
+              key={e.key}
+              onClick={() => setMenu("equipment")}
+              className="rounded-[10px] border border-line bg-white p-3 text-left transition-colors hover:border-accent/50"
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className="truncate text-[12px] font-semibold text-navy">{e.name}</span>
+                <span
+                  className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${stateChip[e.state]}`}
+                >
+                  {e.stateLabel}
+                </span>
+              </div>
+              <div className="tnum mt-1.5 text-[19px] leading-none font-bold text-navy">
+                {e.kpiValue} <span className="text-[11px] font-semibold text-body">{e.kpiLabel}</span>
+              </div>
+              <div className="tnum mt-1.5 text-[11px] text-body">
+                {e.deltaLabel}{" "}
+                <span className={`font-semibold ${e.deltaPct < 0 ? "text-teal" : "text-review"}`}>
+                  {e.deltaPct > 0 ? "+" : ""}
+                  {pct(e.deltaPct)}
+                </span>{" "}
+                · {e.shareText}
+              </div>
+            </button>
+          ))}
         </div>
       </section>
     </div>
