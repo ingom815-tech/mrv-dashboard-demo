@@ -4,9 +4,15 @@ import { useUI, type Role } from "../store";
 
 /* 화면 상단 1단: 역할 전환 + 검증 추적성 + 산정근거 — 각 화면 제목 행 우측에 배치 */
 export function TopActions() {
-  const { role, setRole, openEvidence, openTrace } = useUI();
+  const { role, setRole, openEvidence, openTrace, openGuide } = useUI();
   return (
     <div className="flex shrink-0 items-center gap-2">
+      <button
+        onClick={openGuide}
+        className="rounded-md border border-accent/40 bg-accent/5 px-2.5 py-1 text-[12px] font-semibold text-accent transition-colors hover:bg-accent/10"
+      >
+        ? 가이드
+      </button>
       <div className="flex items-center gap-1 text-[12px] text-slate-400">
         역할
         {(["일반", "검토자", "승인자"] as Role[]).map((r) => (

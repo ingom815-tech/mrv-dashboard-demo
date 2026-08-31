@@ -159,6 +159,9 @@ export default function Overview() {
           >
             DEMO · 합성데이터
           </span>
+          <span className="hidden truncate text-[13px] text-slate-400 lg:inline">
+            — 얼마나 아꼈고, 그 숫자를 믿을 수 있는가
+          </span>
         </div>
         <TopActions />
       </header>

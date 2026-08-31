@@ -73,6 +73,9 @@ interface UIState {
   traceOpen: boolean;
   openTrace: () => void;
   closeTrace: () => void;
+  guideOpen: boolean;
+  openGuide: () => void;
+  closeGuide: () => void;
   selectedMonth: string | null;
   equipFilter: EquipGroup | "all";
   selectedEquip: string;
@@ -102,6 +105,13 @@ export const useUI = create<UIState>((set, get) => ({
   traceOpen: false,
   openTrace: () => set({ traceOpen: true }),
   closeTrace: () => set({ traceOpen: false }),
+  // 첫 방문이면 가이드를 자동으로 연다
+  guideOpen: loadJson<boolean>("mrv-guide-seen", false) === false,
+  openGuide: () => set({ guideOpen: true }),
+  closeGuide: () => {
+    saveJson("mrv-guide-seen", true);
+    set({ guideOpen: false });
+  },
   selectedMonth: null,
   equipFilter: "all",
   selectedEquip: "ch1",

@@ -5,6 +5,7 @@ import DataVerify from "./screens/DataVerify";
 import MasterData from "./screens/MasterData";
 import EvidencePanel from "./components/EvidencePanel";
 import TraceabilityPanel from "./components/TraceabilityPanel";
+import GuideModal from "./components/GuideModal";
 
 const MENUS: Array<{ key: MenuKey; label: string }> = [
   { key: "overview", label: "종합성과" },
@@ -14,7 +15,7 @@ const MENUS: Array<{ key: MenuKey; label: string }> = [
 ];
 
 export default function App() {
-  const { menu, setMenu, evidenceOpen, traceOpen } = useUI();
+  const { menu, setMenu, evidenceOpen, traceOpen, guideOpen } = useUI();
   return (
     <div className="flex h-full min-h-screen">
       {/* 사이드바 — 지시문 §3.1: 짙은 네이비, 160px, 메뉴 4개, 선택만 강조 */}
@@ -51,6 +52,7 @@ export default function App() {
 
       {evidenceOpen && <EvidencePanel />}
       {traceOpen && <TraceabilityPanel />}
+      {guideOpen && <GuideModal />}
     </div>
   );
 }
