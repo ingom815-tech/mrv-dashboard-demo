@@ -31,3 +31,24 @@ body {
 .tnum {
   font-variant-numeric: tabular-nums;
 }
+
+/* 명세서 인쇄: .print-root만 출력 (브라우저 인쇄 → PDF 저장) */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-root,
+  .print-root * {
+    visibility: visible;
+  }
+  .print-root {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    padding: 0 !important;
+    background: white;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

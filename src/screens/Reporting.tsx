@@ -3,6 +3,7 @@ import { mrv, reviewItems, perfCurve, type NonRoutine } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, deriveVerify, activeEf } from "../store";
 import ContextBar, { TopActions } from "../components/ContextBar";
+import InventoryReport from "./InventoryReport";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -38,6 +39,10 @@ function download(name: string, content: string, type: string) {
 
 export default function Reporting() {
   const [tab, setTab] = useState<TabKey>(initialTab);
+  // 보고 범위: 냉수플랜트 MRV 보고서 | 공장 종합 명세서 (온실가스·에너지 명세서 작성 기능)
+  const [rptScope, setRptScope] = useState<"chiller" | "inventory">(
+    window.location.hash.split("/")[2] === "inventory" ? "inventory" : "chiller",
+  );
   const [copied, setCopied] = useState(false);
   const { role, reviewStates, markReviewed, approve, audit, resetDemoStates, openEvidence, setMenu } =
     useUI();
@@ -133,26 +138,48 @@ export default function Reporting() {
       </header>
       <ContextBar />
 
-      {/* 보고 범위 — MRV 프로젝트 선택 */}
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
+      {/* 보고 범위 — MRV 프로젝트 / 공장 종합 명세서 선택 */}
+      <div className="no-print flex shrink-0 flex-wrap items-center gap-2">
         <span className="text-[12.5px] text-slate-400">보고 범위</span>
-        <span className="rounded-lg border border-accent/40 bg-accent/5 px-3 py-1.5 text-[13px] font-semibold text-accent">
+        <button
+          onClick={() => setRptScope("chiller")}
+          className={`rounded-lg border px-3 py-1.5 text-[13px] transition-colors ${
+            rptScope === "chiller"
+              ? "border-accent/40 bg-accent/5 font-semibold text-accent"
+              : "border-line/60 bg-white text-body hover:border-accent/40"
+          }`}
+        >
           중앙 냉수플랜트 MRV · MVP-2026-01
-        </span>
+        </button>
         <span
           title="보일러 폐열회수 개선 프로젝트 — 데이터 연계 보완 후 개시 (데모 준비 중)"
           className="cursor-not-allowed rounded-lg border border-line/60 bg-white px-3 py-1.5 text-[13px] text-slate-400"
         >
           보일러 효율개선 MRV <span className="text-[11px]">— 준비 중</span>
         </span>
-        <span
-          title="공장 전체 에너지·배출 정기 보고 — 확장 단계 (데모 준비 중)"
-          className="cursor-not-allowed rounded-lg border border-line/60 bg-white px-3 py-1.5 text-[13px] text-slate-400"
+        <button
+          onClick={() => setRptScope("inventory")}
+          title="온실가스 배출량·에너지 사용량 명세서 작성 기능 (별지 11호 참고 · 데모)"
+          className={`rounded-lg border px-3 py-1.5 text-[13px] transition-colors ${
+            rptScope === "inventory"
+              ? "border-accent/40 bg-accent/5 font-semibold text-accent"
+              : "border-line/60 bg-white text-body hover:border-accent/40"
+          }`}
         >
-          공장 종합 에너지·배출 보고 <span className="text-[11px]">— 준비 중</span>
-        </span>
+          공장 종합 에너지·배출 명세서 <span className="text-[11px] opacity-80">2026 상반기</span>
+        </button>
       </div>
 
+      {rptScope === "inventory" && (
+        <>
+          <div className="no-print rounded-lg border border-review/30 bg-review/6 px-3.5 py-2 text-[12.5px] text-review">
+            본 자료는 명세서 작성 지원 기능의 테스트 화면이며, 공식 제출 또는 제3자 검증 자료로 사용할 수 없습니다. (DEMO · 합성데이터)
+          </div>
+          <InventoryReport />
+        </>
+      )}
+
+      {rptScope === "chiller" && (
       <div className="flex shrink-0 gap-1 border-b border-line">
         {TABS.map((t) => (
           <button
@@ -171,9 +198,10 @@ export default function Reporting() {
           </button>
         ))}
       </div>
+      )}
 
       {/* ---------- 탭 1: 검토·승인 ---------- */}
-      {tab === "approve" && (
+      {rptScope === "chiller" && tab === "approve" && (
         <>
           <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-1 flex items-center justify-between">
@@ -288,7 +316,7 @@ export default function Reporting() {
       )}
 
       {/* ---------- 탭 2: 보고서 작성 ---------- */}
-      {tab === "draft" && (
+      {rptScope === "chiller" && tab === "draft" && (
         <>
           {/* 상단 요약 */}
           <section className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
@@ -468,7 +496,7 @@ export default function Reporting() {
       )}
 
       {/* ---------- 탭 3: 이력·버전 비교 ---------- */}
-      {tab === "history" && (
+      {rptScope === "chiller" && tab === "history" && (
         <>
           <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">

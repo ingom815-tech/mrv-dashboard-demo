@@ -104,7 +104,12 @@ interface UIState {
   registerEf: (input: { value: number; source: string; baseYear: number; validFrom: string; validTo: string }) => void;
   setTariff: (v: number) => void;
   logAudit: (action: string, target: string, detail: string) => void;
+  invStatus: InvStatus;
+  invAction: (a: "request" | "reviewOk" | "fix" | "approve" | "reset", opinion?: string) => void;
 }
+
+/* 명세서(인벤토리 보고서) 상태 흐름 */
+export type InvStatus = "작성 중" | "검토 요청" | "수정 요청" | "검토 완료·승인 대기" | "승인 완료";
 
 // 상세 화면에서 돌아와도 보고기간·선택 필터 유지 (지시문 §9)
 export const useUI = create<UIState>((set, get) => ({
@@ -230,6 +235,25 @@ export const useUI = create<UIState>((set, get) => ({
     saveJson(LS_AUDIT, nextAudit);
     set({ tariffValue: v, audit: nextAudit });
   },
+  invStatus: loadJson<InvStatus>("mrv-inv-status", "작성 중"),
+  // 명세서 상태 흐름: 작성 중 → 검토 요청 → (검토자) 검토 완료·승인 대기 | 수정 요청 → (승인자) 승인 완료
+  invAction: (a, opinion) => {
+    const { role, invStatus, logAudit } = get();
+    let next: InvStatus | null = null;
+    if (a === "request" && (invStatus === "작성 중" || invStatus === "수정 요청")) next = "검토 요청";
+    if (a === "reviewOk" && role === "검토자" && invStatus === "검토 요청") next = "검토 완료·승인 대기";
+    if (a === "fix" && role === "검토자" && invStatus === "검토 요청") next = "수정 요청";
+    if (a === "approve" && role === "승인자" && invStatus === "검토 완료·승인 대기") next = "승인 완료";
+    if (a === "reset") next = "작성 중";
+    if (!next) return;
+    saveJson("mrv-inv-status", next);
+    set({ invStatus: next });
+    logAudit(
+      a === "request" ? "검토 요청" : a === "reviewOk" ? "검토 완료" : a === "fix" ? "수정 요청" : a === "approve" ? "명세서 승인" : "초기화",
+      "명세서",
+      `${next}${opinion ? ` — 의견: ${opinion}` : ""} (RPT-2026-DEMO)`,
+    );
+  },
   logAudit: (action, target, detail) => {
     const entry: AuditEntry = { ts: new Date().toISOString(), actor: get().role, action, target, detail };
     const nextAudit = [entry, ...get().audit];
@@ -249,11 +273,13 @@ export const useUI = create<UIState>((set, get) => ({
     saveJson(LS_AUDIT, nextAudit);
     saveJson("mrv-ef-list", defaultEfList());
     saveJson("mrv-tariff", TARIFF.value);
+    saveJson("mrv-inv-status", "작성 중");
     set({
       reviewStates: defaultStates(),
       audit: nextAudit,
       efList: defaultEfList(),
       tariffValue: TARIFF.value,
+      invStatus: "작성 중",
     });
   },
 }));
