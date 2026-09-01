@@ -62,7 +62,7 @@ export default function EquipGroups() {
     <div className="flex min-h-screen flex-col gap-3 px-6 py-4">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="text-[21px] leading-tight font-bold text-navy">설비군 분석</h1>
+          <h1 className="text-[24px] leading-tight font-bold text-navy">설비군 분석</h1>
           <span
             className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
             title="냉동·냉장 설비군만 MRV 엔진 실산정값이며, 나머지 설비군은 합성 요약데이터입니다."

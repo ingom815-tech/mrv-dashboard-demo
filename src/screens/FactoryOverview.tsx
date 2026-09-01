@@ -56,7 +56,7 @@ export default function FactoryOverview() {
     <div className="flex min-h-screen flex-col gap-3 px-6 py-4">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="text-[21px] leading-tight font-bold text-navy">원주공장 종합현황</h1>
+          <h1 className="text-[24px] leading-tight font-bold text-navy">원주공장 종합현황</h1>
           <span
             className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
             title="본 화면의 모든 값은 데모용 합성데이터입니다. 냉동·냉장 설비군만 MRV 엔진 실산정값이며 나머지 설비군은 합성 요약값입니다."
@@ -73,8 +73,11 @@ export default function FactoryOverview() {
 
       {/* 공장 KPI 5 — 사용·배출(현황)과 MRV 절감·감축(성과)은 분리 */}
       <section className="grid shrink-0 grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5" aria-label="공장 핵심 지표">
-        <div className="rounded-[10px] border border-line/60 bg-white p-4">
-          <div className="text-[13px] font-medium text-body">총 에너지 사용량</div>
+        <div
+          className="rounded-[10px] border border-line/60 bg-white p-4"
+          title="총 에너지 사용량은 구매전력 및 연료환산 사용량 기준이며, 태양광 발전량(840 MWh)은 별도 성과로 관리합니다."
+        >
+          <div className="text-[13px] font-medium text-body">총 에너지 사용량 ⓘ</div>
           <div className="tnum mt-1.5 text-[26px] leading-none font-bold text-navy">
             {fmt(factory.totalEnergyMWh)} <span className="text-[13px] font-semibold">MWh</span>
           </div>
@@ -147,21 +150,23 @@ export default function FactoryOverview() {
               <span className="text-slate-400">MWh/월</span>
             </div>
           </div>
-          <div className="h-[280px] pt-2">
+          {/* 상단: 공장 사용량 추이 (확대 축) */}
+          <div className="h-[185px] pt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={factoryMonthly} margin={{ top: 10, right: 14, bottom: 0, left: 0 }}>
+              <ComposedChart data={factoryMonthly} margin={{ top: 10, right: 14, bottom: 0, left: 0 }} syncId="factory">
                 <CartesianGrid stroke="#eaeff5" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 13, fill: "#667085" }} axisLine={{ stroke: "#eaeff5" }} tickLine={false} />
+                <XAxis dataKey="label" tick={false} axisLine={{ stroke: "#eaeff5" }} tickLine={false} height={4} />
                 <YAxis
                   tick={{ fontSize: 12, fill: "#8a94a6" }}
                   axisLine={false}
                   tickLine={false}
                   width={52}
-                  domain={[0, 3600]}
+                  domain={[2400, 3200]}
+                  ticks={[2400, 2700, 3000, 3200]}
                   tickFormatter={(v: number) => fmt(v)}
+                  label={{ value: "사용량 MWh", angle: -90, position: "insideLeft", offset: 8, fontSize: 11, fill: "#8a94a6" }}
                 />
                 <Tooltip content={<FactoryTooltip />} cursor={{ stroke: "#c3cdd9", strokeDasharray: "3 3" }} />
-                <Bar dataKey="verifiedSaveMWh" fill="#159f9e" fillOpacity={0.65} barSize={22} radius={[3, 3, 0, 0]} isAnimationActive={false} />
                 <Line dataKey="baseMWh" stroke="#8a94a6" strokeWidth={2} strokeDasharray="6 4" dot={false} isAnimationActive={false} />
                 <Line dataKey="targetMWh" stroke="#2f6bff" strokeWidth={1.5} strokeDasharray="2 3" dot={false} isAnimationActive={false} />
                 <Line
@@ -184,9 +189,29 @@ export default function FactoryOverview() {
               </ComposedChart>
             </ResponsiveContainer>
           </div>
+          {/* 하단: 월별 검증 절감량 (별도 축 — 냉동·냉장 실증분) */}
+          <div className="h-[96px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={factoryMonthly} margin={{ top: 4, right: 14, bottom: 0, left: 0 }} syncId="factory">
+                <CartesianGrid stroke="#eaeff5" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#667085" }} axisLine={{ stroke: "#eaeff5" }} tickLine={false} />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "#8a94a6" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={52}
+                  domain={[0, 90]}
+                  ticks={[0, 40, 80]}
+                  label={{ value: "절감 MWh", angle: -90, position: "insideLeft", offset: 8, fontSize: 11, fill: "#159f9e" }}
+                />
+                <Tooltip content={<FactoryTooltip />} cursor={{ fill: "#159f9e", fillOpacity: 0.06 }} />
+                <Bar dataKey="verifiedSaveMWh" fill="#159f9e" fillOpacity={0.75} barSize={26} radius={[3, 3, 0, 0]} isAnimationActive={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
           <div className="flex shrink-0 items-center justify-between text-[12px] text-body">
             <span>
-              검증 절감 면적은 <b className="text-navy">MRV로 검증된 냉동·냉장 실증분</b>만 표시 · ! = 주요 운영 이벤트
+              하단 막대 = <b className="text-navy">MRV 검증 절감량(냉동·냉장 실증분)</b> · ! = 주요 운영 이벤트
             </span>
             <button
               onClick={() => { setEquipGroup("chiller"); setMenu("equipment"); }}

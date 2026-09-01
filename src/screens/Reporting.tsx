@@ -121,7 +121,7 @@ export default function Reporting() {
     <div className="flex min-h-screen flex-col gap-3 px-6 py-4">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="text-[21px] leading-tight font-bold text-navy">보고·승인 — 검증 결과의 문서화</h1>
+          <h1 className="text-[24px] leading-tight font-bold text-navy">보고·승인 — 검증 결과의 문서화</h1>
           <span
             className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
             title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다."
@@ -132,6 +132,26 @@ export default function Reporting() {
         <TopActions />
       </header>
       <ContextBar />
+
+      {/* 보고 범위 — MRV 프로젝트 선택 */}
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <span className="text-[12.5px] text-slate-400">보고 범위</span>
+        <span className="rounded-lg border border-accent/40 bg-accent/5 px-3 py-1.5 text-[13px] font-semibold text-accent">
+          중앙 냉수플랜트 MRV · MVP-2026-01
+        </span>
+        <span
+          title="보일러 폐열회수 개선 프로젝트 — 데이터 연계 보완 후 개시 (데모 준비 중)"
+          className="cursor-not-allowed rounded-lg border border-line/60 bg-white px-3 py-1.5 text-[13px] text-slate-400"
+        >
+          보일러 효율개선 MRV <span className="text-[11px]">— 준비 중</span>
+        </span>
+        <span
+          title="공장 전체 에너지·배출 정기 보고 — 확장 단계 (데모 준비 중)"
+          className="cursor-not-allowed rounded-lg border border-line/60 bg-white px-3 py-1.5 text-[13px] text-slate-400"
+        >
+          공장 종합 에너지·배출 보고 <span className="text-[11px]">— 준비 중</span>
+        </span>
+      </div>
 
       <div className="flex shrink-0 gap-1 border-b border-line">
         {TABS.map((t) => (

@@ -3,40 +3,54 @@ import { mrv } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, type Role } from "../store";
 
-/* 화면 상단 1단: 역할 전환 + 검증 추적성 + 산정근거 — 각 화면 제목 행 우측에 배치 */
+/* 화면 상단 1단: 도움말 아이콘 + 사용자(역할) 메뉴 + 산정근거 — 최소 구성 */
 export function TopActions() {
-  const { role, setRole, openEvidence, openTrace, openGuide } = useUI();
+  const { role, setRole, openEvidence, openGuide } = useUI();
+  const [userOpen, setUserOpen] = useState(false);
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
+    <div className="relative flex shrink-0 items-center gap-2">
       <button
         onClick={openGuide}
-        className="rounded-md border border-accent/40 bg-accent/5 px-2.5 py-1 text-[12px] font-semibold whitespace-nowrap text-accent transition-colors hover:bg-accent/10"
+        aria-label="가이드 열기"
+        title="시스템 개요·시연 순서 가이드"
+        className="flex size-7 items-center justify-center rounded-full border border-line bg-white text-[13px] font-bold text-accent transition-colors hover:border-accent/50"
       >
-        ? 가이드
+        ?
       </button>
-      <div className="flex items-center gap-0.5 rounded-md border border-line bg-white px-1 py-0.5">
-        <span className="hidden px-1 text-[11px] text-slate-400 xl:inline">역할</span>
-        {(["일반", "검토자", "승인자"] as Role[]).map((r) => (
-          <button
-            key={r}
-            onClick={() => setRole(r)}
-            className={`rounded px-1.5 py-0.5 text-[12px] whitespace-nowrap transition-colors ${
-              role === r ? "bg-navy font-semibold text-white" : "text-body hover:text-navy"
-            }`}
-          >
-            {r}
-          </button>
-        ))}
-      </div>
       <button
-        onClick={openTrace}
-        className="rounded-md border border-line bg-white px-2.5 py-1 text-[12px] font-medium whitespace-nowrap text-navy transition-colors hover:border-accent/50"
+        onClick={() => setUserOpen(!userOpen)}
+        title="사용자·역할 전환 (데모)"
+        className="flex items-center gap-1.5 rounded-md border border-line bg-white px-2.5 py-1 text-[12.5px] font-medium whitespace-nowrap text-navy transition-colors hover:border-accent/50"
       >
-        검증 추적성
+        <span className="flex size-4.5 items-center justify-center rounded-full bg-navy text-[10px] font-bold text-white">
+          {role.slice(0, 1)}
+        </span>
+        {role} ▾
       </button>
+      {userOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setUserOpen(false)} />
+          <div className="absolute top-9 right-24 z-50 w-40 rounded-lg border border-line bg-white py-1.5 shadow-lg">
+            <div className="px-3 pb-1 text-[11px] text-slate-400">역할 전환 (데모)</div>
+            {(["일반", "검토자", "승인자"] as Role[]).map((r) => (
+              <button
+                key={r}
+                onClick={() => { setRole(r); setUserOpen(false); }}
+                className={`block w-full px-3 py-1.5 text-left text-[13px] transition-colors ${
+                  role === r ? "bg-accent/8 font-semibold text-accent" : "text-navy hover:bg-surface"
+                }`}
+              >
+                {r}
+                {r === "검토자" && <span className="ml-1 text-[11px] text-slate-400">— 검토 처리</span>}
+                {r === "승인자" && <span className="ml-1 text-[11px] text-slate-400">— 최종 승인</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       <button
         onClick={openEvidence}
-        className="rounded-md bg-accent px-2.5 py-1 text-[12px] font-semibold whitespace-nowrap text-white transition-opacity hover:opacity-90"
+        className="rounded-md bg-accent px-2.5 py-1 text-[12.5px] font-semibold whitespace-nowrap text-white transition-opacity hover:opacity-90"
       >
         산정근거
       </button>

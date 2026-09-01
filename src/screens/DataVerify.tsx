@@ -8,6 +8,7 @@ import {
   type EvidenceItem,
   type HeatStatus,
 } from "../lib/mrvData";
+import { equipGroups, factory } from "../lib/factoryData";
 import { useUI, deriveVerify } from "../store";
 import ContextBar, { TopActions } from "../components/ContextBar";
 
@@ -200,6 +201,10 @@ function EvidenceDoc({ item, onClose }: { item: EvidenceItem; onClose: () => voi
 }
 
 export default function DataVerify() {
+  // 범위: 공장 전체(기본) ↔ 설비군. 냉동·냉장만 상세 검증(기존 탭) 제공
+  const [scope, setScope] = useState<string>(() =>
+    TABS.some((t) => t.key === window.location.hash.split("/")[2]) ? "chiller" : "factory",
+  );
   const [tab, setTab] = useState<TabKey>(initialTab);
   const [heatMonth, setHeatMonth] = useState("2026-02");
   const [selCell, setSelCell] = useState<{ tag: string; date: string; status: HeatStatus } | null>(null);
@@ -210,12 +215,14 @@ export default function DataVerify() {
   const heat = useMemo(() => qualityHeatmap(heatMonth), [heatMonth]);
   const affectsCount = issueQueue.filter((i) => i.affects).length;
   const assurance = assuranceWith(reviewStates, verify.pending, verify.state === "승인 완료");
+  const scopeGroup = equipGroups.find((g) => g.key === scope) ?? null;
+  const warnTags = mrv.coverage.warn + 1; // 냉수플랜트 주의 2 + 기상 결측 1 (데모)
 
   return (
     <div className="flex min-h-screen flex-col gap-3 px-6 py-4">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="shrink-0 text-[20px] leading-tight font-bold text-navy">
+          <h1 className="shrink-0 text-[24px] leading-tight font-bold text-navy">
             데이터 검증 — 결과를 신뢰할 수 있는가
           </h1>
           <span
@@ -229,8 +236,145 @@ export default function DataVerify() {
       </header>
       <ContextBar />
 
-      {/* 탭 */}
-      <div className="flex shrink-0 gap-1 border-b border-line">
+      {/* 범위 선택기 — 공장 전체 ↔ 설비군 */}
+      <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+        <button
+          onClick={() => setScope("factory")}
+          className={`rounded-lg px-3 py-1.5 text-[13px] transition-colors ${
+            scope === "factory" ? "bg-navy font-semibold text-white" : "border border-line/60 bg-white text-body hover:text-navy"
+          }`}
+        >
+          공장 전체
+        </button>
+        {equipGroups.map((g) => (
+          <button
+            key={g.key}
+            onClick={() => setScope(g.key)}
+            className={`rounded-lg px-3 py-1.5 text-[13px] whitespace-nowrap transition-colors ${
+              scope === g.key
+                ? "bg-navy font-semibold text-white"
+                : `border bg-white text-body hover:text-navy ${g.detail === "full" ? "border-teal/40" : "border-line/60"}`
+            }`}
+          >
+            {g.name.replace(" 설비", "")}
+            {g.detail === "full" && scope !== g.key && <span className="ml-1 text-[10px] font-bold text-teal">상세</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* ---------- 공장 전체 요약 ---------- */}
+      {scope === "factory" && (
+        <>
+          <section className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="text-[13px] font-medium text-body">전체 계측 태그</div>
+              <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
+                {factory.metersTotal} <span className="text-[13px] font-semibold text-body">점</span>
+              </div>
+              <div className="mt-1.5 text-[12px] text-body">10개 설비군 · 5개 데이터 소스</div>
+            </div>
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="text-[13px] font-medium text-body">연결 완료</div>
+              <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-teal">
+                {factory.metersConnected} <span className="text-[13px] font-semibold text-body">점</span>
+              </div>
+              <div className="tnum mt-1.5 text-[12px] text-body">연계율 {pct(factory.linkRate)} · 대기 {factory.metersTotal - factory.metersConnected}점</div>
+            </div>
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="text-[13px] font-medium text-body">결측·이상 태그</div>
+              <div className={`tnum mt-1.5 text-[28px] leading-none font-bold ${warnTags > 0 ? "text-review" : "text-teal"}`}>
+                {warnTags} <span className="text-[13px] font-semibold text-body">점</span>
+              </div>
+              <div className="mt-1.5 text-[12px] text-body">교정 만료 1 · 이상 플래그 3 · 부분결측 1</div>
+            </div>
+            <button onClick={() => setScope("chiller")} className="rounded-[10px] border border-line/60 bg-white p-4 text-left transition-colors hover:border-accent/50">
+              <div className="text-[13px] font-medium text-body">산정 영향 이슈</div>
+              <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
+                {affectsCount} <span className="text-[13px] font-semibold text-body">건</span>
+              </div>
+              <div className="mt-1.5 text-[12px] text-body">냉동·냉장 MRV 산정 반영분 · 상세 ›</div>
+            </button>
+          </section>
+
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[15px] font-semibold text-navy">설비군별 데이터 품질 상태</span>
+              <span className="text-[12px] text-slate-400">행 클릭 시 해당 설비군 범위로 전환</span>
+            </div>
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-line text-left text-[12px] text-body">
+                  <th className="py-2 font-medium">설비군</th>
+                  <th className="py-2 text-right font-medium">계측 연계</th>
+                  <th className="py-2 pl-4 font-medium">연계 상태</th>
+                  <th className="py-2 font-medium">품질 상태</th>
+                  <th className="py-2 font-medium">비고</th>
+                  <th className="py-2 pl-3 font-medium">검증 수준</th>
+                </tr>
+              </thead>
+              <tbody className="tnum">
+                {equipGroups.map((g) => (
+                  <tr
+                    key={g.key}
+                    onClick={() => setScope(g.key)}
+                    className="cursor-pointer border-b border-line/50 transition-colors last:border-0 hover:bg-surface"
+                  >
+                    <td className="py-2 font-medium text-navy">{g.name}</td>
+                    <td className="py-2 text-right text-body">{g.meters[0]}/{g.meters[1]}</td>
+                    <td className="py-2 pl-4">
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                        g.linkState === "연결 완료" ? "bg-teal/10 text-teal" : g.linkState === "오류" ? "bg-risk/10 text-risk" : "bg-review/10 text-review"
+                      }`}>{g.linkState}</span>
+                    </td>
+                    <td className="py-2">
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                        g.state === "정상" ? "bg-teal/10 text-teal" : g.state === "MRV 검증 중" ? "bg-accent/10 text-accent" : "bg-review/10 text-review"
+                      }`}>{g.state}</span>
+                    </td>
+                    <td className="max-w-72 truncate py-2 text-body">{g.note}</td>
+                    <td className="py-2 pl-3 text-body">
+                      {g.detail === "full" ? <b className="text-teal">상세 MRV 검증</b> : "요약 품질"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-2 text-[12px] text-body">
+              상세 품질 검증(히트맵·태그·증적)은 냉동·냉장 실증 범위에서 제공 · 다른 설비군은 연계·상태 요약만 제공(확장 대상)
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* ---------- 설비군 요약 (냉동·냉장 외) ---------- */}
+      {scopeGroup && scopeGroup.key !== "chiller" && (
+        <section className="rounded-[10px] border border-line/60 bg-white p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[15px] font-semibold text-navy">{scopeGroup.name} — 데이터 품질 요약</span>
+            <span className="rounded bg-line/60 px-2 py-0.5 text-[11px] font-medium text-body">합성 요약 · 상세 검증 확장 대상</span>
+          </div>
+          <div className="tnum mt-3 grid grid-cols-2 gap-x-8 gap-y-2 text-[13px] md:grid-cols-4">
+            <div><div className="text-[12px] text-slate-400">계측 연계</div><div className="font-semibold text-navy">{scopeGroup.meters[0]}/{scopeGroup.meters[1]}점 · {scopeGroup.linkState}</div></div>
+            <div><div className="text-[12px] text-slate-400">품질 상태</div><div className="font-semibold text-navy">{scopeGroup.state}</div></div>
+            <div><div className="text-[12px] text-slate-400">수집 주기</div><div className="font-semibold text-navy">15분 (일부 60분·수기)</div></div>
+            <div><div className="text-[12px] text-slate-400">산정 영향</div><div className="font-semibold text-navy">{scopeGroup.detail === "boiler" ? "연계 보완 전 참고치" : "공장 집계 참고치"}</div></div>
+          </div>
+          <div className="mt-3 rounded-lg bg-surface/70 px-3.5 py-2.5 text-[12.5px] leading-relaxed text-body">
+            {scopeGroup.note} · 이 설비군의 상세 품질 검증(태그별 히트맵·정제 규칙·증적)은 MRV 확장 단계에서
+            냉동·냉장과 동일한 구조로 제공됩니다.
+            {scopeGroup.key === "boiler" && (
+              <button onClick={() => setMenu("master")} className="ml-1 font-medium text-accent hover:underline">
+                가스미터 연계 진행 ›
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ---------- 냉동·냉장 상세 검증 (기존 탭 구조) ---------- */}
+      {scope === "chiller" && (
+        <>
+      <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-line">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -539,6 +683,8 @@ export default function DataVerify() {
         </section>
       )}
 
+        </>
+      )}
       {selEvidence && <EvidenceDoc item={selEvidence} onClose={() => setSelEvidence(null)} />}
     </div>
   );

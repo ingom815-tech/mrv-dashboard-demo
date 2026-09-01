@@ -16,7 +16,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 /* 산정근거 슬라이드 패널 (v2.1 §4.1) — 기술 통계·모델식은 여기서만 노출 */
 export default function EvidencePanel() {
-  const { closeEvidence, setMenu, reviewStates } = useUI();
+  const { closeEvidence, setMenu, reviewStates, openTrace } = useUI();
   const calc = useCalc();
   const EF = activeEf(useUI((s) => s.efList));
   const verify = deriveVerify(reviewStates);
@@ -28,7 +28,15 @@ export default function EvidencePanel() {
       <aside className="absolute inset-y-0 right-0 flex w-[420px] flex-col overflow-y-auto bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
           <div>
-            <div className="text-[16px] font-bold text-navy">산정근거</div>
+            <div className="flex items-center gap-2">
+              <span className="text-[16px] font-bold text-navy">산정근거</span>
+              <button
+                onClick={() => { closeEvidence(); openTrace(); }}
+                className="rounded border border-line px-1.5 py-0.5 text-[11px] font-medium text-accent hover:border-accent/50"
+              >
+                검증 추적성 보기 ›
+              </button>
+            </div>
             <div className="mt-0.5 text-[11px] text-slate-400">DEMO · 합성데이터 — 공식 MRV 사용 불가</div>
           </div>
           <button

@@ -21,7 +21,7 @@ const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
 
 const TABS = [
-  { key: "plan", label: "MRV 계획" },
+  { key: "plan", label: "MRV 프로젝트" },
   { key: "asset", label: "설비·센서" },
   { key: "change", label: "변경관리" },
   { key: "factor", label: "배출계수·가정값" },
@@ -221,7 +221,7 @@ export default function MasterData() {
     <div className="flex min-h-screen flex-col gap-3 px-6 py-4">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="shrink-0 text-[20px] leading-tight font-bold text-navy">
+          <h1 className="shrink-0 text-[24px] leading-tight font-bold text-navy">
             설비·연계 관리 — 설비·계측·데이터 연결·변경이력
           </h1>
           <span
@@ -251,9 +251,45 @@ export default function MasterData() {
         ))}
       </div>
 
-      {/* ---------- 탭 0: MRV 계획·준비도 ---------- */}
+      {/* ---------- 탭 0: MRV 프로젝트 (개선 프로젝트별 계획) ---------- */}
       {tab === "plan" && (
         <>
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[15px] font-semibold text-navy">MRV 프로젝트 목록</span>
+              <span className="text-[12px] text-slate-400">공장의 개선 프로젝트별로 M&V 계획이 존재합니다</span>
+            </div>
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-line text-left text-[12px] text-body">
+                  <th className="py-2 font-medium">프로젝트</th>
+                  <th className="py-2 font-medium">대상 설비군</th>
+                  <th className="py-2 font-medium">계획 ID</th>
+                  <th className="py-2 pl-3 font-medium">단계</th>
+                </tr>
+              </thead>
+              <tbody className="tnum">
+                <tr className="border-b border-line/50 bg-accent/4">
+                  <td className="py-2 font-semibold text-navy">중앙 냉수플랜트 효율개선 <span className="ml-1 rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">선택됨</span></td>
+                  <td className="py-2 text-body">냉동·냉장</td>
+                  <td className="py-2 text-body">MVP-2026-01</td>
+                  <td className="py-2 pl-3"><span className="rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">검증 중</span></td>
+                </tr>
+                <tr className="border-b border-line/50 text-slate-400" title="가스미터 연계 완료 후 계획 수립 (데모 준비 중)">
+                  <td className="py-2">보일러 폐열회수</td>
+                  <td className="py-2">보일러·스팀</td>
+                  <td className="py-2">MVP-2026-02 (예정)</td>
+                  <td className="py-2 pl-3"><span className="rounded bg-review/10 px-1.5 py-0.5 text-[10px] font-bold text-review">데이터 준비</span></td>
+                </tr>
+                <tr className="text-slate-400" title="사전진단 후보 (데모 준비 중)">
+                  <td className="py-2">압축공기 누설개선</td>
+                  <td className="py-2">압축공기</td>
+                  <td className="py-2">—</td>
+                  <td className="py-2 pl-3"><span className="rounded bg-line text-body px-1.5 py-0.5 text-[10px] font-bold">후보</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
           {/* 준비도 진단 (공동 사전진단 결과) */}
           <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="flex items-center justify-between">
