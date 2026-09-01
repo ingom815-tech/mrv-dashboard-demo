@@ -5,6 +5,7 @@ import { useUI, deriveVerify, activeEf } from "../store";
 import ContextBar, { TopActions } from "../components/ContextBar";
 import InventoryReport from "./InventoryReport";
 import MrvReportPreview from "./MrvReportPreview";
+import EsgDataPack from "./EsgDataPack";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -42,9 +43,9 @@ function download(name: string, content: string, type: string) {
 export default function Reporting() {
   const [tab, setTab] = useState<TabKey>(initialTab);
   // 보고 범위: 냉수플랜트 MRV 보고서 | 공장 종합 명세서 (온실가스·에너지 명세서 작성 기능)
-  const [rptScope, setRptScope] = useState<"chiller" | "boiler" | "inventory">(() => {
+  const [rptScope, setRptScope] = useState<"chiller" | "boiler" | "inventory" | "esg">(() => {
     const seg = window.location.hash.split("/")[2];
-    return seg === "inventory" ? "inventory" : seg === "boiler" ? "boiler" : "chiller";
+    return seg === "inventory" ? "inventory" : seg === "boiler" ? "boiler" : seg === "esg" ? "esg" : "chiller";
   });
   const [copied, setCopied] = useState(false);
   const { role, reviewStates, markReviewed, approve, audit, resetDemoStates, openEvidence, setMenu } =
@@ -148,13 +149,15 @@ export default function Reporting() {
             [
               ["mrv", "MRV 성과보고서", "프로젝트별"],
               ["inventory", "에너지·배출 명세서", "공장 종합"],
+              ["esg", "ESG 공시 데이터", "K-ESG·보고서 부록"],
             ] as Array<[string, string, string]>
           ).map(([key, label, sub]) => {
-            const on = key === "inventory" ? rptScope === "inventory" : rptScope !== "inventory";
+            const on =
+              key === "mrv" ? rptScope === "chiller" || rptScope === "boiler" : rptScope === key;
             return (
               <button
                 key={key}
-                onClick={() => setRptScope(key === "inventory" ? "inventory" : "chiller")}
+                onClick={() => setRptScope(key === "mrv" ? "chiller" : (key as "inventory" | "esg"))}
                 className={`rounded-md px-3.5 py-1.5 text-[13px] transition-colors ${
                   on ? "bg-navy font-semibold text-white" : "text-body hover:text-navy"
                 }`}
@@ -165,7 +168,7 @@ export default function Reporting() {
           })}
         </div>
 
-        {rptScope !== "inventory" && (
+        {(rptScope === "chiller" || rptScope === "boiler") && (
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2 text-[12.5px] text-slate-400">
               프로젝트
@@ -193,6 +196,16 @@ export default function Reporting() {
             본 자료는 명세서 작성 지원 기능의 테스트 화면이며, 공식 제출 또는 제3자 검증 자료로 사용할 수 없습니다. (DEMO · 합성데이터)
           </div>
           <InventoryReport />
+        </>
+      )}
+
+      {/* ---------- ESG 공시 데이터 팩 (K-ESG·지속가능경영보고서 대응) ---------- */}
+      {rptScope === "esg" && (
+        <>
+          <div className="rounded-lg border border-review/30 bg-review/6 px-3.5 py-2 text-[12.5px] text-review">
+            본 자료는 ESG 공시 작성 지원 기능의 테스트 화면이며, 모든 수치는 합성데이터로 공식 공시 또는 제3자 검증 자료로 사용할 수 없습니다. (DEMO)
+          </div>
+          <EsgDataPack />
         </>
       )}
 
