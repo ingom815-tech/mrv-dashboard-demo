@@ -71,7 +71,7 @@ function TagDrawer({ tag, onClose }: { tag: TagMeta; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="태그 상세">
       <div className="absolute inset-0 bg-navy/30" onClick={onClose} />
-      <aside className="absolute inset-y-0 right-0 flex w-[400px] flex-col overflow-y-auto bg-white shadow-2xl">
+      <aside className="absolute inset-y-0 right-0 flex w-full max-w-[400px] flex-col overflow-y-auto bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
           <div>
             <div className="flex items-center gap-2">
@@ -133,7 +133,7 @@ function InterfaceDrawer({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="데이터 연계 현황">
       <div className="absolute inset-0 bg-navy/30" onClick={onClose} />
-      <aside className="absolute inset-y-0 right-0 flex w-[520px] flex-col overflow-y-auto bg-white shadow-2xl">
+      <aside className="absolute inset-y-0 right-0 flex w-full max-w-[520px] flex-col overflow-y-auto bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
           <div>
             <div className="text-[16px] font-bold text-navy">데이터 연계 현황</div>
@@ -218,10 +218,10 @@ export default function MasterData() {
   const canEdit = role !== "일반";
 
   return (
-    <div className="flex min-h-screen flex-col gap-3 px-6 py-4">
+    <div className="flex min-h-screen flex-col gap-3 px-4 py-3 md:px-6 md:py-4">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="shrink-0 text-[24px] leading-tight font-bold text-navy">
+          <h1 className="text-[20px] leading-tight font-bold text-navy md:shrink-0 md:text-[24px]">
             설비·연계 관리 — 설비·계측·데이터 연결·변경이력
           </h1>
           <span
@@ -235,12 +235,12 @@ export default function MasterData() {
       </header>
       <ContextBar />
 
-      <div className="flex shrink-0 gap-1 border-b border-line">
+      <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-line">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`-mb-px border-b-2 px-4 py-2 text-[13px] transition-colors ${
+            className={`-mb-px border-b-2 px-4 py-2 text-[13px] whitespace-nowrap transition-colors ${
               tab === t.key
                 ? "border-accent font-semibold text-accent"
                 : "border-transparent text-body hover:text-navy"
@@ -305,7 +305,7 @@ export default function MasterData() {
               </div>
               <span className="text-[12px] text-slate-400">공동 사전진단(2~4주) 결과 요약 — 데모</span>
             </div>
-            <div className="mt-3 grid grid-cols-4 gap-2.5">
+            <div className="mt-3 grid grid-cols-2 gap-2.5 md:grid-cols-4">
               {readiness.map((r) => (
                 <div key={r.area} className="rounded-lg bg-surface/70 px-3 py-2.5">
                   <div className="flex items-center justify-between">
@@ -472,7 +472,7 @@ export default function MasterData() {
                     </div>
                     <span className="text-[11px] text-slate-400">Asset Passport</span>
                   </div>
-                  <div className="tnum mt-3 grid grid-cols-4 gap-x-6 gap-y-1.5 text-[13px]">
+                  <div className="tnum mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-[13px] md:grid-cols-4">
                     <div><span className="text-slate-400">설비 ID </span><span className="font-medium text-navy">{passport.id}</span></div>
                     <div><span className="text-slate-400">제조사 </span><span className="font-medium text-navy">{passport.maker}</span></div>
                     <div><span className="text-slate-400">모델 </span><span className="font-medium text-navy">{passport.model}</span></div>
@@ -943,7 +943,7 @@ export default function MasterData() {
             </div>
           </section>
 
-          <section className="grid shrink-0 grid-cols-3 gap-3">
+          <section className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-3">
             <div className="rounded-[10px] border border-line/60 bg-white p-4">
               <div className="mb-2 text-[15px] font-semibold text-navy">냉매 GWP</div>
               <table className="tnum w-full text-[12px]">

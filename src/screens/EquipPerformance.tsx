@@ -94,12 +94,12 @@ export default function EquipPerformance({ embedded = false }: { embedded?: bool
       : (mrv.perf.table.find((r) => r.key === selectedEquip)?.base ?? null);
 
   return (
-    <div className={embedded ? "flex flex-col gap-3" : "flex min-h-screen flex-col gap-3 px-6 py-4"}>
+    <div className={embedded ? "flex flex-col gap-3" : "flex min-h-screen flex-col gap-3 px-4 py-3 md:px-6 md:py-4"}>
       {!embedded && (
         <>
           <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <div className="flex min-w-0 items-center gap-2.5">
-              <h1 className="text-[24px] leading-tight font-bold text-navy">설비성과 — 효율 개선 원인 분석</h1>
+              <h1 className="text-[20px] leading-tight font-bold text-navy md:text-[24px]">설비성과 — 효율 개선 원인 분석</h1>
               <span
                 className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
                 title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다."

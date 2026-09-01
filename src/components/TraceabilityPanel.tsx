@@ -61,7 +61,7 @@ export default function TraceabilityPanel() {
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="검증 추적성">
       <div className="absolute inset-0 bg-navy/30" onClick={closeTrace} />
-      <aside className="absolute inset-y-0 right-0 flex w-[440px] flex-col overflow-y-auto bg-white shadow-2xl">
+      <aside className="absolute inset-y-0 right-0 flex w-full max-w-[440px] flex-col overflow-y-auto bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
           <div>
             <div className="text-[16px] font-bold text-navy">검증 추적성</div>

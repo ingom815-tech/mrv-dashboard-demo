@@ -25,7 +25,7 @@ export default function EvidencePanel() {
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="산정근거">
       <div className="absolute inset-0 bg-navy/30" onClick={closeEvidence} />
-      <aside className="absolute inset-y-0 right-0 flex w-[420px] flex-col overflow-y-auto bg-white shadow-2xl">
+      <aside className="absolute inset-y-0 right-0 flex w-full max-w-[420px] flex-col overflow-y-auto bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
           <div>
             <div className="flex items-center gap-2">

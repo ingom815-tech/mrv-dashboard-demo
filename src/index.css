@@ -25,11 +25,41 @@ body {
   color: var(--color-navy);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  /* 한글 단어 단위 줄바꿈 — 글자 단위 세로 낙하 방지 (모바일 지시문 §5.1) */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 /* KPI·표 숫자는 고정폭 숫자로 정렬 유지 (§10 타이포그래피) */
 .tnum {
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 모바일·태블릿 반응형 (지시문: 360~767 모바일 · 768~1199 태블릿) ---------- */
+/* 표: 모바일에서 열을 짓누르지 않고 표 컨테이너 내부 가로 스크롤로 전환 (§5.3)
+   — ID·수치·배지·날짜가 임의 줄바꿈되지 않도록 셀은 nowrap */
+@media (max-width: 767px) {
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  th,
+  td {
+    white-space: nowrap;
+  }
+  /* 긴 설명 셀은 예외적으로 줄바꿈 허용 */
+  td.wrap,
+  th.wrap {
+    white-space: normal;
+    min-width: 180px;
+  }
+}
+
+/* 드로어 열림 시 본문 스크롤 잠금 (§12) */
+body.drawer-open {
+  overflow: hidden;
 }
 
 /* 명세서 인쇄: .print-root만 출력 (브라우저 인쇄 → PDF 저장) */

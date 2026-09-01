@@ -150,7 +150,7 @@ function EvidenceDoc({ item, onClose }: { item: EvidenceItem; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-navy/40" onClick={onClose} />
-      <div className="relative max-h-[86vh] w-[620px] overflow-y-auto rounded-lg bg-white shadow-2xl">
+      <div className="relative max-h-[86vh] w-[94vw] max-w-[620px] overflow-y-auto rounded-lg bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-line px-6 py-3">
           <span className="tnum text-[12px] text-body">
             {item.id} · {item.version} · SHA-256 {item.hash}…
@@ -219,10 +219,10 @@ export default function DataVerify() {
   const warnTags = mrv.coverage.warn + 1; // 냉수플랜트 주의 2 + 기상 결측 1 (데모)
 
   return (
-    <div className="flex min-h-screen flex-col gap-3 px-6 py-4">
+    <div className="flex min-h-screen flex-col gap-3 px-4 py-3 md:px-6 md:py-4">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="shrink-0 text-[24px] leading-tight font-bold text-navy">
+          <h1 className="text-[20px] leading-tight font-bold text-navy md:shrink-0 md:text-[24px]">
             데이터 검증 — 결과를 신뢰할 수 있는가
           </h1>
           <span
@@ -379,7 +379,7 @@ export default function DataVerify() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`-mb-px border-b-2 px-4 py-2 text-[13px] transition-colors ${
+            className={`-mb-px border-b-2 px-4 py-2 text-[13px] whitespace-nowrap transition-colors ${
               tab === t.key
                 ? "border-accent font-semibold text-accent"
                 : "border-transparent text-body hover:text-navy"

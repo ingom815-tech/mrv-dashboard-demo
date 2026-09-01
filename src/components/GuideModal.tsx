@@ -50,7 +50,7 @@ export default function GuideModal() {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-navy/50" onClick={closeGuide} />
-      <div className="relative max-h-[88vh] w-[680px] overflow-y-auto rounded-xl bg-white p-8 shadow-2xl">
+      <div className="relative max-h-[88vh] w-[92vw] max-w-[680px] overflow-y-auto rounded-xl bg-white p-5 md:p-8 shadow-2xl">
         <button
           onClick={closeGuide}
           aria-label="닫기"
@@ -71,7 +71,7 @@ export default function GuideModal() {
         </p>
 
         {/* 3단계 스토리 */}
-        <div className="mt-5 grid grid-cols-3 gap-3">
+        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
           {[
             ["① 측정", "센서 13개가 15분마다 전기 사용량과 운전 데이터를 기록합니다."],
             ["② 계산", "작년(개선 전)과 올해를 날씨·생산량으로 보정해 비교합니다. 그 차이가 절감량입니다."],
@@ -87,7 +87,7 @@ export default function GuideModal() {
         {/* 메뉴 지도 */}
         <div className="mt-5">
           <div className="text-[15px] font-semibold text-navy">왼쪽 메뉴 5개 — 업무 흐름 순서</div>
-          <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1.5 text-[13px]">
+          <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1.5 text-[13px] md:grid-cols-2">
             <div><b className="text-navy">공장 종합현황</b> <span className="text-body">— 공장 전체 에너지·배출·MRV 성과</span></div>
             <div><b className="text-navy">설비군 분석</b> <span className="text-body">— 10개 설비군과 개별 설비 상세</span></div>
             <div><b className="text-navy">데이터 검증</b> <span className="text-body">— 품질·이슈·보정·증적</span></div>

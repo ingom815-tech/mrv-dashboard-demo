@@ -127,10 +127,10 @@ export default function Reporting() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col gap-3 px-6 py-4">
+    <div className="flex min-h-screen flex-col gap-3 px-4 py-3 md:px-6 md:py-4">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="text-[24px] leading-tight font-bold text-navy">보고·승인 — 검증 결과의 문서화</h1>
+          <h1 className="text-[20px] leading-tight font-bold text-navy md:text-[24px]">보고·승인 — 검증 결과의 문서화</h1>
           <span
             className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
             title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다."
@@ -249,12 +249,12 @@ export default function Reporting() {
       )}
 
       {rptScope === "chiller" && (
-      <div className="flex shrink-0 gap-1 border-b border-line">
+      <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-line">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`-mb-px border-b-2 px-4 py-2 text-[13px] transition-colors ${
+            className={`-mb-px border-b-2 px-4 py-2 text-[13px] whitespace-nowrap transition-colors ${
               tab === t.key ? "border-accent font-semibold text-accent" : "border-transparent text-body hover:text-navy"
             }`}
           >
