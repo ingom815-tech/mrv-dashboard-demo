@@ -249,3 +249,111 @@ export const boundary = {
 /* 데이터 준비율 (데모) */
 export const readinessPct =
   Math.round(((sections.filter((s) => s.link === "자동 연결" || s.link === "자동 계산").length + 0.5) / sections.length) * 100);
+
+/* ---------- 월별 활동자료·배출량 (2026 상반기, 별지 11 서식 5-1·5-11 대응) ---------- */
+export interface InvMonth {
+  m: string;
+  elecMWh: number;
+  lngKNm3: number;
+  scope1: number; // LNG 고정연소
+  scope2: number; // 간접배출
+}
+const mkMonth = (m: string, elecMWh: number, lngKNm3: number): InvMonth => ({
+  m,
+  elecMWh,
+  lngKNm3,
+  scope1: Math.round(lngKNm3 * CONV.LNG_EF * 10) / 10,
+  scope2: Math.round(elecMWh * CONV.ELEC_EF * 10) / 10,
+});
+/* 합계 = 전력 12,023 MWh · LNG 1,486 천Nm³ (연간 표와 정합) — 동절기 LNG·하절기 전력 가중 */
+export const invMonthly: InvMonth[] = [
+  mkMonth("2026-01", 1985, 384),
+  mkMonth("2026-02", 1872, 342),
+  mkMonth("2026-03", 1918, 265),
+  mkMonth("2026-04", 1996, 178),
+  mkMonth("2026-05", 2075, 152),
+  mkMonth("2026-06", 2177, 165),
+];
+
+/* ---------- 배출시설 명부 (별지 11 서식 3-1 대응) ---------- */
+export interface FacilityRow {
+  code: string; // 법정 배출시설 코드 (별지 10 참고2)
+  facilityId: string;
+  name: string;
+  ownName: string;
+  scale: string;
+  small: boolean; // 소규모배출시설 여부
+  target: boolean; // 할당대상 여부 (데모)
+  change?: string;
+}
+export const facilityList: FacilityRow[] = [
+  { code: "0055", facilityId: "F-001", name: "일반 보일러시설", ownName: "보일러 1·2호기", scale: "10 t/h × 2 (데모)", small: false, target: true },
+  { code: "—", facilityId: "U-001", name: "수전설비 (간접배출)", ownName: "22.9kV 수전반", scale: "계약전력 4,500 kW (데모)", small: false, target: true },
+  { code: "0014", facilityId: "F-020", name: "냉동 및 냉방용 냉매 사용 시설", ownName: "냉동기 CH-01R·CH-02", scale: "1,400 kW_th × 2", small: true, target: false, change: "CH-01→CH-01R 교체 (2026-01-01)" },
+  { code: "—", facilityId: "R-001", name: "태양광 발전설비 (배출 미산정)", ownName: "지붕형 1.2MW", scale: "인버터 4대", small: true, target: false },
+];
+
+/* ---------- 산정계획서 (별지 10) — 시스템 기준정보에서 자동 구성 ---------- */
+export const planMeta = {
+  docNo: "PLAN-2026-v1.1",
+  base: "별지 제10호 서식 (배출량 산정계획서) 참고 · 데모 요약",
+  approvedAt: "2026-01-05 (v1.0) · 2026-02-01 변경 (v1.1: GM-03 신설계획 추가)",
+  consistency: "명세서 산정방법 = 산정계획서 등록 방법 — 자동 정합 검증 통과 (불일치 0건)",
+};
+
+/* 서식 4-1·4-2·4-3: 활동자료 모니터링 방법·측정기기 (개선/신설계획 포함) */
+export interface MeterRow {
+  meter: string;
+  kind: "자동 (15분)" | "자동 (일간)" | "수기";
+  point: string; // 측정지점
+  facility: string;
+  spec: string; // 정확도·불확도
+  calibDue: string;
+  state: "정상" | "개선계획" | "신설계획";
+  plan?: string; // 4-2 개선 / 4-3 신설 내용
+}
+export const meterPlan: MeterRow[] = [
+  { meter: "전력계 PM-* (5점)", kind: "자동 (15분)", point: "수전반·설비군 분기", facility: "U-001", spec: "0.5급 · ±0.5%", calibDue: "2027-03", state: "정상" },
+  { meter: "가스미터 GM-01", kind: "자동 (일간)", point: "보일러 1호기 인입", facility: "F-001", spec: "±1.0%", calibDue: "2027-01", state: "정상" },
+  { meter: "가스미터 GM-02", kind: "자동 (일간)", point: "보일러 2호기 인입", facility: "F-001", spec: "±1.0%", calibDue: "2027-01", state: "정상" },
+  { meter: "가스미터 GM-03", kind: "자동 (일간)", point: "공정용 소규모 인입", facility: "F-001", spec: "±1.0% (사양)", calibDue: "설치 후 등록", state: "신설계획", plan: "서식 4-3 신설계획 — 2026-08 설치·연계 예정, 완료 시 월별 수기 보정 제거" },
+  { meter: "유량계 FM-CHW", kind: "자동 (15분)", point: "냉수 헤더", facility: "F-020", spec: "±0.5%", calibDue: "2026-04 (만료)", state: "개선계획", plan: "서식 4-2 개선계획 — 재교정 등록 후 영향평가(DQ-04) 승인 · 열량 KPI 한정, 배출량 산정 영향 없음" },
+  { meter: "냉매 보충 기록", kind: "수기", point: "정비 작업내역서", facility: "F-020", spec: "보충량 kg 단위", calibDue: "—", state: "정상" },
+];
+
+/* 서식 5-1·5-2: 산정등급(Tier) 적용계획 */
+export interface TierRow {
+  activity: string;
+  activityCode: string;
+  param: string; // 매개변수
+  minTier: string;
+  applyTier: string;
+  ok: boolean;
+  rationale: string;
+}
+export const tierPlan: TierRow[] = [
+  { activity: "고정연소 (기체연료)", activityCode: "1002", param: "활동자료 (LNG 사용량)", minTier: "Tier 2", applyTier: "Tier 2", ok: true, rationale: "가스미터 계측 + 공급사 청구서 대사 (데모 기준)" },
+  { activity: "고정연소 (기체연료)", activityCode: "1002", param: "배출계수", minTier: "Tier 2", applyTier: "Tier 2", ok: true, rationale: "국가 고유계수 상당 데모값 2.1 kgCO₂/Nm³ 적용" },
+  { activity: "간접배출 (구매전력)", activityCode: "—", param: "활동자료 (전력 사용량)", minTier: "계측", applyTier: "계측 (15분)", ok: true, rationale: "전력계 5점 자동수집 · 한전 청구서 월별 대사 0.3% 이내" },
+  { activity: "냉매 비산배출", activityCode: "—", param: "활동자료 (보충량)", minTier: "Tier 1", applyTier: "Tier 1", ok: true, rationale: "보충량 기반 산정 (보충≠누출 보수적 가정, 데모)" },
+];
+
+/* 서식 8: 품질관리(QA/QC) 담당자·문서 */
+export const qaqcRoles: Array<[string, string, string]> = [
+  ["작성자(데모) · 에너지관리팀", "산정 총괄", "활동자료 수집·명세서 작성·검토 요청"],
+  ["MRV 검토자(데모)", "검토", "산정방법·데이터 품질 검토, 수정 요청 권한"],
+  ["MRV 승인자(데모)", "승인", "최종 승인 — 승인 후 데이터 변경 시 승인 자동 해제"],
+  ["계측팀(데모)", "측정기기 관리", "교정 일정·성적서 등록 (증적 레지스트리 연동)"],
+];
+export const qaqcDocs = "품질관리 문서: 데이터 관리 규정(상태코드 7종·원본 보존)ㆍ교정관리 대장ㆍ감사로그 — 시스템 내 자동 관리";
+
+/* 서식 10: 산정계획서 변경 내역 */
+export const planChanges: Array<[string, string, string, string]> = [
+  ["2026-01-01", "배출시설 변경", "F-020 냉동기 CH-01 → CH-01R 교체 (저GWP R-1233zd(E))", "v1.0 반영"],
+  ["2026-02-01", "측정기기 신설계획", "GM-03 가스미터 신설·연계 계획 등록 (서식 4-3)", "v1.1 생성"],
+  ["2026-05-02", "개선계획 등록", "FM-CHW 재교정·영향평가 계획 (서식 4-2, DQ-04 연동)", "v1.1 유지"],
+];
+
+/* 별지 11 중 데모에서 생략한 서식 (정직 표기) */
+export const omittedForms =
+  "이동연소(5-2~5-5)·공정배출(5-6)·폐기물(5-7~5-10)·CO₂ 포집(5-15)·CDM(4-3)·온실가스/에너지 이동(7)·기타 온실가스(9)·사업장 고유 Tier 3 계수(10)·굴뚝연속측정 CEMS(11)·첨부 서식 — 해당 없음 또는 데모 범위 외(향후 지원 예정)";

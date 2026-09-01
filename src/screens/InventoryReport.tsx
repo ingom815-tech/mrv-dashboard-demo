@@ -12,6 +12,15 @@ import {
   orgInfo,
   boundary,
   readinessPct,
+  invMonthly,
+  facilityList,
+  planMeta,
+  meterPlan,
+  tierPlan,
+  qaqcRoles,
+  qaqcDocs,
+  planChanges,
+  omittedForms,
   type EmissionSource,
   type SourceKind,
 } from "../lib/inventoryData";
@@ -25,6 +34,7 @@ const pct = (n: number, d = 1) => `${fmt(n * 100, d)}%`;
 
 const TABS = [
   { key: "home", label: "보고서 홈" },
+  { key: "plan", label: "산정계획서" },
   { key: "basic", label: "기본정보·보고범위" },
   { key: "totals", label: "배출량·에너지" },
   { key: "sources", label: "배출원 상세" },
@@ -248,7 +258,148 @@ export default function InventoryReport() {
         </>
       )}
 
-      {/* ---------- ② 기본정보·보고범위 ---------- */}
+      {/* ---------- ② 산정계획서 (별지 10) — 모니터링 방법의 사전 정의, 명세서와 자동 정합 ---------- */}
+      {tab === "plan" && (
+        <>
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[15px] font-semibold text-navy">
+                배출량 산정계획서 <span className="text-[12px] font-normal text-body">{planMeta.base}</span>
+              </span>
+              <span className="rounded bg-teal/10 px-2 py-0.5 text-[11px] font-bold text-teal">정합 검증 통과</span>
+            </div>
+            <div className="mt-2 grid grid-cols-1 gap-x-8 gap-y-1.5 text-[13px] md:grid-cols-2">
+              <div className="rounded-lg bg-surface/70 px-3.5 py-2.5 leading-relaxed text-body">
+                <b className="text-navy">산정계획서(별지 10)</b>는 배출량을 <b className="text-navy">어떻게 측정·산정할지</b>를 사전에 정의·승인받는 문서이고,
+                <b className="text-navy"> 명세서(별지 11)</b>는 그 계획대로 산정한 연간 실적 보고입니다.
+                본 시스템은 계획서 항목(측정기기·산정등급·QA/QC)을 기준정보로 관리해 명세서와 자동으로 정합시킵니다.
+              </div>
+              <div className="tnum flex flex-col justify-center gap-1 text-[13px]">
+                <div><span className="text-slate-400">계획서 버전 </span><span className="font-semibold text-navy">{planMeta.docNo}</span></div>
+                <div><span className="text-slate-400">승인·변경 </span><span className="text-navy">{planMeta.approvedAt}</span></div>
+                <div><span className="text-slate-400">정합 상태 </span><span className="font-medium text-teal">{planMeta.consistency}</span></div>
+              </div>
+            </div>
+          </section>
+
+          {/* 서식 4-1~4-3: 활동자료 모니터링·측정기기 (개선·신설계획 포함) */}
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[15px] font-semibold text-navy">
+                활동자료 모니터링·측정기기 <span className="text-[12px] font-normal text-body">(서식 4-1 개요 · 4-2 개선계획 · 4-3 신설계획)</span>
+              </span>
+              <span className="text-[12px] text-slate-400">기준정보(설비·센서)에서 자동 구성</span>
+            </div>
+            <table className="w-full text-[12.5px]">
+              <thead>
+                <tr className="border-b border-line text-left text-[12px] text-body">
+                  <th className="py-2 font-medium">측정기기</th>
+                  <th className="py-2 font-medium">수집 유형</th>
+                  <th className="py-2 font-medium">측정지점 / 시설</th>
+                  <th className="py-2 font-medium">정확도</th>
+                  <th className="py-2 font-medium">교정 유효</th>
+                  <th className="py-2 pl-3 font-medium">상태</th>
+                </tr>
+              </thead>
+              <tbody className="tnum">
+                {meterPlan.map((m) => (
+                  <Fragment key={m.meter}>
+                    <tr className="border-b border-line/50">
+                      <td className="py-2 font-medium text-navy">{m.meter}</td>
+                      <td className="py-2 text-body">{m.kind}</td>
+                      <td className="py-2 text-body">{m.point} · {m.facility}</td>
+                      <td className="py-2 text-body">{m.spec}</td>
+                      <td className={`py-2 ${m.calibDue.includes("만료") ? "font-semibold text-review" : "text-body"}`}>{m.calibDue}</td>
+                      <td className="py-2 pl-3">
+                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${
+                          m.state === "정상" ? "bg-teal/10 text-teal" : m.state === "개선계획" ? "bg-review/10 text-review" : "bg-accent/10 text-accent"
+                        }`}>{m.state}</span>
+                      </td>
+                    </tr>
+                    {m.plan && (
+                      <tr className="border-b border-line/50 bg-surface/50">
+                        <td colSpan={6} className="px-4 py-1.5 text-[12px] text-body">{m.plan}</td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </section>
+
+          {/* 서식 5: 산정등급 적용계획 */}
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
+            <div className="mb-2 text-[15px] font-semibold text-navy">
+              산정등급(Tier) 적용계획 <span className="text-[12px] font-normal text-body">(서식 5-1 산정방법론 · 5-2 매개변수)</span>
+            </div>
+            <table className="w-full text-[12.5px]">
+              <thead>
+                <tr className="border-b border-line text-left text-[12px] text-body">
+                  <th className="py-2 font-medium">배출활동 (코드)</th>
+                  <th className="py-2 font-medium">매개변수</th>
+                  <th className="py-2 font-medium">최소등급</th>
+                  <th className="py-2 font-medium">적용등급</th>
+                  <th className="py-2 font-medium">충족</th>
+                  <th className="py-2 font-medium">타당성</th>
+                </tr>
+              </thead>
+              <tbody className="tnum">
+                {tierPlan.map((t, i) => (
+                  <tr key={i} className="border-b border-line/50 last:border-0">
+                    <td className="py-2 font-medium text-navy">{t.activity}{t.activityCode !== "—" && <span className="text-[11.5px] text-slate-400"> ({t.activityCode})</span>}</td>
+                    <td className="py-2 text-body">{t.param}</td>
+                    <td className="py-2 text-body">{t.minTier}</td>
+                    <td className="py-2 font-medium text-navy">{t.applyTier}</td>
+                    <td className="py-2"><span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${t.ok ? "bg-teal/10 text-teal" : "bg-risk/10 text-risk"}`}>{t.ok ? "충족" : "미충족"}</span></td>
+                    <td className="max-w-72 py-2 text-body">{t.rationale}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+
+          {/* 서식 8 + 10: QA/QC · 변경 내역 */}
+          <section className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-2">
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="mb-2 text-[15px] font-semibold text-navy">
+                품질관리(QA/QC)·담당자 <span className="text-[12px] font-normal text-body">(서식 8-1·8-2)</span>
+              </div>
+              <div className="divide-y divide-line/40">
+                {qaqcRoles.map(([who, role, desc]) => (
+                  <div key={who} className="flex items-baseline gap-3 py-1.5 text-[13px]">
+                    <span className="w-44 shrink-0 font-medium text-navy">{who}</span>
+                    <span className="w-24 shrink-0 text-accent">{role}</span>
+                    <span className="text-body">{desc}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 text-[12px] text-body">{qaqcDocs}</div>
+            </div>
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="mb-2 text-[15px] font-semibold text-navy">
+                산정계획서 변경 내역 <span className="text-[12px] font-normal text-body">(서식 10)</span>
+              </div>
+              <div className="divide-y divide-line/40">
+                {planChanges.map(([date, type, desc, ver]) => (
+                  <div key={date + type} className="py-1.5 text-[13px]">
+                    <div className="tnum flex items-center gap-2">
+                      <span className="text-slate-400">{date}</span>
+                      <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">{type}</span>
+                      <span className="ml-auto text-[11.5px] text-slate-400">{ver}</span>
+                    </div>
+                    <div className="mt-0.5 text-body">{desc}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 text-[12px] text-body">
+                시설·측정기기 변경 시 계획서 새 버전 생성 — 기존 버전은 보존 (변경관리 이력 연동)
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* ---------- ③ 기본정보·보고범위 ---------- */}
       {tab === "basic" && (
         <section className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-2">
           <div className="rounded-[10px] border border-line/60 bg-white p-4">
@@ -571,7 +722,7 @@ export default function InventoryReport() {
         <>
           <div className="no-print flex shrink-0 flex-wrap items-center justify-between gap-2">
             <span className="text-[13px] text-body">
-              A4 인쇄용 미리보기 (약 10페이지 분량 요약본) · {approved ? "승인 완료 버전" : `현재 ${invStatus} — 승인 전 초안`}
+              A4 인쇄용 미리보기 — 별지 11 서식 12개 구획 요약본 (생략 서식은 12절에 명시) · {approved ? "승인 완료 버전" : `현재 ${invStatus} — 승인 전 초안`}
             </span>
             <div className="flex gap-2">
               <button onClick={() => window.print()} className="rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90">
@@ -601,7 +752,7 @@ export default function InventoryReport() {
             </div>
 
             {/* 1. 기본정보 */}
-            <h3 className="mt-6 mb-2 text-[15px] font-bold">1. 업체·사업장 기본정보</h3>
+            <h3 className="mt-6 mb-2 text-[15px] font-bold">1. 업체·사업장 일반정보 <span className="text-[11px] font-normal text-slate-400">서식 1-1 · 2-1</span></h3>
             <table className="tnum w-full border-t border-navy text-[12.5px]">
               <tbody>
                 {orgInfo.map(([k, v]) => (
@@ -614,13 +765,42 @@ export default function InventoryReport() {
             </table>
 
             {/* 2. 조직경계 */}
-            <h3 className="mt-6 mb-2 text-[15px] font-bold">2. 조직경계·보고범위</h3>
+            <h3 className="mt-6 mb-2 text-[15px] font-bold">2. 조직경계·보고범위 <span className="text-[11px] font-normal text-slate-400">서식 2-2</span></h3>
             <p>
               조직경계는 <b>{boundary.scope}</b>로 하며, 운영경계는 {boundary.operational}이다. 제외 시설: {boundary.excluded} ({boundary.excludedReason}). {boundary.changed}.
+              경계 증빙(사진·시설배치도·공정도)은 데모에서 파일 미첨부(향후 지원 예정).
             </p>
 
-            {/* 3. 총괄 */}
-            <h3 className="mt-6 mb-2 text-[15px] font-bold">3. 온실가스 배출량 및 에너지 사용량 총괄</h3>
+            {/* 3. 배출시설 현황 (서식 3-1) */}
+            <h3 className="mt-6 mb-2 text-[15px] font-bold">3. 배출시설 현황 <span className="text-[11px] font-normal text-slate-400">서식 3-1</span></h3>
+            <table className="tnum w-full border-t border-navy text-[12.5px]">
+              <thead>
+                <tr className="border-b border-line bg-surface/70 text-body">
+                  <th className="px-2.5 py-1.5 text-left font-medium">시설코드</th>
+                  <th className="px-2.5 py-1.5 text-left font-medium">배출시설명</th>
+                  <th className="px-2.5 py-1.5 text-left font-medium">자체시설명</th>
+                  <th className="px-2.5 py-1.5 text-left font-medium">시설규모</th>
+                  <th className="px-2.5 py-1.5 text-center font-medium">소규모</th>
+                  <th className="px-2.5 py-1.5 text-center font-medium">할당대상</th>
+                </tr>
+              </thead>
+              <tbody>
+                {facilityList.map((f) => (
+                  <tr key={f.facilityId} className="border-b border-line">
+                    <td className="px-2.5 py-1.5">{f.code} · {f.facilityId}</td>
+                    <td className="px-2.5 py-1.5">{f.name}</td>
+                    <td className="px-2.5 py-1.5">{f.ownName}{f.change && <span className="text-[11px] text-review"> ({f.change})</span>}</td>
+                    <td className="px-2.5 py-1.5">{f.scale}</td>
+                    <td className="px-2.5 py-1.5 text-center">{f.small ? "Y" : "N"}</td>
+                    <td className="px-2.5 py-1.5 text-center">{f.target ? "Y" : "N"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-1 text-[11.5px] text-body">주) 시설코드는 별지 제10호 참고2의 배출시설 코드(0055 일반 보일러시설, 0014 냉동·냉방용 냉매 사용 시설) 기준 · 규모는 데모 가정</p>
+
+            {/* 4. 총괄 (서식 1-3·4-1) */}
+            <h3 className="mt-6 mb-2 text-[15px] font-bold">4. 온실가스 배출량 및 에너지 사용량 총괄 <span className="text-[11px] font-normal text-slate-400">서식 1-3 · 4-1</span></h3>
             <table className="tnum w-full border-t border-navy text-[12.5px]">
               <thead>
                 <tr className="border-b border-line bg-surface/70 text-body">
@@ -645,10 +825,14 @@ export default function InventoryReport() {
                 ))}
               </tbody>
             </table>
-            <p className="mt-1 text-[11.5px] text-body">주) 2026년은 상반기(1~6월) 데모 보고기간으로 연간 값과 직접 비교할 수 없음 · 생산 원단위 {inv.intensity} tCO₂eq/t</p>
+            <p className="mt-1 text-[11.5px] text-body">
+              주1) 2026년은 상반기(1~6월) 데모 보고기간으로 연간 값과 직접 비교할 수 없음<br />
+              주2) 산정제외 보고사항(서식 4-2): 바이오매스 사용 배출 — 해당 없음<br />
+              주3) 배출시설 변동현황(서식 4-4): F-020 냉동기 CH-01 → CH-01R 교체(2026-01-01, 저GWP R-1233zd(E)) — 산정계획서 v1.0 반영
+            </p>
 
-            {/* 4. 에너지원별 */}
-            <h3 className="mt-6 mb-2 text-[15px] font-bold">4. 에너지원별 사용량</h3>
+            {/* 5. 에너지원별 */}
+            <h3 className="mt-6 mb-2 text-[15px] font-bold">5. 에너지원별 사용량 <span className="text-[11px] font-normal text-slate-400">총괄 보조 표</span></h3>
             <table className="tnum w-full border-t border-navy text-[12.5px]">
               <thead>
                 <tr className="border-b border-line bg-surface/70 text-body">
@@ -670,36 +854,77 @@ export default function InventoryReport() {
               </tbody>
             </table>
 
-            {/* 5. 배출활동별 산정내역 */}
-            <h3 className="mt-6 mb-2 text-[15px] font-bold">5. 주요 배출시설 및 산정내역</h3>
+            {/* 6. 배출활동별 배출량 (서식 5) */}
+            <h3 className="mt-6 mb-2 text-[15px] font-bold">6. 배출활동별 배출량 현황 <span className="text-[11px] font-normal text-slate-400">서식 5-1 고정연소 · 5-11 간접배출 · 5-13 ODS 대체물질</span></h3>
             {emissionSources.filter((s) => s.detail).map((s) => (
               <div key={s.groupKey} className="mb-3 border-b border-line pb-2">
                 <div className="font-semibold">{s.facilityCode} {s.facilityName} — {s.activityName} ({s.scope})</div>
                 <div className="tnum mt-0.5 text-[12.5px] text-body">
                   활동자료 {s.activityData} · {sourceDetails[s.groupKey]?.formula} · 배출량 <b className="text-navy">{s.tco2 !== null ? fmt(s.tco2, s.tco2 < 100 ? 2 : 0) : "—"} tCO₂eq</b>
-                  <br />계수: {sourceDetails[s.groupKey]?.factor} · 원천: {sourceDetails[s.groupKey]?.origin} · 증빙: {s.evidence}
+                  <br />계수: {sourceDetails[s.groupKey]?.factor} · 산정등급: {s.tier} · 원천: {sourceDetails[s.groupKey]?.origin} · 증빙: {s.evidence}
                 </div>
               </div>
             ))}
+            <div className="mt-2 mb-1 text-[13px] font-semibold">월별 활동자료 및 배출량 (2026 상반기)</div>
+            <table className="tnum w-full border-t border-navy text-[12.5px]">
+              <thead>
+                <tr className="border-b border-line bg-surface/70 text-body">
+                  <th className="px-2.5 py-1.5 text-left font-medium">월</th>
+                  <th className="px-2.5 py-1.5 text-right font-medium">전력 (MWh)</th>
+                  <th className="px-2.5 py-1.5 text-right font-medium">간접배출 (tCO₂eq)</th>
+                  <th className="px-2.5 py-1.5 text-right font-medium">LNG (천Nm³)</th>
+                  <th className="px-2.5 py-1.5 text-right font-medium">고정연소 (tCO₂eq)</th>
+                  <th className="px-2.5 py-1.5 text-right font-medium">월 합계 (tCO₂eq)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invMonthly.map((m) => (
+                  <tr key={m.m} className="border-b border-line">
+                    <td className="px-2.5 py-1.5">{Number(m.m.slice(5))}월</td>
+                    <td className="px-2.5 py-1.5 text-right">{fmt(m.elecMWh)}</td>
+                    <td className="px-2.5 py-1.5 text-right">{fmt(m.scope2, 1)}</td>
+                    <td className="px-2.5 py-1.5 text-right">{fmt(m.lngKNm3)}</td>
+                    <td className="px-2.5 py-1.5 text-right">{fmt(m.scope1, 1)}</td>
+                    <td className="px-2.5 py-1.5 text-right font-medium">{fmt(m.scope1 + m.scope2, 1)}</td>
+                  </tr>
+                ))}
+                <tr className="border-b border-line font-semibold">
+                  <td className="px-2.5 py-1.5">합계</td>
+                  <td className="px-2.5 py-1.5 text-right">{fmt(invMonthly.reduce((s, m) => s + m.elecMWh, 0))}</td>
+                  <td className="px-2.5 py-1.5 text-right">{fmt(invMonthly.reduce((s, m) => s + m.scope2, 0), 1)}</td>
+                  <td className="px-2.5 py-1.5 text-right">{fmt(invMonthly.reduce((s, m) => s + m.lngKNm3, 0))}</td>
+                  <td className="px-2.5 py-1.5 text-right">{fmt(invMonthly.reduce((s, m) => s + m.scope1, 0), 1)}</td>
+                  <td className="px-2.5 py-1.5 text-right">{fmt(invMonthly.reduce((s, m) => s + m.scope1 + m.scope2, 0), 1)}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="mt-1 text-[11.5px] text-body">주) 냉매 비산배출(5-13) 12.87 tCO₂eq는 5월 정비 보충 1건으로 월별 표에 미포함(별도 산정) · 월별 합계와 연간 총괄의 차이는 반올림</p>
 
-            {/* 6. 감축실적 */}
-            <h3 className="mt-6 mb-2 text-[15px] font-bold">6. 감축실적 (MRV · 인벤토리 별도 관리)</h3>
+            {/* 7. 원단위 (서식 6) */}
+            <h3 className="mt-6 mb-2 text-[15px] font-bold">7. 생산품 및 원단위 <span className="text-[11px] font-normal text-slate-400">서식 6</span></h3>
+            <p>
+              주요 생산품(면류·스낵, 데모)의 2026 상반기 생산량은 <b>4,580 t</b>이며, 에너지 원단위는 <b>{fmt(inv.energyTJ / 4580 * 1000, 2)} GJ/t</b>,
+              온실가스 원단위는 <b>{inv.intensity} tCO₂eq/t</b>(전년 {inv.intensityPrev})이다.
+            </p>
+
+            {/* 8. 감축실적 (서식 8) */}
+            <h3 className="mt-6 mb-2 text-[15px] font-bold">8. 배출시설별 온실가스 감축실적 <span className="text-[11px] font-normal text-slate-400">서식 8 · MRV 연계</span></h3>
             <p>
               중앙 냉수플랜트 효율개선(MVP-2026-01): 조정 기준선 대비 전력 <b>{fmt(calc.kpi.saveMWh)} MWh ({pct(calc.kpi.savePct)})</b> 절감,
               온실가스 <b>{fmt(calc.kpi.co2, 1)} tCO₂eq</b> 감축 (검증 상태: {verify.state}, 불확도 ±{fmt(calc.kpi.uncertaintyPct * 100, 1)}%).
               본 감축량은 Scope 1·2 배출량에서 차감하지 않고 별도 실적으로 관리한다.
             </p>
 
-            {/* 7. 데이터 품질·검토 */}
-            <h3 className="mt-6 mb-2 text-[15px] font-bold">7. 데이터 품질 및 검토 결과</h3>
+            {/* 9. 데이터 품질·검토 */}
+            <h3 className="mt-6 mb-2 text-[15px] font-bold">9. 데이터 품질 및 검토 결과</h3>
             <p>
               자동 검증 {checks.length}개 규칙 중 정상 {checkSummary.ok}건, 확인 필요 {checkSummary.warn}건, 생성 불가 {checkSummary.block}건.
               확인 필요 항목: {checks.filter((c) => c.status === "확인 필요").map((c) => c.rule).join(", ")}.
               추정데이터(2026-05-08 비례 추정)와 수기 입력(LNG 월별 보정·냉매 기록)은 출처 표시와 함께 보고에 포함.
             </p>
 
-            {/* 8. 증빙 */}
-            <h3 className="mt-6 mb-2 text-[15px] font-bold">8. 증빙자료 목록</h3>
+            {/* 10. 증빙 */}
+            <h3 className="mt-6 mb-2 text-[15px] font-bold">10. 증빙자료 목록</h3>
             <table className="tnum w-full border-t border-navy text-[12.5px]">
               <tbody>
                 {evidenceRegistry.map((e) => (
@@ -712,8 +937,8 @@ export default function InventoryReport() {
               </tbody>
             </table>
 
-            {/* 9. 승인 */}
-            <h3 className="mt-6 mb-2 text-[15px] font-bold">9. 승인·버전 정보</h3>
+            {/* 11. 승인 */}
+            <h3 className="mt-6 mb-2 text-[15px] font-bold">11. 승인·버전 정보</h3>
             <table className="tnum w-full border-t border-navy text-[12.5px]">
               <tbody>
                 {(
@@ -733,6 +958,12 @@ export default function InventoryReport() {
                 ))}
               </tbody>
             </table>
+            {/* 12. 기타 — 생략 서식 명시 */}
+            <h3 className="mt-6 mb-2 text-[15px] font-bold">12. 작성 관련 기타 참고사항 <span className="text-[11px] font-normal text-slate-400">서식 12</span></h3>
+            <p className="text-[12px] text-body">
+              본 데모 요약본에서 생략된 별지 11 서식: {omittedForms}. 산정계획서(별지 10)는 시스템의 산정계획서 탭에서 관리되며 본 명세서와 자동 정합된다.
+            </p>
+
             <div className="mt-6 text-center text-[11.5px] text-review">
               DEMO · 합성데이터 — 본 자료는 명세서 작성 지원 기능의 테스트 출력물이며 공식 제출 또는 제3자 검증 자료로 사용할 수 없습니다.
             </div>
