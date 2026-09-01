@@ -48,6 +48,8 @@ export default function Reporting() {
     return seg === "inventory" ? "inventory" : seg === "boiler" ? "boiler" : seg === "esg" ? "esg" : "chiller";
   });
   const [copied, setCopied] = useState(false);
+  // 승인 실수 방지: 첫 탭에서 무장(arm), 두 번째 탭에서 확정 (모바일 지시문 §8.7)
+  const [armId, setArmId] = useState<string | null>(null);
   const { role, reviewStates, markReviewed, approve, audit, resetDemoStates, openEvidence, setMenu } =
     useUI();
   const calc = useCalc();
@@ -295,31 +297,37 @@ export default function Reporting() {
                 const st = reviewStates[r.id];
                 return (
                   <div key={r.id} className="rounded-lg border border-line px-4 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <span className="text-[13px] font-semibold text-navy">
                           {r.id} · {r.title}
                         </span>
-                        <span className="rounded bg-line/60 px-1.5 py-0.5 text-[10px] font-medium text-body">{r.kind}</span>
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${stateBadge(st)}`}>{st}</span>
+                        <span className="rounded bg-line/60 px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap text-body">{r.kind}</span>
+                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${stateBadge(st)}`}>{st}</span>
                       </div>
                       <div className="flex shrink-0 gap-2">
                         {st === "검토 필요" && (
                           <button
                             onClick={() => markReviewed(r.id)}
                             disabled={role !== "검토자"}
-                            className="rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+                            className="min-h-11 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 md:min-h-0"
                           >
                             검토 완료 처리
                           </button>
                         )}
                         {st === "검토 완료" && (
                           <button
-                            onClick={() => approve(r.id)}
+                            onClick={() => {
+                              if (armId !== r.id) { setArmId(r.id); return; }
+                              approve(r.id);
+                              setArmId(null);
+                            }}
                             disabled={role !== "승인자"}
-                            className="rounded-lg bg-teal px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+                            className={`min-h-11 rounded-lg px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 md:min-h-0 ${
+                              armId === r.id ? "bg-review" : "bg-teal"
+                            }`}
                           >
-                            승인
+                            {armId === r.id ? "한 번 더 눌러 승인 확정" : "승인"}
                           </button>
                         )}
                         {st === "승인 완료" && <span className="text-[12px] font-medium text-teal">확정 — 수정 불가</span>}

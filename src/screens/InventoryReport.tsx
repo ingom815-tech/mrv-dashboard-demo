@@ -84,11 +84,27 @@ export default function InventoryReport() {
   const [tab, setTab] = useState<TabKey>("home");
   const [openSrc, setOpenSrc] = useState<string | null>("boiler");
   const [opinion, setOpinion] = useState("");
+  // 승인 실수 방지 2단계 확인 (모바일 지시문 §8.7)
+  const [armApprove, setArmApprove] = useState(false);
   const { role, invStatus, invAction, reviewStates, setMenu } = useUI();
   const calc = useCalc();
   const ef = activeEf(useUI((s) => s.efList));
   const verify = deriveVerify(reviewStates);
   const approved = invStatus === "승인 완료";
+
+  /* 검토·승인 액션 (데스크톱 인라인 버튼 + 모바일 하단 고정 바 공용) */
+  const canRequest = invStatus === "작성 중" || invStatus === "수정 요청";
+  const canReviewAct = role === "검토자" && invStatus === "검토 요청";
+  const canApprove = role === "승인자" && invStatus === "검토 완료·승인 대기";
+  const actRequest = () => { invAction("request", opinion); setOpinion(""); setArmApprove(false); };
+  const actReviewOk = () => { invAction("reviewOk", opinion); setOpinion(""); setArmApprove(false); };
+  const actFix = () => { invAction("fix", opinion); setOpinion(""); setArmApprove(false); };
+  const actApprove = () => {
+    if (!armApprove) { setArmApprove(true); return; }
+    invAction("approve", opinion);
+    setOpinion("");
+    setArmApprove(false);
+  };
 
   const csvExport = () => {
     const lines = [
@@ -231,7 +247,24 @@ export default function InventoryReport() {
             </div>
             <div className="rounded-[10px] border border-line/60 bg-white p-4">
               <div className="mb-2 text-[15px] font-semibold text-navy">보고서 섹션</div>
-              <table className="w-full text-[13px]">
+              {/* 모바일: 카드 목록 (§8.5) */}
+              <div className="flex flex-col gap-2 md:hidden">
+                {sections.map((s) => (
+                  <div key={s.name} className="rounded-lg border border-line/60 px-3.5 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[13.5px] font-semibold text-navy">{s.name}</span>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${badge(s.review)}`}>{s.review}</span>
+                    </div>
+                    <div className="tnum mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-body">
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${badge(s.link)}`}>{s.link}</span>
+                      <span>{s.owner}</span>
+                      <span className="text-slate-400">· {s.updated.slice(0, 10)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* 데스크톱: 표 */}
+              <table className="hidden w-full text-[13px] md:table">
                 <thead>
                   <tr className="border-b border-line text-left text-[12px] text-body">
                     <th className="py-2 font-medium">섹션</th>
@@ -678,42 +711,66 @@ export default function InventoryReport() {
             <div className="flex flex-wrap items-end gap-3">
               <label className="flex min-w-64 flex-1 flex-col gap-1 text-[12px] text-body">
                 처리 의견 (기록됨)
-                <input value={opinion} onChange={(e) => setOpinion(e.target.value)} placeholder="예: 추정데이터 사용 주석 확인함" className="rounded border border-line bg-white px-2 py-1.5 text-[13px] text-navy" />
+                <input value={opinion} onChange={(e) => setOpinion(e.target.value)} placeholder="예: 추정데이터 사용 주석 확인함" className="min-h-11 rounded border border-line bg-white px-2 py-1.5 text-[16px] text-navy md:min-h-0 md:text-[13px]" />
               </label>
-              <button
-                disabled={!(invStatus === "작성 중" || invStatus === "수정 요청")}
-                onClick={() => { invAction("request", opinion); setOpinion(""); }}
-                className="rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
-              >
-                검토 요청 (작성자)
-              </button>
-              <button
-                disabled={!(role === "검토자" && invStatus === "검토 요청")}
-                onClick={() => { invAction("reviewOk", opinion); setOpinion(""); }}
-                className="rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
-              >
-                검토 완료 (검토자)
-              </button>
-              <button
-                disabled={!(role === "검토자" && invStatus === "검토 요청")}
-                onClick={() => { invAction("fix", opinion); setOpinion(""); }}
-                className="rounded-lg border border-review/50 px-3 py-1.5 text-[12.5px] font-semibold text-review hover:bg-review/8 disabled:cursor-not-allowed disabled:opacity-35"
-              >
-                수정 요청
-              </button>
-              <button
-                disabled={!(role === "승인자" && invStatus === "검토 완료·승인 대기")}
-                onClick={() => { invAction("approve", opinion); setOpinion(""); }}
-                className="rounded-lg bg-teal px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
-              >
-                승인 (승인자)
-              </button>
-              <button onClick={() => invAction("reset")} className="text-[12px] text-slate-400 hover:text-navy">초기화</button>
+              {/* 데스크톱 인라인 버튼 — 모바일에서는 하단 고정 바 사용 */}
+              <div className="hidden flex-wrap items-center gap-3 md:flex">
+                <button disabled={!canRequest} onClick={actRequest} className="rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35">
+                  검토 요청 (작성자)
+                </button>
+                <button disabled={!canReviewAct} onClick={actReviewOk} className="rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35">
+                  검토 완료 (검토자)
+                </button>
+                <button disabled={!canReviewAct} onClick={actFix} className="rounded-lg border border-review/50 px-3 py-1.5 text-[12.5px] font-semibold text-review hover:bg-review/8 disabled:cursor-not-allowed disabled:opacity-35">
+                  수정 요청
+                </button>
+                <button
+                  disabled={!canApprove}
+                  onClick={actApprove}
+                  className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35 ${armApprove ? "bg-review" : "bg-teal"}`}
+                >
+                  {armApprove ? "한 번 더 눌러 승인 확정" : "승인 (승인자)"}
+                </button>
+                <button onClick={() => invAction("reset")} className="text-[12px] text-slate-400 hover:text-navy">초기화</button>
+              </div>
             </div>
             <div className="mt-2 text-[12px] text-body">
               모든 처리(처리자·일시·의견·보고서/계산 버전)는 감사로그에 기록 · 승인 후 원천데이터가 변경되면 승인이 해제되고 '재검토 필요'로 전환(데모 정책)
             </div>
           </section>
+
+          {/* 모바일 하단 고정 액션 바 (§8.7 — 한 손 조작, 44px 이상) */}
+          <div className="h-16 md:hidden" aria-hidden="true" />
+          <div className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t border-line bg-white px-3 py-2.5 shadow-[0_-4px_12px_rgba(16,42,67,0.08)] md:hidden">
+            {canRequest && (
+              <button onClick={actRequest} className="h-11 flex-1 rounded-lg bg-accent text-[13.5px] font-semibold text-white active:opacity-85">
+                검토 요청
+              </button>
+            )}
+            {canReviewAct && (
+              <>
+                <button onClick={actFix} className="h-11 flex-1 rounded-lg border border-review/50 text-[13.5px] font-semibold text-review active:bg-review/10">
+                  수정 요청
+                </button>
+                <button onClick={actReviewOk} className="h-11 flex-[1.4] rounded-lg bg-accent text-[13.5px] font-semibold text-white active:opacity-85">
+                  검토 완료
+                </button>
+              </>
+            )}
+            {canApprove && (
+              <button
+                onClick={actApprove}
+                className={`h-11 flex-1 rounded-lg text-[13.5px] font-semibold text-white active:opacity-85 ${armApprove ? "bg-review" : "bg-teal"}`}
+              >
+                {armApprove ? "한 번 더 눌러 승인 확정" : "승인"}
+              </button>
+            )}
+            {!canRequest && !canReviewAct && !canApprove && (
+              <div className="flex h-11 flex-1 items-center justify-center rounded-lg bg-surface text-[13px] text-body">
+                {invStatus === "승인 완료" ? "승인 완료 — 수정 불가" : `현재 역할(${role})은 처리 권한 없음 · 상단에서 역할 전환`}
+              </div>
+            )}
+          </div>
         </>
       )}
 

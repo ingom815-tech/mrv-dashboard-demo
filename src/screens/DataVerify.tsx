@@ -301,7 +301,33 @@ export default function DataVerify() {
               <span className="text-[15px] font-semibold text-navy">설비군별 데이터 품질 상태</span>
               <span className="text-[12px] text-slate-400">행 클릭 시 해당 설비군 범위로 전환</span>
             </div>
-            <table className="w-full text-[13px]">
+            {/* 모바일: 카드 목록 (§5.2) */}
+            <div className="flex flex-col gap-2 md:hidden">
+              {equipGroups.map((g) => (
+                <button
+                  key={g.key}
+                  onClick={() => setScope(g.key)}
+                  className="min-h-11 rounded-lg border border-line/60 px-3.5 py-2.5 text-left active:bg-surface"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[13.5px] font-semibold text-navy">{g.name}</span>
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${
+                      g.state === "정상" ? "bg-teal/10 text-teal" : g.state === "MRV 검증 중" ? "bg-accent/10 text-accent" : "bg-review/10 text-review"
+                    }`}>{g.state}</span>
+                  </div>
+                  <div className="tnum mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-body">
+                    <span>계측 {g.meters[0]}/{g.meters[1]}</span>
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${
+                      g.linkState === "연결 완료" ? "bg-teal/10 text-teal" : g.linkState === "오류" ? "bg-risk/10 text-risk" : "bg-review/10 text-review"
+                    }`}>{g.linkState}</span>
+                    {g.detail === "full" && <span className="font-semibold text-teal">상세 MRV 검증</span>}
+                  </div>
+                  <div className="mt-1 truncate text-[12px] text-slate-400">{g.note}</div>
+                </button>
+              ))}
+            </div>
+            {/* 데스크톱: 표 */}
+            <table className="hidden w-full text-[13px] md:table">
               <thead>
                 <tr className="border-b border-line text-left text-[12px] text-body">
                   <th className="py-2 font-medium">설비군</th>
