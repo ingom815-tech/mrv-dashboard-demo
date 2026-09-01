@@ -273,6 +273,7 @@ export interface MetricOption {
   key: string;
   label: string;
   hasSeries?: boolean;
+  kpiIndex?: number; // 요약 뷰에서 대표로 강조할 group.kpis 인덱스
 }
 export const SCOPE_METRICS: Record<string, MetricOption[]> = {
   factory: [
@@ -282,22 +283,22 @@ export const SCOPE_METRICS: Record<string, MetricOption[]> = {
   ],
   boiler: [
     { key: "fuelEnergy", label: "연료 환산 에너지", hasSeries: true },
-    { key: "gas", label: "가스 사용량" },
-    { key: "efficiency", label: "보일러 효율" },
-    { key: "steamIntensity", label: "증기 원단위" },
-    { key: "scope1", label: "직접배출량" },
+    { key: "gas", label: "가스 사용량", kpiIndex: 1 },
+    { key: "efficiency", label: "보일러 효율", kpiIndex: 0 },
+    { key: "steamIntensity", label: "증기 원단위", kpiIndex: 2 },
+    { key: "scope1", label: "직접배출량", kpiIndex: 3 },
   ],
   air: [
     { key: "electricity", label: "전력사용량", hasSeries: true },
-    { key: "specificPower", label: "비동력" },
-    { key: "unloadRate", label: "무부하 운전율" },
-    { key: "pressure", label: "공급압력" },
+    { key: "specificPower", label: "비동력", kpiIndex: 0 },
+    { key: "unloadRate", label: "무부하 운전율", kpiIndex: 1 },
+    { key: "pressure", label: "공급압력", kpiIndex: 2 },
   ],
   hvac: [
     { key: "electricity", label: "전력사용량", hasSeries: true },
-    { key: "fanPower", label: "팬 전력" },
-    { key: "outdoorAir", label: "외기량" },
-    { key: "comfort", label: "온습도 적정률" },
+    { key: "fanPower", label: "팬 전력", kpiIndex: 0 },
+    { key: "outdoorAir", label: "외기량", kpiIndex: 2 },
+    { key: "comfort", label: "온습도 적정률", kpiIndex: 3 },
   ],
   chiller: [
     { key: "mrvSavings", label: "MRV 에너지 절감", hasSeries: true },
@@ -308,38 +309,38 @@ export const SCOPE_METRICS: Record<string, MetricOption[]> = {
   ],
   light: [
     { key: "electricity", label: "전력사용량", hasSeries: true },
-    { key: "peak", label: "피크전력" },
-    { key: "perArea", label: "면적당 전력" },
-    { key: "hours", label: "운영시간" },
+    { key: "peak", label: "피크전력", kpiIndex: 1 },
+    { key: "perArea", label: "면적당 전력", kpiIndex: 0 },
+    { key: "hours", label: "야간 기저부하", kpiIndex: 2 },
   ],
   pv: [
     { key: "generation", label: "발전량", hasSeries: true },
-    { key: "selfUse", label: "자가소비량" },
-    { key: "selfRate", label: "자가소비율" },
-    { key: "essCycle", label: "ESS 충·방전량" },
+    { key: "selfRate", label: "자가소비율", kpiIndex: 1 },
+    { key: "capacity", label: "이용률", kpiIndex: 2 },
+    { key: "essCycle", label: "ESS 왕복효율", kpiIndex: 3 },
   ],
   line: [
     { key: "energyIntensity", label: "에너지 원단위", hasSeries: true },
     { key: "energy", label: "에너지 사용량", hasSeries: true },
-    { key: "production", label: "생산량" },
-    { key: "utilization", label: "가동률" },
+    { key: "production", label: "생산량", kpiIndex: 2 },
+    { key: "utilization", label: "가동률", kpiIndex: 1 },
   ],
   water: [
     { key: "waterUse", label: "용수 사용량", hasSeries: true },
     { key: "treatPower", label: "처리 전력", hasSeries: true },
-    { key: "wastewater", label: "폐수 처리량" },
-    { key: "waterIntensity", label: "용수 원단위" },
+    { key: "waterIntensity", label: "제품당 용수", kpiIndex: 1 },
+    { key: "discharge", label: "방류 수질", kpiIndex: 3 },
   ],
   fuel: [
     { key: "scope1", label: "직접배출량", hasSeries: true },
-    { key: "fuelUse", label: "연료 사용량" },
-    { key: "byFuel", label: "연료별 배출 기여도" },
+    { key: "fuelUse", label: "연료 사용량", kpiIndex: 0 },
+    { key: "factor", label: "적용 배출계수", kpiIndex: 2 },
   ],
   refrig: [
     { key: "fugitive", label: "비산배출량", hasSeries: true },
-    { key: "charge", label: "냉매 보충량" },
-    { key: "recovery", label: "냉매 회수량" },
-    { key: "byType", label: "냉매별 배출량" },
+    { key: "charge", label: "냉매 보충량", kpiIndex: 0 },
+    { key: "initial", label: "초기충전(미산입)", kpiIndex: 2 },
+    { key: "lowGwp", label: "저GWP 전환", kpiIndex: 3 },
   ],
 };
 export const DEFAULT_METRIC: Record<string, string> = Object.fromEntries(

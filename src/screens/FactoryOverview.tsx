@@ -24,7 +24,7 @@ import {
   type FactoryMonth,
   type EquipGroupInfo,
 } from "../lib/factoryData";
-import { reviewItems, type MonthPoint } from "../lib/mrvData";
+import { mrv, reviewItems, type MonthPoint } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, deriveVerify } from "../store";
 import ContextBar, { TopActions } from "../components/ContextBar";
@@ -176,9 +176,78 @@ export default function FactoryOverview() {
   const allTodos = [...chillerTodos, ...factoryTodos];
   const todos = scope === "factory" ? allTodos : allTodos.filter((t) => t.group === scope);
 
-  const series = group ? buildSeries(group, analysisMetric) : null;
-  const chartTitle =
-    scope === "factory"
+  const series = group && scope !== "chiller" ? buildSeries(group, analysisMetric) : null;
+
+  /* 시계열이 없는 지표의 요약 뷰 (방법 B) — 현재값·기준값·변화·판단·관련 정보·링크 */
+  interface SummaryData {
+    primary: { label: string; value: string; tone?: "good" | "warn" };
+    rows: Array<[string, string]>;
+    note: string;
+    link: { label: string; go: () => void };
+  }
+  const summary: SummaryData | null = (() => {
+    if (scope === "factory" && analysisMetric === "emission")
+      return {
+        primary: { label: "온실가스 배출량 (보고기간)", value: `${fmt(factory.totalEmission)} tCO₂eq` },
+        rows: [
+          ["Scope 1 (연료·냉매)", `${fmt(factory.scope1)} tCO₂eq`],
+          ["Scope 2 (구매전력)", `${fmt(factory.scope2)} tCO₂eq`],
+          ["산정 기준", "데모 배출계수 · 소비단"],
+          ["MRV 검증 감축", `${fmt(factory.verifiedCo2, 1)} tCO₂eq (냉동·냉장, 별도)`],
+        ],
+        note: "월별 배출 시계열은 연료·전력 연계 확장 후 제공됩니다 — 현재는 요약값(합성)",
+        link: { label: "보고·승인 ›", go: () => setMenu("report") },
+      };
+    if (scope === "factory" && analysisMetric === "linkRate")
+      return {
+        primary: { label: "데이터 연계율", value: pct(factory.linkRate), tone: "good" },
+        rows: [
+          ["연결 완료", `${factory.metersConnected} / ${factory.metersTotal}점`],
+          ["연결 대기", `${factory.metersTotal - factory.metersConnected}점 (보일러 2 · 기타 3)`],
+          ["수기 입력", "냉매 보충 기록 1점"],
+          ["다음 조치", "보일러 가스미터 연결 (설비·연계 관리)"],
+        ],
+        note: "설비군별 연계 상세는 데이터 검증 › 공장 전체에서 확인",
+        link: { label: "설비·연계 관리 ›", go: () => setMenu("master") },
+      };
+    if (scope === "chiller" && analysisMetric !== "mrvSavings") {
+      const keyMap: Record<string, string> = { sysEff: "sysKwRT", cop: "cop", deltaT: "dT", approach: "approach" };
+      const k = mrv.perf.kpis.find((x) => x.key === keyMap[analysisMetric]);
+      if (k) {
+        const improved = k.betterLow ? k.deltaPct < 0 : k.deltaPct > 0;
+        return {
+          primary: { label: `${k.label} (보고기간)`, value: `${fmt(k.rep ?? 0, k.digits)} ${k.unit}`.trim(), tone: improved ? "good" : "warn" },
+          rows: [
+            ["기준기간", `${fmt(k.base ?? 0, k.digits)} ${k.unit}`.trim()],
+            ["변화", `${k.deltaPct > 0 ? "+" : ""}${pct(k.deltaPct)}`],
+            ["판단", improved ? "개선 — 설비 효율 개선 효과" : "악화 — 원인 확인 필요"],
+            ["관련 설비", "냉동기 1·2 · 냉수펌프 · 냉각탑"],
+          ],
+          note: "월별 추이는 설비군 분석 › 설비 성능(주별 시계열)에서 제공됩니다",
+          link: { label: "성능곡선·기여도 분석 ›", go: () => { setEquipGroup("chiller"); setMenu("equipment"); } },
+        };
+      }
+    }
+    if (group && scope !== "chiller" && !series) {
+      const opt = metrics.find((m) => m.key === analysisMetric);
+      const primaryKpi = opt?.kpiIndex !== undefined ? group.kpis[opt.kpiIndex] : group.kpis[0];
+      return {
+        primary: { label: `${primaryKpi.label} (보고기간)`, value: primaryKpi.value },
+        rows: [
+          ...group.kpis.filter((k) => k !== primaryKpi).slice(0, 3).map((k) => [k.label, k.value] as [string, string]),
+          ["계측 연계", `${group.meters[0]}/${group.meters[1]}점 · ${group.linkState}`],
+        ],
+        note: `'${metricLabel}' 월별 시계열은 데이터 연계 확장 후 제공됩니다 — 현재는 요약값(합성)`,
+        link: { label: `${group.name} 상세 ›`, go: () => { setEquipGroup(scope); setMenu("equipment"); } },
+      };
+    }
+    return null;
+  })();
+
+  const scopeName = scope === "factory" ? "원주공장" : (group?.name ?? "");
+  const chartTitle = summary
+    ? `${scopeName} — ${metricLabel}`
+    : scope === "factory"
       ? "원주공장 월별 에너지 사용량"
       : scope === "chiller"
         ? "중앙 냉수플랜트 조정 기준선 대비 실제 사용량"
@@ -259,7 +328,12 @@ export default function FactoryOverview() {
               분석 범위
               <select
                 value={scope}
-                onChange={(e) => setAnalysisScope(e.target.value)}
+                aria-label="분석 범위 선택"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setAnalysisScope(v);
+                  window.location.hash = v === "factory" ? "#/overview" : `#/overview/${v}`;
+                }}
                 className="rounded-lg border border-line bg-white px-2 py-1.5 text-[13px] font-semibold text-navy"
               >
                 <optgroup label="공장">
@@ -280,6 +354,7 @@ export default function FactoryOverview() {
               분석 지표
               <select
                 value={analysisMetric}
+                aria-label="분석 지표 선택"
                 onChange={(e) => setAnalysisMetric(e.target.value)}
                 className="rounded-lg border border-line bg-white px-2 py-1.5 text-[13px] font-medium text-navy"
               >
@@ -289,21 +364,27 @@ export default function FactoryOverview() {
               </select>
             </label>
             <span className="ml-auto text-[12px] text-slate-400">
-              {scope === "chiller" ? "MWh/월 · 엔진 실산정" : scope === "factory" ? "MWh/월" : `${series?.unit ?? ""}/월 · 합성 요약`}
+              {summary
+                ? "요약값 · 합성"
+                : scope === "chiller"
+                  ? "MWh/월 · 엔진 실산정"
+                  : scope === "factory"
+                    ? "MWh/월"
+                    : `${series?.unit ?? ""}/월 · 합성 요약`}
             </span>
           </div>
 
           <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <span className="text-[15px] font-semibold text-navy">{chartTitle}</span>
             {/* 범례 */}
-            {scope === "factory" && (
+            {scope === "factory" && !summary && (
               <div className="flex items-center gap-3 text-[12px] text-body">
                 <span className="flex items-center gap-1.5"><svg width="18" height="6"><line x1="0" y1="3" x2="18" y2="3" stroke="#8a94a6" strokeWidth="2" strokeDasharray="5 3" /></svg>기준기간</span>
                 <span className="flex items-center gap-1.5"><svg width="18" height="6"><line x1="0" y1="3" x2="18" y2="3" stroke="#102a43" strokeWidth="2.5" /></svg>보고기간</span>
                 <span className="flex items-center gap-1.5"><svg width="18" height="6"><line x1="0" y1="3" x2="18" y2="3" stroke="#2f6bff" strokeWidth="1.5" strokeDasharray="2 3" /></svg>목표</span>
               </div>
             )}
-            {scope === "chiller" && (
+            {scope === "chiller" && !summary && (
               <div className="flex items-center gap-3 text-[12px] text-body">
                 <span className="flex items-center gap-1.5"><svg width="18" height="6"><line x1="0" y1="3" x2="18" y2="3" stroke="#1e63c6" strokeWidth="2" strokeDasharray="5 3" /></svg>조정 기준선</span>
                 <span className="flex items-center gap-1.5"><svg width="18" height="6"><line x1="0" y1="3" x2="18" y2="3" stroke="#102a43" strokeWidth="2.5" /></svg>실제 사용량</span>
@@ -339,7 +420,7 @@ export default function FactoryOverview() {
 
           {/* ---------- 차트 영역 ---------- */}
           <div className="mt-1 h-[275px]">
-            {scope === "factory" && (
+            {scope === "factory" && !summary && (
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={factoryMonthly} margin={{ top: 12, right: 14, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke="#eaeff5" vertical={false} />
@@ -353,7 +434,7 @@ export default function FactoryOverview() {
               </ResponsiveContainer>
             )}
 
-            {scope === "chiller" && (
+            {scope === "chiller" && !summary && (
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={calc.monthly} margin={{ top: 12, right: 14, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke="#eaeff5" vertical={false} />
@@ -405,22 +486,36 @@ export default function FactoryOverview() {
               </ResponsiveContainer>
             )}
 
-            {group && scope !== "chiller" && !series && (
-              <div className="flex h-full flex-col items-center justify-center gap-2 rounded-lg bg-surface/60">
-                <div className="tnum flex flex-wrap justify-center gap-x-6 gap-y-2 px-6 text-[14px] text-body">
-                  {group.kpis.map((k) => (
-                    <span key={k.label}>{k.label} <b className="text-[16px] text-navy">{k.value}</b></span>
-                  ))}
+            {summary && (
+              <div className="flex h-full items-stretch gap-4 rounded-lg bg-surface/60 p-5">
+                <div className="flex min-w-52 flex-col justify-center border-r border-line/60 pr-5">
+                  <div className="text-[13px] text-body">{summary.primary.label}</div>
+                  <div
+                    className={`tnum mt-1.5 text-[34px] leading-none font-bold ${
+                      summary.primary.tone === "good" ? "text-teal" : summary.primary.tone === "warn" ? "text-review" : "text-navy"
+                    }`}
+                  >
+                    {summary.primary.value}
+                  </div>
+                  <button onClick={summary.link.go} className="mt-3 text-left text-[13px] font-medium text-accent hover:underline">
+                    {summary.link.label}
+                  </button>
                 </div>
-                <div className="px-6 text-center text-[12.5px] text-slate-400">
-                  '{metricLabel}' 월별 시계열은 데이터 연계 확장 후 제공됩니다 — 현재는 요약값(합성)만 제공
+                <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+                  {summary.rows.map(([k, v]) => (
+                    <div key={k} className="tnum flex items-baseline justify-between gap-4 border-b border-line/40 py-1.5 text-[13px] last:border-0">
+                      <span className="shrink-0 text-slate-400">{k}</span>
+                      <span className="text-right font-medium text-navy">{v}</span>
+                    </div>
+                  ))}
+                  <div className="mt-1 text-[12px] leading-snug text-slate-400">{summary.note}</div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* 차트 하단 안내 */}
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 pt-1 text-[12px] text-body">
+          {/* 차트 하단 안내 (요약 뷰에서는 요약 카드가 자체 안내 포함) */}
+          <div className={`flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 pt-1 text-[12px] text-body ${summary ? "hidden" : ""}`}>
             {scope === "factory" ? (
               <>
                 <span>검증된 MRV 프로젝트 1건 · 중앙 냉수플랜트 <b className="text-teal">420 MWh 잠정 절감</b> · ! = 주요 운영 이벤트</span>
