@@ -141,41 +141,50 @@ export default function Reporting() {
       </header>
       <ContextBar />
 
-      {/* 보고 범위 — MRV 프로젝트 / 공장 종합 명세서 선택 */}
-      <div className="no-print flex shrink-0 flex-wrap items-center gap-2">
-        <span className="text-[12.5px] text-slate-400">보고 범위</span>
-        <button
-          onClick={() => setRptScope("chiller")}
-          className={`rounded-lg border px-3 py-1.5 text-[13px] transition-colors ${
-            rptScope === "chiller"
-              ? "border-accent/40 bg-accent/5 font-semibold text-accent"
-              : "border-line/60 bg-white text-body hover:border-accent/40"
-          }`}
-        >
-          중앙 냉수플랜트 MRV · MVP-2026-01
-        </button>
-        <button
-          onClick={() => setRptScope("boiler")}
-          title="보일러 폐열회수 개선 프로젝트 — 개시 전. 동일 보고서 양식·산정 파이프라인이 재사용됩니다 (확장 데모)"
-          className={`rounded-lg border px-3 py-1.5 text-[13px] transition-colors ${
-            rptScope === "boiler"
-              ? "border-accent/40 bg-accent/5 font-semibold text-accent"
-              : "border-line/60 bg-white text-body hover:border-accent/40"
-          }`}
-        >
-          보일러 효율개선 MRV <span className="text-[11px] opacity-80">— 개시 전</span>
-        </button>
-        <button
-          onClick={() => setRptScope("inventory")}
-          title="온실가스 배출량·에너지 사용량 명세서 작성 기능 (별지 11호 참고 · 데모)"
-          className={`rounded-lg border px-3 py-1.5 text-[13px] transition-colors ${
-            rptScope === "inventory"
-              ? "border-accent/40 bg-accent/5 font-semibold text-accent"
-              : "border-line/60 bg-white text-body hover:border-accent/40"
-          }`}
-        >
-          공장 종합 에너지·배출 명세서 <span className="text-[11px] opacity-80">2026 상반기</span>
-        </button>
+      {/* 보고서 유형 분리: ① MRV 성과보고서(프로젝트별 드롭다운 — 확장 대응) ② 공장 종합 명세서(별도 관리) */}
+      <div className="no-print flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex items-center rounded-lg border border-line/60 bg-white p-0.5">
+          {(
+            [
+              ["mrv", "MRV 성과보고서", "프로젝트별"],
+              ["inventory", "에너지·배출 명세서", "공장 종합"],
+            ] as Array<[string, string, string]>
+          ).map(([key, label, sub]) => {
+            const on = key === "inventory" ? rptScope === "inventory" : rptScope !== "inventory";
+            return (
+              <button
+                key={key}
+                onClick={() => setRptScope(key === "inventory" ? "inventory" : "chiller")}
+                className={`rounded-md px-3.5 py-1.5 text-[13px] transition-colors ${
+                  on ? "bg-navy font-semibold text-white" : "text-body hover:text-navy"
+                }`}
+              >
+                {label} <span className={`text-[11px] ${on ? "opacity-70" : "text-slate-400"}`}>{sub}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {rptScope !== "inventory" && (
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 text-[12.5px] text-slate-400">
+              프로젝트
+              <select
+                aria-label="MRV 프로젝트 선택"
+                value={rptScope}
+                onChange={(e) => setRptScope(e.target.value as "chiller" | "boiler")}
+                className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[13px] font-medium text-navy"
+              >
+                <option value="chiller">MVP-2026-01 · 중앙 냉수플랜트 효율개선 — 산정 중</option>
+                <option value="boiler">MVP-2026-02 · 보일러 폐열회수 — 개시 전</option>
+              </select>
+            </label>
+            <span className="tnum text-[12px] text-slate-400">진행 1 · 개시 전 1</span>
+            <button onClick={() => setMenu("master")} className="text-[12.5px] font-medium text-accent hover:underline">
+              프로젝트 등록·관리 ›
+            </button>
+          </div>
+        )}
       </div>
 
       {rptScope === "inventory" && (
