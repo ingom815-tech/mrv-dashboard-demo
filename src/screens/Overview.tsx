@@ -107,7 +107,7 @@ const GROUP_FILTERS: Array<{ key: EquipGroup | "all"; label: string }> = [
   { key: "air", label: "공기측" },
 ];
 
-export default function Overview() {
+export default function Overview({ embedded = false }: { embedded?: boolean }) {
   const { setMenu, selectedMonth, selectMonth, equipFilter, setEquipFilter, reviewStates } = useUI();
   const calc = useCalc();
   const ef = activeEf(useUI((s) => s.efList));
@@ -134,23 +134,27 @@ export default function Overview() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col gap-3 px-6 py-4 xl:h-screen xl:min-h-0">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="text-[21px] leading-tight font-bold text-navy">2026년 상반기 감축성과</h1>
-          <span
-            className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
-            title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다. (data_origin = SYNTHETIC)"
-          >
-            DEMO · 합성데이터
-          </span>
-          <span className="hidden truncate text-[13px] text-slate-400 lg:inline">
-            — 얼마나 아꼈고, 그 숫자를 믿을 수 있는가
-          </span>
-        </div>
-        <TopActions />
-      </header>
-      <ContextBar />
+    <div className={embedded ? "flex flex-col gap-3" : "flex min-h-screen flex-col gap-3 px-6 py-4 xl:h-screen xl:min-h-0"}>
+      {!embedded && (
+        <>
+          <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <h1 className="text-[21px] leading-tight font-bold text-navy">2026년 상반기 감축성과</h1>
+              <span
+                className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
+                title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다. (data_origin = SYNTHETIC)"
+              >
+                DEMO · 합성데이터
+              </span>
+              <span className="hidden truncate text-[13px] text-slate-400 lg:inline">
+                — 얼마나 아꼈고, 그 숫자를 믿을 수 있는가
+              </span>
+            </div>
+            <TopActions />
+          </header>
+          <ContextBar />
+        </>
+      )}
 
       {/* 핵심 KPI 4개 */}
       <section className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4" aria-label="핵심 성과">
@@ -233,7 +237,7 @@ export default function Overview() {
               </div>
             </div>
           )}
-          <div className="min-h-0 flex-1 pt-2 max-xl:h-[380px] max-xl:flex-none">
+          <div className={embedded ? "h-[380px] flex-none pt-2" : "min-h-0 flex-1 pt-2 max-xl:h-[380px] max-xl:flex-none"}>
             <ResponsiveContainer width="100%" height="100%">
               {cumView ? (
                 <ComposedChart data={calc.monthly} margin={{ top: 22, right: 24, bottom: 0, left: 0 }}>

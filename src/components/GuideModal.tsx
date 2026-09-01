@@ -12,17 +12,17 @@ export default function GuideModal() {
   const steps: Array<{ n: string; title: string; desc: string; menu: Parameters<typeof setMenu>[0]; hash: string }> = [
     {
       n: "1",
-      title: "얼마나 아꼈는지 본다",
-      desc: "성과 현황 — 6개월간 420 MWh(28.6%) 절감, 탄소 193 tCO₂eq. 우측 '처리할 일'까지 확인",
+      title: "공장 전체를 본다",
+      desc: "공장 종합현황 — 총 에너지·배출량과 10개 설비군 상태. MRV 검증 절감(420 MWh)은 냉동·냉장 실증분",
       menu: "overview",
       hash: "#/overview",
     },
     {
       n: "2",
-      title: "왜 아껴졌는지 본다",
-      desc: "설비 분석 — 같은 부하에서 효율이 30% 좋아진 성능곡선과, 어떤 설비가 얼마나 기여했는지 분해",
+      title: "대표 실증 모듈로 들어간다",
+      desc: "설비군 분석 › 냉동·냉장 — 기준선 대비 절감 차트와 성능곡선. 다른 설비군은 요약 템플릿",
       menu: "equipment",
-      hash: "#/equipment",
+      hash: "#/equipment/chiller",
     },
     {
       n: "3",
@@ -61,8 +61,10 @@ export default function GuideModal() {
 
         <div className="text-[22px] font-bold text-navy">시스템 개요</div>
         <p className="mt-2 text-[15px] leading-relaxed text-navy">
-          공장의 냉방설비를 개선한 뒤 <b className="text-teal">전기를 얼마나 아꼈는지 계산</b>하고, 그
-          숫자를 <b className="text-accent">제3자가 믿을 수 있도록 검증·승인</b>하는 화면입니다.
+          <b className="text-navy">원주공장 전체</b>의 에너지 사용·온실가스 배출·개선사업 성과를 통합
+          관리하고, <b className="text-teal">절감 숫자를 계산</b>해 <b className="text-accent">제3자가 믿을
+          수 있도록 검증·승인</b>하는 디지털 MRV 플랫폼입니다. 10개 설비군 중{" "}
+          <b className="text-teal">냉동·냉장(냉수플랜트)</b>이 가장 상세하게 구현된 대표 실증 모듈입니다.
           <span className="ml-1 rounded bg-review/10 px-1.5 py-0.5 text-[12px] font-semibold text-review">
             모든 숫자는 데모용 합성데이터
           </span>
@@ -86,11 +88,11 @@ export default function GuideModal() {
         <div className="mt-5">
           <div className="text-[15px] font-semibold text-navy">왼쪽 메뉴 5개 — 업무 흐름 순서</div>
           <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1.5 text-[13px]">
-            <div><b className="text-navy">성과 현황</b> <span className="text-body">— 얼마나 절감·감축했는가</span></div>
-            <div><b className="text-navy">설비 분석</b> <span className="text-body">— 어떤 설비에서 변화가 났는가</span></div>
-            <div><b className="text-navy">데이터 검증</b> <span className="text-body">— 결과를 신뢰할 수 있는가</span></div>
-            <div><b className="text-navy">보고·승인</b> <span className="text-body">— 검증 결과를 어떻게 보고하는가</span></div>
-            <div><b className="text-navy">시스템 관리</b> <span className="text-body">— M&V 계획·설비·계수 설정</span></div>
+            <div><b className="text-navy">공장 종합현황</b> <span className="text-body">— 공장 전체 에너지·배출·MRV 성과</span></div>
+            <div><b className="text-navy">설비군 분석</b> <span className="text-body">— 10개 설비군과 개별 설비 상세</span></div>
+            <div><b className="text-navy">데이터 검증</b> <span className="text-body">— 품질·이슈·보정·증적</span></div>
+            <div><b className="text-navy">보고·승인</b> <span className="text-body">— 검토·승인·보고서·외부 자료</span></div>
+            <div><b className="text-navy">설비·연계 관리</b> <span className="text-body">— 설비·계측·연결·변경이력</span></div>
           </div>
         </div>
 

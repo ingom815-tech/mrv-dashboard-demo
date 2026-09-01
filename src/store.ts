@@ -79,6 +79,8 @@ interface UIState {
   selectedMonth: string | null;
   equipFilter: EquipGroup | "all";
   selectedEquip: string;
+  equipGroup: string; // 설비군 분석 선택 (all | boiler | chiller | ...)
+  setEquipGroup: (g: string) => void;
   role: Role;
   reviewStates: Record<string, ReviewState>;
   audit: AuditEntry[];
@@ -96,6 +98,7 @@ interface UIState {
   resetDemoStates: () => void;
   registerEf: (input: { value: number; source: string; baseYear: number; validFrom: string; validTo: string }) => void;
   setTariff: (v: number) => void;
+  logAudit: (action: string, target: string, detail: string) => void;
 }
 
 // 상세 화면에서 돌아와도 보고기간·선택 필터 유지 (지시문 §9)
@@ -116,6 +119,10 @@ export const useUI = create<UIState>((set, get) => ({
   selectedMonth: null,
   equipFilter: "all",
   selectedEquip: "ch1",
+  equipGroup: window.location.hash.split("/")[2] && window.location.hash.startsWith("#/equipment")
+    ? window.location.hash.split("/")[2]
+    : "all",
+  setEquipGroup: (equipGroup) => set({ equipGroup }),
   role: "일반",
   reviewStates: { ...defaultStates(), ...loadJson<Record<string, ReviewState>>(LS_STATES, {}) },
   audit: loadJson<AuditEntry[]>(LS_AUDIT, []),
@@ -205,6 +212,12 @@ export const useUI = create<UIState>((set, get) => ({
     saveJson("mrv-tariff", v);
     saveJson(LS_AUDIT, nextAudit);
     set({ tariffValue: v, audit: nextAudit });
+  },
+  logAudit: (action, target, detail) => {
+    const entry: AuditEntry = { ts: new Date().toISOString(), actor: get().role, action, target, detail };
+    const nextAudit = [entry, ...get().audit];
+    saveJson(LS_AUDIT, nextAudit);
+    set({ audit: nextAudit });
   },
   resetDemoStates: () => {
     const entry: AuditEntry = {

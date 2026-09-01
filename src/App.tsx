@@ -1,6 +1,6 @@
 import { useUI, type MenuKey } from "./store";
-import Overview from "./screens/Overview";
-import EquipPerformance from "./screens/EquipPerformance";
+import FactoryOverview from "./screens/FactoryOverview";
+import EquipGroups from "./screens/EquipGroups";
 import DataVerify from "./screens/DataVerify";
 import Reporting from "./screens/Reporting";
 import MasterData from "./screens/MasterData";
@@ -8,13 +8,13 @@ import EvidencePanel from "./components/EvidencePanel";
 import TraceabilityPanel from "./components/TraceabilityPanel";
 import GuideModal from "./components/GuideModal";
 
-// 업무 흐름 순서: 결과 이해 → 원인 파악 → 문제 처리 → 문서화 → 설정
+// 업무 흐름 순서: 공장 전체 → 설비군 → 검증 → 보고 → 관리 (구조 고정)
 const MENUS: Array<{ key: MenuKey; label: string }> = [
-  { key: "overview", label: "성과 현황" },
-  { key: "equipment", label: "설비 분석" },
+  { key: "overview", label: "공장 종합현황" },
+  { key: "equipment", label: "설비군 분석" },
   { key: "verify", label: "데이터 검증" },
   { key: "report", label: "보고·승인" },
-  { key: "master", label: "시스템 관리" },
+  { key: "master", label: "설비·연계 관리" },
 ];
 
 export default function App() {
@@ -47,8 +47,8 @@ export default function App() {
 
       {/* 메인 영역 */}
       <main className="min-w-0 flex-1 overflow-y-auto">
-        {menu === "overview" && <Overview />}
-        {menu === "equipment" && <EquipPerformance />}
+        {menu === "overview" && <FactoryOverview />}
+        {menu === "equipment" && <EquipGroups />}
         {menu === "verify" && <DataVerify />}
         {menu === "report" && <Reporting />}
         {menu === "master" && <MasterData />}

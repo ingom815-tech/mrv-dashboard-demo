@@ -85,7 +85,7 @@ function WeekTooltip({
   );
 }
 
-export default function EquipPerformance() {
+export default function EquipPerformance({ embedded = false }: { embedded?: boolean }) {
   const { selectedEquip, setSelectedEquip, setMenu, openEvidence } = useUI();
   const row = mrv.perf.table.find((r) => r.key === selectedEquip) ?? mrv.perf.table[0];
   const equipBase =
@@ -94,20 +94,24 @@ export default function EquipPerformance() {
       : (mrv.perf.table.find((r) => r.key === selectedEquip)?.base ?? null);
 
   return (
-    <div className="flex min-h-screen flex-col gap-3 px-6 py-4">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="text-[21px] leading-tight font-bold text-navy">설비성과 — 효율 개선 원인 분석</h1>
-          <span
-            className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
-            title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다."
-          >
-            DEMO · 합성데이터
-          </span>
-        </div>
-        <TopActions />
-      </header>
-      <ContextBar />
+    <div className={embedded ? "flex flex-col gap-3" : "flex min-h-screen flex-col gap-3 px-6 py-4"}>
+      {!embedded && (
+        <>
+          <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <h1 className="text-[21px] leading-tight font-bold text-navy">설비성과 — 효율 개선 원인 분석</h1>
+              <span
+                className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
+                title="본 화면의 모든 값은 데모용 합성데이터로 산정한 가정값입니다. 공식 MRV 보고에 사용할 수 없습니다."
+              >
+                DEMO · 합성데이터
+              </span>
+            </div>
+            <TopActions />
+          </header>
+          <ContextBar />
+        </>
+      )}
 
       {/* 성능 KPI 4개 */}
       <section className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4" aria-label="시스템 성능 지표">

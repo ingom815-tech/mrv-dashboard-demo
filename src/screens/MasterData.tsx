@@ -14,6 +14,7 @@ import {
 } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, activeEf, type Role } from "../store";
+import { equipGroups, ZONES } from "../lib/factoryData";
 import ContextBar, { TopActions } from "../components/ContextBar";
 
 const fmt = (n: number, d = 0) =>
@@ -22,6 +23,7 @@ const fmt = (n: number, d = 0) =>
 const TABS = [
   { key: "plan", label: "MRV 계획" },
   { key: "asset", label: "설비·센서" },
+  { key: "change", label: "변경관리" },
   { key: "factor", label: "배출계수·가정값" },
   { key: "user", label: "사용자·권한" },
 ] as const;
@@ -196,7 +198,16 @@ export default function MasterData() {
   const [assetFilter, setAssetFilter] = useState<string | null>(null);
   const [selTag, setSelTag] = useState<TagMeta | null>(null);
   const [ifaceOpen, setIfaceOpen] = useState(false);
-  const { role, efList, registerEf, tariffValue, setTariff } = useUI();
+  // 변경관리 데모 상태 (localStorage 영속)
+  const ls = <T,>(k: string, f: T): T => {
+    try { const v = localStorage.getItem(k); return v ? (JSON.parse(v) as T) : f; } catch { return f; }
+  };
+  const lsSet = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 무시 */ } };
+  const [added, setAdded] = useState<Array<{ name: string; group: string; cap: string; mrv: boolean }>>(() => ls("mrv-added-assets", []));
+  const [connectStep, setConnectStep] = useState<number>(() => ls("mrv-connect-step", 0));
+  const [mesOk, setMesOk] = useState<boolean>(() => ls("mrv-mes-ok", false));
+  const [form2, setForm2] = useState({ name: "", group: "보일러·스팀", cap: "", mrv: true });
+  const { role, efList, registerEf, tariffValue, setTariff, logAudit, setMenu, setEquipGroup } = useUI();
   const calc = useCalc();
   const ef = activeEf(efList);
   const [form, setForm] = useState({ value: "", source: "", baseYear: "2025", validFrom: "2026-07-01", validTo: "2027-06-30" });
@@ -211,7 +222,7 @@ export default function MasterData() {
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <h1 className="shrink-0 text-[20px] leading-tight font-bold text-navy">
-            기준정보 — 설비·계측·계수 관리
+            설비·연계 관리 — 설비·계측·데이터 연결·변경이력
           </h1>
           <span
             className="shrink-0 cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
@@ -345,8 +356,32 @@ export default function MasterData() {
             >
               데이터 연계 현황 ›
             </button>
-            <div className="text-[12px] text-body">원주공장 › 중앙 냉수플랜트</div>
-            <div className="mt-2 flex flex-col gap-2">
+            {/* 공장 → 구역 → 설비군 계층 — 냉동·냉장만 상세(냉수플랜트) 전개 */}
+            <div className="text-[12px] font-semibold text-navy">원주공장</div>
+            <div className="mt-1.5 flex flex-col gap-0.5">
+              {ZONES.map((z) => (
+                <div key={z.key}>
+                  <div className="px-1 py-0.5 text-[10.5px] font-semibold tracking-wide text-slate-400 uppercase">{z.name}</div>
+                  {equipGroups.filter((g) => g.zone === z.key).map((g) =>
+                    g.key === "chiller" ? (
+                      <div key={g.key} className="rounded bg-teal/8 px-2 py-1 text-[12px] font-semibold text-navy">
+                        {g.name} <span className="text-[10px] font-bold text-teal">상세 ▾</span>
+                      </div>
+                    ) : (
+                      <button
+                        key={g.key}
+                        onClick={() => { setEquipGroup(g.key); setMenu("equipment"); }}
+                        className="tnum block w-full rounded px-2 py-1 text-left text-[12px] text-body hover:bg-surface hover:text-navy"
+                      >
+                        {g.name} <span className="text-[10.5px] text-slate-400">요약 ›</span>
+                      </button>
+                    ),
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 border-t border-line/50 pt-2 text-[11px] text-slate-400">중앙 냉수플랜트 (실증)</div>
+            <div className="mt-1 flex flex-col gap-2">
               <button
                 onClick={() => setAssetFilter(null)}
                 className={`rounded px-2 py-1 text-left text-[12px] ${
@@ -573,6 +608,185 @@ export default function MasterData() {
             </table>
           </div>
         </section>
+      )}
+
+      {/* ---------- 탭: 변경관리 (추가·교체·연결·오류 시나리오) ---------- */}
+      {tab === "change" && (
+        <>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 text-[12px] text-body">
+            <span className="font-semibold text-navy">연계 상태값</span>
+            {["연결 완료", "일부 연결", "연결 대기", "데이터 없음", "오류", "운영 종료"].map((s) => (
+              <span key={s} className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
+                s === "연결 완료" ? "bg-teal/10 text-teal" : s === "오류" ? "bg-risk/10 text-risk" : s === "운영 종료" ? "bg-line text-body" : "bg-review/10 text-review"
+              }`}>{s}</span>
+            ))}
+            <span className="ml-auto text-slate-400">설비 변경·데이터 연결을 추적하는 데모 시나리오 4종</span>
+          </div>
+
+          <section className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-2">
+            {/* ① 설비 교체 이력 */}
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[15px] font-semibold text-navy">① 설비 교체 — 이력·기준선 연결</span>
+                <span className="rounded bg-teal/10 px-1.5 py-0.5 text-[10px] font-bold text-teal">완료</span>
+              </div>
+              <div className="rounded-lg bg-surface/70 p-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 rounded-lg border border-line bg-white px-3 py-2">
+                    <div className="text-[13px] font-semibold text-navy">CH-01 기존 냉동기</div>
+                    <div className="tnum mt-0.5 text-[12px] text-body">1,400 kW_th · R-134a</div>
+                    <div className="tnum text-[11.5px] text-slate-400">2025-12-31 운영 종료</div>
+                  </div>
+                  <div className="shrink-0 text-center text-[12px] font-bold text-accent">교체 →</div>
+                  <div className="flex-1 rounded-lg border border-teal/40 bg-white px-3 py-2">
+                    <div className="text-[13px] font-semibold text-navy">CH-01R 고효율 냉동기</div>
+                    <div className="tnum mt-0.5 text-[12px] text-body">1,400 kW_th · R-1233zd(E)</div>
+                    <div className="tnum text-[11.5px] text-teal">2026-01-01 운영 시작</div>
+                  </div>
+                </div>
+                <div className="tnum mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[12px] text-body">
+                  <span>교체 사유 <b className="text-navy">노후·효율 개선 (kW/RT −18% 가정)</b></span>
+                  <span>계측 태그 <b className="text-navy">CH1_kW 승계</b></span>
+                  <span>기준선 <b className="text-navy">유지 — 기준기간은 기존 설비 데이터</b></span>
+                  <span>시운전 <b className="text-navy">2025-12-26 ~ 12-31</b></span>
+                  <span>증빙 <b className="text-accent">EV-2026-014 정비·교체 내역</b></span>
+                  <span>MRV <b className="text-teal">개선 조치로 등록 → 절감 산정 대상</b></span>
+                </div>
+              </div>
+            </div>
+
+            {/* ② 계측기 연결 마법사 */}
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[15px] font-semibold text-navy">② 계측기 연결 — 보일러 가스미터 GM-03</span>
+                <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${connectStep >= 4 ? "bg-teal/10 text-teal" : "bg-review/10 text-review"}`}>
+                  {connectStep >= 4 ? "연결 완료" : "연결 대기"}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                {["소스 선택", "태그 매핑", "단위·주기", "시험 데이터", "연결 완료"].map((s, i) => (
+                  <div key={s} className="flex flex-1 items-center gap-1">
+                    <div className={`flex h-6 flex-1 items-center justify-center rounded text-[11px] font-medium ${
+                      i < connectStep ? "bg-teal/15 text-teal" : i === connectStep ? "bg-accent text-white" : "bg-surface text-slate-400"
+                    }`}>{i + 1}. {s}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 min-h-[72px] rounded-lg bg-surface/70 px-3 py-2 text-[12.5px] text-body">
+                {connectStep === 0 && <>데이터 소스: <b className="text-navy">Modbus RTU (가상)</b> · 대상 태그 <b className="text-navy">GAS_boiler2</b> · 담당 계측팀(데모)</>}
+                {connectStep === 1 && <>태그 매핑: GM-03 레지스터 30001 → <b className="text-navy">GAS_boiler2 (Nm³/h)</b> · 스케일 ×0.1</>}
+                {connectStep === 2 && <>단위 <b className="text-navy">Nm³/h</b> · 수집주기 <b className="text-navy">15분</b> · 시간동기 NTP</>}
+                {connectStep === 3 && (
+                  <div className="tnum">
+                    시험 데이터 (최근 4건): <b className="text-navy">42.1 · 41.8 · 43.0 · 42.5 Nm³/h</b> — 물리범위 통과 ✓
+                  </div>
+                )}
+                {connectStep >= 4 && <>연결 완료 — 보일러·스팀 연계 <b className="text-teal">8/9점</b>으로 갱신 (데모 표시) · 원본 보존 · Read Only</>}
+              </div>
+              <div className="mt-2 flex items-center justify-between">
+                <button
+                  disabled={!canEdit || connectStep >= 4}
+                  onClick={() => {
+                    const next = Math.min(4, connectStep + 1);
+                    setConnectStep(next); lsSet("mrv-connect-step", next);
+                    if (next === 4) logAudit("연계 완료", "GM-03", "보일러 가스미터 연결 완료 (GAS_boiler2, 15분)");
+                  }}
+                  className="rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  {connectStep >= 4 ? "완료됨" : connectStep === 3 ? "연결 완료 처리" : "다음 단계"}
+                </button>
+                {!canEdit && <span className="text-[11.5px] text-review">검토자·승인자 역할만 진행 가능</span>}
+                {connectStep > 0 && connectStep < 4 && canEdit && (
+                  <button onClick={() => { setConnectStep(0); lsSet("mrv-connect-step", 0); }} className="text-[12px] text-slate-400 hover:text-navy">
+                    처음부터
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ③ 설비 추가 */}
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="mb-2 text-[15px] font-semibold text-navy">③ 설비 추가 등록</div>
+              <div className="flex flex-wrap items-end gap-3 text-[12px]">
+                <label className="flex flex-col gap-1 text-body">
+                  설비군
+                  <select value={form2.group} onChange={(e) => setForm2({ ...form2, group: e.target.value })} className="rounded border border-line bg-white px-2 py-1.5 text-navy">
+                    {["보일러·스팀", "압축공기", "공조기·환기", "냉동·냉장 설비", "생산라인", "조명·일반전력", "태양광·ESS", "용수·폐수"].map((g) => (
+                      <option key={g}>{g}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-body">
+                  설비명·코드
+                  <input value={form2.name} onChange={(e) => setForm2({ ...form2, name: e.target.value })} placeholder="예: AC-03 신형 압축기" className="w-44 rounded border border-line bg-white px-2 py-1.5 text-navy" />
+                </label>
+                <label className="flex flex-col gap-1 text-body">
+                  용량·사양
+                  <input value={form2.cap} onChange={(e) => setForm2({ ...form2, cap: e.target.value })} placeholder="예: 75 kW" className="tnum w-28 rounded border border-line bg-white px-2 py-1.5 text-navy" />
+                </label>
+                <label className="flex items-center gap-1.5 pb-1.5 text-body">
+                  <input type="checkbox" checked={form2.mrv} onChange={(e) => setForm2({ ...form2, mrv: e.target.checked })} /> MRV 적용
+                </label>
+                <button
+                  disabled={!canEdit || !form2.name.trim()}
+                  onClick={() => {
+                    const item = { name: form2.name.trim(), group: form2.group, cap: form2.cap || "—", mrv: form2.mrv };
+                    const next = [item, ...added]; setAdded(next); lsSet("mrv-added-assets", next);
+                    logAudit("설비 등록", item.name, `${item.group} · ${item.cap} · MRV ${item.mrv ? "적용" : "제외"}`);
+                    setForm2({ ...form2, name: "", cap: "" });
+                  }}
+                  className="rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  등록
+                </button>
+              </div>
+              {added.length > 0 ? (
+                <table className="tnum mt-2 w-full text-[12.5px]">
+                  <tbody>
+                    {added.map((a, i) => (
+                      <tr key={i} className="border-b border-line/50 last:border-0">
+                        <td className="py-1.5 font-medium text-navy">{a.name}</td>
+                        <td className="py-1.5 text-body">{a.group}</td>
+                        <td className="py-1.5 text-body">{a.cap}</td>
+                        <td className="py-1.5"><span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${a.mrv ? "bg-teal/10 text-teal" : "bg-line text-body"}`}>{a.mrv ? "MRV 적용" : "모니터링만"}</span></td>
+                        <td className="py-1.5 text-right"><span className="rounded bg-review/10 px-1.5 py-0.5 text-[10px] font-bold text-review">연결 대기</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="mt-2 text-[12px] text-slate-400">등록된 신규 설비 없음 — 등록 시 감사로그에 기록되고 계측 연결 대기 상태가 됩니다.</div>
+              )}
+            </div>
+
+            {/* ④ 데이터 연결 오류 처리 */}
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[15px] font-semibold text-navy">④ 데이터 연결 오류 — MES 수집 지연</span>
+                <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${mesOk ? "bg-teal/10 text-teal" : "bg-risk/10 text-risk"}`}>
+                  {mesOk ? "정상" : "오류"}
+                </span>
+              </div>
+              <div className="rounded-lg bg-surface/70 px-3 py-2.5 text-[12.5px] leading-relaxed text-body">
+                {mesOk ? (
+                  <>재시도 성공 — 지연분 <b className="text-navy">42건 재수집 완료</b>. 해당 구간은 MANUAL→VALID로 갱신되고 이력이 보존됩니다 (데모).</>
+                ) : (
+                  <>MES 인터페이스 수집 지연 <b className="text-risk">67분</b> (임계 60분 초과) · 영향 태그 <b className="text-navy">PROD</b> · 산정 영향: 생산량 변수 임시 수기값 사용 중</>
+                )}
+              </div>
+              <button
+                disabled={!canEdit || mesOk}
+                onClick={() => { setMesOk(true); lsSet("mrv-mes-ok", true); logAudit("오류 복구", "MES", "수집 지연 재시도 성공 — 42건 재수집"); }}
+                className="mt-2 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {mesOk ? "복구 완료" : "재시도"}
+              </button>
+            </div>
+          </section>
+          <div className="text-[12px] text-slate-400">
+            모든 변경은 감사로그(보고·승인 › 이력)에 기록됩니다 · 교체 설비의 기준선 영향(유지/재산정)은 M&V 계획 기준으로 판단
+          </div>
+        </>
       )}
 
       {/* ---------- 탭 2: 배출계수·가정값 ---------- */}
