@@ -106,6 +106,10 @@ interface UIState {
   logAudit: (action: string, target: string, detail: string) => void;
   invStatus: InvStatus;
   invAction: (a: "request" | "reviewOk" | "fix" | "approve" | "reset", opinion?: string) => void;
+  /* 명세서 수기 입력 필드 (담당자 정보·예외 사유·확인 필요 소명 — 계산값은 입력 불가) */
+  invInputs: Record<string, string>;
+  setInvInput: (key: string, label: string, value: string) => void;
+  revokeInvApproval: () => void; // 승인 해제 (승인자 전용) — 수정 재개용
 }
 
 /* 명세서(인벤토리 보고서) 상태 흐름 */
@@ -254,6 +258,29 @@ export const useUI = create<UIState>((set, get) => ({
       `${next}${opinion ? ` — 의견: ${opinion}` : ""} (RPT-2026-DEMO)`,
     );
   },
+  invInputs: loadJson<Record<string, string>>("mrv-inv-inputs", {}),
+  // 수기 입력 정책: 계산 결과는 수정 불가, 허용된 필드만 입력. 검토 중 데이터가 바뀌면 상태를 '작성 중'으로 회귀
+  setInvInput: (key, label, value) => {
+    const { invStatus, invInputs, logAudit } = get();
+    if (invStatus === "승인 완료") return; // 승인 완료본은 수정 불가 (해제 후 수정)
+    const next = { ...invInputs, [key]: value };
+    saveJson("mrv-inv-inputs", next);
+    set({ invInputs: next });
+    if (invStatus === "검토 요청" || invStatus === "검토 완료·승인 대기") {
+      saveJson("mrv-inv-status", "작성 중");
+      set({ invStatus: "작성 중" });
+      logAudit("수기 입력 변경", "명세서", `'${label}' 변경 — 검토 중 데이터 변경으로 상태를 '작성 중'으로 회귀 (재검토 필요)`);
+    } else {
+      logAudit("수기 입력", "명세서", `'${label}' 입력·수정 (RPT-2026-DEMO)`);
+    }
+  },
+  revokeInvApproval: () => {
+    const { role, invStatus, logAudit } = get();
+    if (role !== "승인자" || invStatus !== "승인 완료") return;
+    saveJson("mrv-inv-status", "작성 중");
+    set({ invStatus: "작성 중" });
+    logAudit("승인 해제", "명세서", "승인자 승인 해제 — 수정 재개, 재검토·재승인 필요 (기존 승인 이력은 감사로그 보존)");
+  },
   logAudit: (action, target, detail) => {
     const entry: AuditEntry = { ts: new Date().toISOString(), actor: get().role, action, target, detail };
     const nextAudit = [entry, ...get().audit];
@@ -274,12 +301,14 @@ export const useUI = create<UIState>((set, get) => ({
     saveJson("mrv-ef-list", defaultEfList());
     saveJson("mrv-tariff", TARIFF.value);
     saveJson("mrv-inv-status", "작성 중");
+    saveJson("mrv-inv-inputs", {});
     set({
       reviewStates: defaultStates(),
       audit: nextAudit,
       efList: defaultEfList(),
       tariffValue: TARIFF.value,
       invStatus: "작성 중",
+      invInputs: {},
     });
   },
 }));

@@ -64,6 +64,53 @@ const badge = (s: string) =>
         ? "bg-line text-body"
         : "bg-review/10 text-review";
 
+/* 수기 입력 필드 — 허용된 항목만 실무자가 직접 기입 (blur 시 저장·감사로그 기록) */
+function ManualField({
+  fieldKey,
+  label,
+  stored,
+  disabled,
+  multiline,
+  placeholder,
+  commit,
+}: {
+  fieldKey: string;
+  label: string;
+  stored: string;
+  disabled: boolean;
+  multiline?: boolean;
+  placeholder?: string;
+  commit: (key: string, label: string, value: string) => void;
+}) {
+  const cls =
+    "w-full rounded border border-line bg-white px-2 py-1.5 text-[16px] text-navy focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:bg-surface disabled:text-slate-400 md:text-[13px]";
+  const onBlur = (v: string) => {
+    if (v !== stored) commit(fieldKey, label, v);
+  };
+  return multiline ? (
+    <textarea
+      key={fieldKey + ":" + stored}
+      defaultValue={stored}
+      disabled={disabled}
+      placeholder={placeholder}
+      rows={2}
+      aria-label={label}
+      onBlur={(e) => onBlur(e.target.value)}
+      className={cls}
+    />
+  ) : (
+    <input
+      key={fieldKey + ":" + stored}
+      defaultValue={stored}
+      disabled={disabled}
+      placeholder={placeholder}
+      aria-label={label}
+      onBlur={(e) => onBlur(e.target.value)}
+      className={cls}
+    />
+  );
+}
+
 function download(name: string, content: string, type: string) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
@@ -89,11 +136,23 @@ export default function InventoryReport() {
   const [opinion, setOpinion] = useState("");
   // 승인 실수 방지 2단계 확인 (모바일 지시문 §8.7)
   const [armApprove, setArmApprove] = useState(false);
-  const { role, invStatus, invAction, reviewStates, setMenu } = useUI();
+  const { role, invStatus, invAction, reviewStates, setMenu, invInputs, setInvInput, revokeInvApproval } = useUI();
   const calc = useCalc();
   const ef = activeEf(useUI((s) => s.efList));
   const verify = deriveVerify(reviewStates);
   const approved = invStatus === "승인 완료";
+
+  /* 수기 입력값 (기본값 = 합성 초기값) — 미리보기·CSV에도 동일 반영 */
+  const MANUAL_DEFAULTS: Record<string, string> = {
+    phone: "033-000-0001 (데모)",
+    email: "demo@example.com (데모)",
+    excluded: boundary.excluded,
+    excludedReason: boundary.excludedReason,
+  };
+  const iv = (k: string) => invInputs[k] ?? MANUAL_DEFAULTS[k] ?? "";
+  /* 업체정보 표시용 — 수기 필드만 입력값으로 치환 */
+  const ORG_MANUAL: Record<string, string> = { "담당자 전화번호": "phone", "담당자 이메일": "email" };
+  const orgInfoView: Array<[string, string]> = orgInfo.map(([k, v]) => [k, ORG_MANUAL[k] ? iv(ORG_MANUAL[k]) : v]);
 
   /* 검토·승인 액션 (데스크톱 인라인 버튼 + 모바일 하단 고정 바 공용) */
   const canRequest = invStatus === "작성 중" || invStatus === "수정 요청";
@@ -436,21 +495,53 @@ export default function InventoryReport() {
         </>
       )}
 
-      {/* ---------- ③ 기본정보·보고범위 ---------- */}
+      {/* ---------- ③ 기본정보·보고범위 (수기 필드는 실무자 직접 입력) ---------- */}
       {tab === "basic" && (
+        <>
+          {approved && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-teal/30 bg-teal/6 px-3.5 py-2">
+              <span className="text-[12.5px] text-navy">
+                <b className="text-teal">승인 완료</b> — 확정본은 수정할 수 없습니다. 수정하려면 승인을 해제해야 합니다 (감사로그 기록).
+              </span>
+              <button
+                onClick={revokeInvApproval}
+                disabled={role !== "승인자"}
+                title={role !== "승인자" ? "승인자 역할만 해제할 수 있습니다" : undefined}
+                className="min-h-9 rounded-lg border border-review/50 px-3 py-1 text-[12.5px] font-semibold text-review hover:bg-review/8 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                승인 해제 (승인자)
+              </button>
+            </div>
+          )}
+          {!approved && (invStatus === "검토 요청" || invStatus === "검토 완료·승인 대기") && (
+            <div className="rounded-lg border border-review/30 bg-review/6 px-3.5 py-2 text-[12.5px] text-review">
+              현재 {invStatus} 상태 — 수기 입력을 수정하면 상태가 '작성 중'으로 회귀하고 재검토가 필요합니다 (자동 적용).
+            </div>
+          )}
         <section className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-2">
           <div className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[15px] font-semibold text-navy">업체·사업장 정보</span>
-              <span className="rounded bg-teal/10 px-1.5 py-0.5 text-[10px] font-bold text-teal">자동 연결 · 시스템 관리</span>
+              <span className="rounded bg-teal/10 px-1.5 py-0.5 text-[10px] font-bold text-teal">자동 연결 · 수기 2필드만 입력</span>
             </div>
             <div className="tnum divide-y divide-line/40">
-              {orgInfo.map(([k, v]) => (
-                <div key={k} className="flex items-baseline justify-between gap-4 py-1.5 text-[13px]">
-                  <span className="shrink-0 text-slate-400">{k}</span>
-                  <span className="text-right font-medium text-navy">{v}</span>
-                </div>
-              ))}
+              {orgInfo.map(([k, v]) =>
+                ORG_MANUAL[k] ? (
+                  <div key={k} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-1.5 text-[13px]">
+                    <span className="shrink-0 text-slate-400">
+                      {k} <span className="rounded bg-review/10 px-1 py-0.5 text-[9.5px] font-bold text-review">수기 입력</span>
+                    </span>
+                    <div className="w-full max-w-64">
+                      <ManualField fieldKey={ORG_MANUAL[k]} label={k} stored={iv(ORG_MANUAL[k])} disabled={approved} commit={setInvInput} />
+                    </div>
+                  </div>
+                ) : (
+                  <div key={k} className="flex items-baseline justify-between gap-4 py-1.5 text-[13px]">
+                    <span className="shrink-0 text-slate-400">{k}</span>
+                    <span className="text-right font-medium text-navy">{v}</span>
+                  </div>
+                ),
+              )}
             </div>
           </div>
           <div className="flex flex-col gap-3">
@@ -473,14 +564,25 @@ export default function InventoryReport() {
                   [
                     ["운영경계", boundary.operational],
                     ["포함 사업장", boundary.included],
-                    ["제외 시설", boundary.excluded],
-                    ["제외 사유", boundary.excludedReason],
                     ["경계 변경", boundary.changed],
                   ] as Array<[string, string]>
                 ).map(([k, v]) => (
                   <div key={k} className="flex items-baseline justify-between gap-4 py-1.5">
                     <span className="shrink-0 text-slate-400">{k}</span>
                     <span className="text-right font-medium text-navy">{v}</span>
+                  </div>
+                ))}
+                {(
+                  [
+                    ["excluded", "제외 시설"],
+                    ["excludedReason", "제외 사유"],
+                  ] as Array<[string, string]>
+                ).map(([key, k]) => (
+                  <div key={key} className="py-1.5">
+                    <div className="mb-1 text-slate-400">
+                      {k} <span className="rounded bg-review/10 px-1 py-0.5 text-[9.5px] font-bold text-review">수기 입력</span>
+                    </div>
+                    <ManualField fieldKey={key} label={k} stored={iv(key)} disabled={approved} commit={setInvInput} />
                   </div>
                 ))}
               </div>
@@ -491,6 +593,7 @@ export default function InventoryReport() {
             </div>
           </div>
         </section>
+        </>
       )}
 
       {/* ---------- ③ 배출량·에너지 ---------- */}
@@ -677,9 +780,25 @@ export default function InventoryReport() {
                   <div className="flex items-center gap-2">
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${badge(c.status)}`}>{c.status}</span>
                     <span className="text-[13px] font-semibold text-navy">{c.rule}</span>
+                    {iv(`note:${c.rule}`) && <span className="rounded bg-teal/10 px-1.5 py-0.5 text-[10px] font-bold text-teal">소명 작성됨</span>}
                   </div>
                   <div className="mt-1 text-[12.5px] leading-relaxed text-body">{c.detail}</div>
                   {c.action && <div className="mt-0.5 text-[12.5px] leading-relaxed text-navy">조치: {c.action}</div>}
+                  <div className="mt-1.5">
+                    <div className="mb-1 text-[11.5px] text-slate-400">
+                      실무자 소명·조치 내용 <span className="rounded bg-review/10 px-1 py-0.5 text-[9.5px] font-bold text-review">수기 입력</span>
+                      <span className="ml-1">— 명세서 9절(데이터 품질)에 주석으로 포함</span>
+                    </div>
+                    <ManualField
+                      fieldKey={`note:${c.rule}`}
+                      label={`소명 (${c.rule})`}
+                      stored={iv(`note:${c.rule}`)}
+                      disabled={approved}
+                      multiline
+                      placeholder="예: 재교정 2026-09-15 예정, 열량 KPI 한정으로 배출량 산정 영향 없음 확인"
+                      commit={setInvInput}
+                    />
+                  </div>
                 </div>
               ))}
               <details className="rounded-lg bg-surface/60 px-3.5 py-2">
@@ -862,7 +981,7 @@ export default function InventoryReport() {
             <h3 className="mt-6 mb-2 text-[15px] font-bold">1. 업체·사업장 일반정보 <span className="text-[11px] font-normal text-slate-400">서식 1-1 · 2-1</span></h3>
             <table className="tnum w-full border-t border-navy text-[12.5px]">
               <tbody>
-                {orgInfo.map(([k, v]) => (
+                {orgInfoView.map(([k, v]) => (
                   <tr key={k} className="border-b border-line">
                     <td className="w-40 bg-surface/70 px-2.5 py-1.5 text-body">{k}</td>
                     <td className="px-2.5 py-1.5">{v}</td>
@@ -874,7 +993,7 @@ export default function InventoryReport() {
             {/* 2. 조직경계 */}
             <h3 className="mt-6 mb-2 text-[15px] font-bold">2. 조직경계·보고범위 <span className="text-[11px] font-normal text-slate-400">서식 2-2</span></h3>
             <p>
-              조직경계는 <b>{boundary.scope}</b>로 하며, 운영경계는 {boundary.operational}이다. 제외 시설: {boundary.excluded} ({boundary.excludedReason}). {boundary.changed}.
+              조직경계는 <b>{boundary.scope}</b>로 하며, 운영경계는 {boundary.operational}이다. 제외 시설: {iv("excluded")} ({iv("excludedReason")}). {boundary.changed}.
               경계 증빙(사진·시설배치도·공정도)은 데모에서 파일 미첨부(향후 지원 예정).
             </p>
 
@@ -1058,6 +1177,26 @@ export default function InventoryReport() {
               확인 필요 항목: {checks.filter((c) => c.status === "확인 필요").map((c) => c.rule).join(", ")}.
               추정데이터(2026-05-08 비례 추정)와 수기 입력(LNG 월별 보정·냉매 기록)은 출처 표시와 함께 보고에 포함.
             </p>
+            {checks.some((c) => c.status === "확인 필요" && iv(`note:${c.rule}`)) && (
+              <table className="tnum mt-2 w-full border-t border-navy text-[12.5px]">
+                <thead>
+                  <tr className="border-b border-line bg-surface/70 text-body">
+                    <th className="px-2.5 py-1.5 text-left font-medium">확인 필요 항목</th>
+                    <th className="px-2.5 py-1.5 text-left font-medium">실무자 소명·조치 내용 (수기 입력)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {checks
+                    .filter((c) => c.status === "확인 필요" && iv(`note:${c.rule}`))
+                    .map((c) => (
+                      <tr key={c.rule} className="border-b border-line">
+                        <td className="w-44 px-2.5 py-1.5">{c.rule}</td>
+                        <td className="wrap px-2.5 py-1.5">{iv(`note:${c.rule}`)}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            )}
 
             {/* 10. 증빙 */}
             <h3 className="mt-6 mb-2 text-[15px] font-bold">10. 증빙자료 목록</h3>
