@@ -43,15 +43,18 @@ function download(name: string, content: string, type: string) {
 export default function Reporting() {
   const [tab, setTab] = useState<TabKey>(initialTab);
   // 보고 범위: 냉수플랜트 MRV 보고서 | 공장 종합 명세서 (온실가스·에너지 명세서 작성 기능)
-  const [rptScope, setRptScope] = useState<"chiller" | "boiler" | "inventory" | "esg">(() => {
+  const [rptScope, setRptScope] = useState<string>(() => {
     const seg = window.location.hash.split("/")[2];
     return seg === "inventory" ? "inventory" : seg === "boiler" ? "boiler" : seg === "esg" ? "esg" : "chiller";
   });
   const [copied, setCopied] = useState(false);
   // 승인 실수 방지: 첫 탭에서 무장(arm), 두 번째 탭에서 확정 (모바일 지시문 §8.7)
   const [armId, setArmId] = useState<string | null>(null);
-  const { role, reviewStates, markReviewed, approve, audit, resetDemoStates, openEvidence, setMenu } =
+  const { role, reviewStates, markReviewed, approve, audit, resetDemoStates, openEvidence, setMenu, projects } =
     useUI();
+  /* 보고서 생성 대상 프로젝트만 목록에 노출 (설비·연계 관리에서 대상 선택) */
+  const reportProjects = projects.filter((p) => p.report);
+  const scopeProject = projects.find((p) => (p.builtin ?? p.id) === rptScope);
   const calc = useCalc();
   const ef = activeEf(useUI((s) => s.efList));
   const verify = deriveVerify(reviewStates);
@@ -170,21 +173,26 @@ export default function Reporting() {
           })}
         </div>
 
-        {(rptScope === "chiller" || rptScope === "boiler") && (
+        {rptScope !== "inventory" && rptScope !== "esg" && (
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2 text-[12.5px] text-slate-400">
               프로젝트
               <select
                 aria-label="MRV 프로젝트 선택"
                 value={rptScope}
-                onChange={(e) => setRptScope(e.target.value as "chiller" | "boiler")}
-                className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[13px] font-medium text-navy"
+                onChange={(e) => setRptScope(e.target.value)}
+                className="min-h-9 rounded-lg border border-line bg-white px-2.5 py-1.5 text-[13px] font-medium text-navy"
               >
-                <option value="chiller">MVP-2026-01 · 중앙 냉수플랜트 효율개선 — 산정 중</option>
-                <option value="boiler">MVP-2026-02 · 보일러 폐열회수 — 개시 전</option>
+                {reportProjects.map((p) => (
+                  <option key={p.id} value={p.builtin ?? p.id}>
+                    {p.id.startsWith("CAND") ? "계획 전" : p.id} · {p.name} — {p.stage === "검증 중" ? "산정 중" : p.stage}
+                  </option>
+                ))}
               </select>
             </label>
-            <span className="tnum text-[12px] text-slate-400">진행 1 · 개시 전 1</span>
+            <span className="tnum text-[12px] text-slate-400">
+              생성 대상 {reportProjects.length} · 제외 {projects.length - reportProjects.length}
+            </span>
             <button onClick={() => setMenu("master")} className="text-[12.5px] font-medium text-accent hover:underline">
               프로젝트 등록·관리 ›
             </button>
@@ -248,6 +256,32 @@ export default function Reporting() {
           </section>
           <MrvReportPreview mode="template" />
         </>
+      )}
+
+      {/* ---------- 후보 단계 프로젝트 (신규 등록) — 보고서 생성 전 준비 안내 ---------- */}
+      {scopeProject && !scopeProject.builtin && (
+        <section className="rounded-[10px] border border-line/60 bg-white p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[15px] font-semibold text-navy">
+              {scopeProject.name} <span className="tnum text-[12px] font-normal text-body">대상 설비군 {scopeProject.group}</span>
+            </span>
+            <span className="rounded bg-line px-2 py-0.5 text-[11px] font-bold text-body">후보 단계 — 보고서 생성 전</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-body">
+            {["① 사전진단", "② 데이터 연계 점검", "③ M&V 계획 수립·승인", "④ 기준기간 데이터 확보", "⑤ 개시 → 보고서 자동 생성"].map((s, i) => (
+              <span key={s} className={`rounded-lg px-2.5 py-1.5 ${i === 0 ? "bg-accent text-white" : "bg-surface"}`}>{s}</span>
+            ))}
+          </div>
+          <div className="mt-2 text-[12.5px] leading-relaxed text-body">
+            프로젝트가 개시되면 냉수플랜트와 동일한 산정 파이프라인·보고서 양식이 자동 적용됩니다.
+            사전진단 및 데이터 연계 상태는 <button onClick={() => setMenu("master")} className="font-medium text-accent hover:underline">설비·연계 관리 ›</button>에서 확인하세요.
+          </div>
+        </section>
+      )}
+      {!scopeProject && !["chiller", "boiler", "inventory", "esg"].includes(rptScope) && (
+        <section className="rounded-[10px] border border-line/60 bg-white p-4 text-[13px] text-body">
+          선택한 프로젝트가 목록에서 제외되었거나 삭제되었습니다 — 위 드롭다운에서 다른 프로젝트를 선택하세요.
+        </section>
       )}
 
       {rptScope === "chiller" && (

@@ -423,10 +423,15 @@ export default function InventoryReport() {
             </table>
           </section>
 
-          {/* 서식 5: 산정등급 적용계획 */}
+          {/* 서식 5: 산정등급 적용계획 — 적용등급은 담당자 선택 (최소등급 미달 시 서식 5-3 사유 필수) */}
           <section className="rounded-[10px] border border-line/60 bg-white p-4">
-            <div className="mb-2 text-[15px] font-semibold text-navy">
-              산정등급(Tier) 적용계획 <span className="text-[12px] font-normal text-body">(서식 5-1 산정방법론 · 5-2 매개변수)</span>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[15px] font-semibold text-navy">
+                산정등급(Tier) 적용계획 <span className="text-[12px] font-normal text-body">(서식 5-1 산정방법론 · 5-2 매개변수 · 5-3 미충족 사유)</span>
+              </span>
+              <span className="text-[12px] text-slate-400">
+                적용등급은 담당자 선택 <span className="rounded bg-review/10 px-1 py-0.5 text-[9.5px] font-bold text-review">수기 선택</span> · 변경 시 계획서 새 버전 대상
+              </span>
             </div>
             <table className="w-full text-[12.5px]">
               <thead>
@@ -434,24 +439,72 @@ export default function InventoryReport() {
                   <th className="py-2 font-medium">배출활동 (코드)</th>
                   <th className="py-2 font-medium">매개변수</th>
                   <th className="py-2 font-medium">최소등급</th>
-                  <th className="py-2 font-medium">적용등급</th>
+                  <th className="py-2 font-medium">적용등급 (선택)</th>
                   <th className="py-2 font-medium">충족</th>
                   <th className="py-2 font-medium">타당성</th>
                 </tr>
               </thead>
               <tbody className="tnum">
-                {tierPlan.map((t, i) => (
-                  <tr key={i} className="border-b border-line/50 last:border-0">
-                    <td className="py-2 font-medium text-navy">{t.activity}{t.activityCode !== "—" && <span className="text-[11.5px] text-slate-400"> ({t.activityCode})</span>}</td>
-                    <td className="py-2 text-body">{t.param}</td>
-                    <td className="py-2 text-body">{t.minTier}</td>
-                    <td className="py-2 font-medium text-navy">{t.applyTier}</td>
-                    <td className="py-2"><span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${t.ok ? "bg-teal/10 text-teal" : "bg-risk/10 text-risk"}`}>{t.ok ? "충족" : "미충족"}</span></td>
-                    <td className="max-w-72 py-2 text-body">{t.rationale}</td>
-                  </tr>
-                ))}
+                {tierPlan.map((t, i) => {
+                  const fixed = !t.minTier.startsWith("Tier");
+                  const applied = fixed ? t.applyTier : (invInputs[`tier:${i}`] ?? t.applyTier);
+                  const minN = Number(t.minTier.replace(/\D/g, "")) || 0;
+                  const appN = Number(applied.replace(/\D/g, "")) || 0;
+                  const ok = fixed ? t.ok : appN >= minN;
+                  return (
+                    <Fragment key={i}>
+                      <tr className="border-b border-line/50">
+                        <td className="py-2 font-medium text-navy">{t.activity}{t.activityCode !== "—" && <span className="text-[11.5px] text-slate-400"> ({t.activityCode})</span>}</td>
+                        <td className="py-2 text-body">{t.param}</td>
+                        <td className="py-2 text-body">{t.minTier}</td>
+                        <td className="py-2">
+                          {fixed ? (
+                            <span className="font-medium text-navy">{t.applyTier}</span>
+                          ) : (
+                            <select
+                              aria-label={`적용 산정등급 (${t.activity} · ${t.param})`}
+                              value={applied}
+                              disabled={approved}
+                              onChange={(e) => setInvInput(`tier:${i}`, `적용 산정등급 (${t.activity}·${t.param})`, e.target.value)}
+                              className="min-h-8 rounded border border-line bg-white px-1.5 py-0.5 text-[12.5px] font-medium text-navy disabled:cursor-not-allowed disabled:bg-surface disabled:text-slate-400"
+                            >
+                              {["Tier 1", "Tier 2", "Tier 3", "Tier 4"].map((o) => (
+                                <option key={o} value={o}>{o}</option>
+                              ))}
+                            </select>
+                          )}
+                        </td>
+                        <td className="py-2"><span className={`rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${ok ? "bg-teal/10 text-teal" : "bg-risk/10 text-risk"}`}>{ok ? "충족" : "미충족"}</span></td>
+                        <td className="max-w-72 py-2 text-body">{t.rationale}</td>
+                      </tr>
+                      {!ok && (
+                        <tr className="border-b border-line/50 bg-risk/4">
+                          <td colSpan={6} className="px-3 py-2">
+                            <div className="mb-1 text-[11.5px] font-medium text-risk">
+                              최소 산정등급 미충족 — 서식 5-3 사유 작성 필수 (미작성 시 자동 검증 '생성 불가' 처리 대상)
+                            </div>
+                            <ManualField
+                              fieldKey={`tierNote:${i}`}
+                              label={`Tier 미충족 사유 (${t.activity}·${t.param})`}
+                              stored={invInputs[`tierNote:${i}`] ?? ""}
+                              disabled={approved}
+                              multiline
+                              placeholder="예: 측정기기 사양 한계로 Tier 1 적용 — 차기 계획기간 내 계측기 개선으로 상향 예정"
+                              commit={setInvInput}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
+            {Object.keys(invInputs).some((k) => k.startsWith("tier")) && (
+              <div className="mt-2 rounded bg-review/8 px-3 py-1.5 text-[12px] text-review">
+                산정등급 변경 임시 저장됨 — 검토·승인을 거치면 계획서 새 버전(v1.2)이 생성됩니다 (기존 v1.1 보존, 감사로그 기록)
+              </div>
+            )}
           </section>
 
           {/* 서식 8 + 10: QA/QC · 변경 내역 */}

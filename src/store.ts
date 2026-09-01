@@ -110,10 +110,30 @@ interface UIState {
   invInputs: Record<string, string>;
   setInvInput: (key: string, label: string, value: string) => void;
   revokeInvApproval: () => void; // 승인 해제 (승인자 전용) — 수정 재개용
+  /* MRV 프로젝트 관리 */
+  projects: ProjectRec[];
+  addProject: (name: string, group: string) => void;
+  removeProject: (id: string) => void;
+  toggleProjectReport: (id: string) => void;
 }
 
 /* 명세서(인벤토리 보고서) 상태 흐름 */
 export type InvStatus = "작성 중" | "검토 요청" | "수정 요청" | "검토 완료·승인 대기" | "승인 완료";
+
+/* ---------- MRV 프로젝트 관리 (목록·추가·삭제·보고서 생성 대상 선택) ---------- */
+export interface ProjectRec {
+  id: string;
+  name: string;
+  group: string; // 대상 설비군
+  stage: "검증 중" | "개시 전" | "후보";
+  report: boolean; // 보고서 생성 대상 여부
+  builtin?: "chiller" | "boiler"; // 상세 구현이 있는 기본 프로젝트 (삭제 불가)
+}
+const defaultProjects = (): ProjectRec[] => [
+  { id: "MVP-2026-01", name: "중앙 냉수플랜트 효율개선", group: "냉동·냉장", stage: "검증 중", report: true, builtin: "chiller" },
+  { id: "MVP-2026-02", name: "보일러 폐열회수", group: "보일러·스팀", stage: "개시 전", report: true, builtin: "boiler" },
+  { id: "CAND-01", name: "압축공기 누설개선", group: "압축공기", stage: "후보", report: false },
+];
 
 // 상세 화면에서 돌아와도 보고기간·선택 필터 유지 (지시문 §9)
 export const useUI = create<UIState>((set, get) => ({
@@ -274,6 +294,39 @@ export const useUI = create<UIState>((set, get) => ({
       logAudit("수기 입력", "명세서", `'${label}' 입력·수정 (RPT-2026-DEMO)`);
     }
   },
+  // 프로젝트 관리 — 일반 역할은 조회만 (기준정보 수정 권한과 동일 정책)
+  projects: loadJson<ProjectRec[]>("mrv-projects", defaultProjects()),
+  addProject: (name, group) => {
+    const { role, projects, logAudit } = get();
+    if (role === "일반" || !name.trim()) return;
+    const seq = projects.filter((p) => p.id.startsWith("CAND-")).length + 1;
+    const next: ProjectRec[] = [
+      ...projects,
+      { id: `CAND-${String(seq + 1).padStart(2, "0")}`, name: name.trim(), group, stage: "후보", report: false },
+    ];
+    saveJson("mrv-projects", next);
+    set({ projects: next });
+    logAudit("프로젝트 등록", name.trim(), `대상 설비군 ${group} · 단계 후보 — 사전진단 후 M&V 계획 수립 대상`);
+  },
+  removeProject: (id) => {
+    const { role, projects, logAudit } = get();
+    const target = projects.find((p) => p.id === id);
+    if (role === "일반" || !target || target.builtin) return; // 상세 구현 프로젝트는 삭제 불가
+    const next = projects.filter((p) => p.id !== id);
+    saveJson("mrv-projects", next);
+    set({ projects: next });
+    logAudit("프로젝트 삭제", target.name, `${id} 삭제 — 후보 단계 프로젝트 (감사로그 보존)`);
+  },
+  toggleProjectReport: (id) => {
+    const { role, projects, logAudit } = get();
+    if (role === "일반") return;
+    const target = projects.find((p) => p.id === id);
+    if (!target) return;
+    const next = projects.map((p) => (p.id === id ? { ...p, report: !p.report } : p));
+    saveJson("mrv-projects", next);
+    set({ projects: next });
+    logAudit("보고서 대상 변경", target.name, `보고서 생성 ${target.report ? "제외" : "포함"} 처리`);
+  },
   revokeInvApproval: () => {
     const { role, invStatus, logAudit } = get();
     if (role !== "승인자" || invStatus !== "승인 완료") return;
@@ -302,6 +355,7 @@ export const useUI = create<UIState>((set, get) => ({
     saveJson("mrv-tariff", TARIFF.value);
     saveJson("mrv-inv-status", "작성 중");
     saveJson("mrv-inv-inputs", {});
+    saveJson("mrv-projects", defaultProjects());
     set({
       reviewStates: defaultStates(),
       audit: nextAudit,
@@ -309,6 +363,7 @@ export const useUI = create<UIState>((set, get) => ({
       tariffValue: TARIFF.value,
       invStatus: "작성 중",
       invInputs: {},
+      projects: defaultProjects(),
     });
   },
 }));

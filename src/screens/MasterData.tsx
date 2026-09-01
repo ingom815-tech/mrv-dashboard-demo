@@ -207,7 +207,9 @@ export default function MasterData() {
   const [connectStep, setConnectStep] = useState<number>(() => ls("mrv-connect-step", 0));
   const [mesOk, setMesOk] = useState<boolean>(() => ls("mrv-mes-ok", false));
   const [form2, setForm2] = useState({ name: "", group: "보일러·스팀", cap: "", mrv: true });
-  const { role, efList, registerEf, tariffValue, setTariff, logAudit, setMenu, setEquipGroup } = useUI();
+  const { role, efList, registerEf, tariffValue, setTariff, logAudit, setMenu, setEquipGroup, projects, addProject, removeProject, toggleProjectReport } = useUI();
+  const [newPrjName, setNewPrjName] = useState("");
+  const [newPrjGroup, setNewPrjGroup] = useState("공조기·환기");
   const calc = useCalc();
   const ef = activeEf(efList);
   const [form, setForm] = useState({ value: "", source: "", baseYear: "2025", validFrom: "2026-07-01", validTo: "2027-06-30" });
@@ -266,29 +268,88 @@ export default function MasterData() {
                   <th className="py-2 font-medium">대상 설비군</th>
                   <th className="py-2 font-medium">계획 ID</th>
                   <th className="py-2 pl-3 font-medium">단계</th>
+                  <th className="py-2 pl-3 font-medium">보고서 생성</th>
+                  <th className="py-2 pl-3 font-medium">관리</th>
                 </tr>
               </thead>
               <tbody className="tnum">
-                <tr className="border-b border-line/50 bg-accent/4">
-                  <td className="py-2 font-semibold text-navy">중앙 냉수플랜트 효율개선 <span className="ml-1 rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">선택됨</span></td>
-                  <td className="py-2 text-body">냉동·냉장</td>
-                  <td className="py-2 text-body">MVP-2026-01</td>
-                  <td className="py-2 pl-3"><span className="rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">검증 중</span></td>
-                </tr>
-                <tr className="border-b border-line/50 text-slate-400" title="가스미터 연계 완료 후 계획 수립 (데모 준비 중)">
-                  <td className="py-2">보일러 폐열회수</td>
-                  <td className="py-2">보일러·스팀</td>
-                  <td className="py-2">MVP-2026-02 (예정)</td>
-                  <td className="py-2 pl-3"><span className="rounded bg-review/10 px-1.5 py-0.5 text-[10px] font-bold text-review">데이터 준비</span></td>
-                </tr>
-                <tr className="text-slate-400" title="사전진단 후보 (데모 준비 중)">
-                  <td className="py-2">압축공기 누설개선</td>
-                  <td className="py-2">압축공기</td>
-                  <td className="py-2">—</td>
-                  <td className="py-2 pl-3"><span className="rounded bg-line text-body px-1.5 py-0.5 text-[10px] font-bold">후보</span></td>
-                </tr>
+                {projects.map((p) => (
+                  <tr key={p.id} className={`border-b border-line/50 last:border-0 ${p.builtin === "chiller" ? "bg-accent/4" : p.stage === "후보" ? "text-slate-400" : ""}`}>
+                    <td className="py-2 font-medium text-navy">
+                      {p.name}
+                      {p.builtin === "chiller" && <span className="ml-1 rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">대표 실증</span>}
+                    </td>
+                    <td className="py-2 text-body">{p.group}</td>
+                    <td className="py-2 text-body">{p.id.startsWith("CAND") ? "— (계획 수립 전)" : p.id}</td>
+                    <td className="py-2 pl-3">
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${
+                        p.stage === "검증 중" ? "bg-accent/10 text-accent" : p.stage === "개시 전" ? "bg-review/10 text-review" : "bg-line text-body"
+                      }`}>{p.stage}</span>
+                    </td>
+                    <td className="py-2 pl-3">
+                      <button
+                        onClick={() => toggleProjectReport(p.id)}
+                        disabled={role === "일반"}
+                        title={role === "일반" ? "검토자·승인자 역할만 변경 가능" : "보고·승인 메뉴의 프로젝트 목록 포함 여부"}
+                        className={`rounded px-2 py-0.5 text-[11px] font-bold whitespace-nowrap transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                          p.report ? "bg-teal/10 text-teal hover:bg-teal/20" : "bg-line text-body hover:bg-line/70"
+                        }`}
+                      >
+                        {p.report ? "생성 대상" : "제외"}
+                      </button>
+                    </td>
+                    <td className="py-2 pl-3">
+                      {p.builtin ? (
+                        <span className="text-[11px] text-slate-400" title="상세 구현 프로젝트 — 삭제 불가">고정</span>
+                      ) : (
+                        <button
+                          onClick={() => removeProject(p.id)}
+                          disabled={role === "일반"}
+                          className="rounded px-2 py-0.5 text-[11px] font-medium text-risk hover:bg-risk/8 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          삭제
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
+            {/* 프로젝트 추가 — 후보 등록 (사전진단 → M&V 계획 수립 → 개시 순서) */}
+            <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-line/60 pt-3">
+              <label className="flex min-w-56 flex-1 flex-col gap-1 text-[12px] text-body">
+                신규 개선 프로젝트명
+                <input
+                  value={newPrjName}
+                  onChange={(e) => setNewPrjName(e.target.value)}
+                  placeholder="예: 공조기 외기냉방 제어 개선"
+                  className="min-h-9 rounded border border-line bg-white px-2 py-1.5 text-[16px] text-navy md:text-[13px]"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[12px] text-body">
+                대상 설비군
+                <select
+                  aria-label="대상 설비군 선택"
+                  value={newPrjGroup}
+                  onChange={(e) => setNewPrjGroup(e.target.value)}
+                  className="min-h-9 rounded border border-line bg-white px-2 py-1.5 text-[13px] font-medium text-navy"
+                >
+                  {equipGroups.map((g) => (
+                    <option key={g.key} value={g.name}>{g.name}</option>
+                  ))}
+                </select>
+              </label>
+              <button
+                onClick={() => { addProject(newPrjName, newPrjGroup); setNewPrjName(""); }}
+                disabled={role === "일반" || !newPrjName.trim()}
+                className="min-h-9 rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                후보 등록
+              </button>
+              <span className="text-[11.5px] text-slate-400">
+                후보 → 사전진단 → M&V 계획 수립 → 개시 · 등록/삭제/보고서 대상 변경은 감사로그 기록 (일반 역할 조회만)
+              </span>
+            </div>
           </section>
           {/* 준비도 진단 (공동 사전진단 결과) */}
           <section className="rounded-[10px] border border-line/60 bg-white p-4">
