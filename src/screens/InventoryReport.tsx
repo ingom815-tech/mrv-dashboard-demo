@@ -202,20 +202,21 @@ export default function InventoryReport() {
           {/* 작성 단계 진행 */}
           <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 text-[15px] font-semibold text-navy">작성 단계</div>
-            <div className="flex items-center gap-1">
+            {/* 좁은 화면: 박스 높이 자동 + 가로 스크롤 — 글자 넘침(폰트 아웃) 방지 */}
+            <div className="flex items-stretch gap-1 overflow-x-auto pb-1">
               {STEP_FLOW.map((s, i) => {
                 const st = s.done(invStatus, checkSummary.warn);
                 return (
-                  <div key={s.name} className="flex flex-1 items-center gap-1">
+                  <div key={s.name} className="flex shrink-0 items-center gap-1 md:min-w-0 md:flex-1">
                     <div
-                      className={`flex h-8 flex-1 flex-col items-center justify-center rounded text-[11.5px] leading-tight font-medium ${
+                      className={`flex min-h-11 min-w-[96px] flex-col items-center justify-center rounded px-2 py-1.5 text-[11.5px] leading-tight font-medium whitespace-nowrap md:w-full ${
                         st === "완료" ? "bg-teal/12 text-teal" : st === "진행 중" ? "bg-accent text-white" : st === "검토 필요" ? "bg-review/15 text-review" : "bg-surface text-slate-400"
                       }`}
                     >
                       <span>{i + 1}. {s.name}</span>
-                      <span className="text-[10px] opacity-80">{st}</span>
+                      <span className="mt-0.5 text-[10px] opacity-80">{st}</span>
                     </div>
-                    {i < STEP_FLOW.length - 1 && <span className="text-slate-300">›</span>}
+                    {i < STEP_FLOW.length - 1 && <span className="shrink-0 text-slate-300">›</span>}
                   </div>
                 );
               })}
