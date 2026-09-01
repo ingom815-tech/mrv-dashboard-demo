@@ -28,6 +28,7 @@ export interface EquipGroupInfo {
   kpis: GroupKpi[]; // 설비군 분석 템플릿용 대표 KPI
   monthly: number[]; // 보고기간 월별 (1~6월)
   baseMonthly: number[]; // 기준기간 동월
+  events?: Array<string | undefined>; // 월별 주요 운영 이벤트 (마커)
 }
 
 /* 냉동·냉장 실측(엔진) 월별 */
@@ -48,6 +49,7 @@ const PROD = [0.95, 0.9, 0.98, 1.02, 1.05, 1.1]; // 생산 연동
 const mk = (
   g: Omit<EquipGroupInfo, "monthly" | "baseMonthly"> & { profile?: number[] },
 ): EquipGroupInfo => {
+  // events는 그대로 전달됨
   const profile = g.profile ?? FLAT;
   const monthly = dist(g.usage, profile);
   const baseMonthly = dist(g.usage / (1 + g.deltaPct), profile);
@@ -240,8 +242,119 @@ export const factoryMonthly: FactoryMonth[] = [0, 1, 2, 3, 4, 5].map((i) => {
   };
 });
 
-/* 처리할 일 — 공장 레벨 */
-export const factoryTodos = [
-  { title: "보일러·스팀 가스미터 2점 연계", meta: "설비·연계 관리 · 연결 대기", target: "master" as const },
-  { title: "냉매 보충 기록 검토 (수기 입력)", meta: "냉매·비산배출 · 검토 필요", target: "verify" as const },
+/* 처리할 일 — 설비군 태그 포함 (분석 범위 필터링용) */
+export interface FactoryTodo {
+  title: string;
+  meta: string;
+  target: "master" | "verify" | "report";
+  group: string; // 설비군 key
+}
+export const factoryTodos: FactoryTodo[] = [
+  { title: "보일러·스팀 가스미터 2점 연계", meta: "설비·연계 관리 · 연결 대기", target: "master", group: "boiler" },
+  { title: "증기유량계 교정이력 미등록", meta: "설비·연계 관리 · 등록 필요", target: "master", group: "boiler" },
+  { title: "냉매 보충 기록 검토 (수기 입력)", meta: "데이터 검증 · 검토 필요", target: "verify", group: "refrig" },
 ];
+
+/* 월별 주요 운영 이벤트 (설비군별, 데모) */
+export const GROUP_EVENTS: Record<string, Array<string | undefined>> = {
+  boiler: ["동절기 스팀수요 증가", "가스미터 연계 누락 구간", undefined, undefined, undefined, undefined],
+  air: [undefined, undefined, undefined, "누설점검 실시", undefined, undefined],
+  hvac: [undefined, undefined, undefined, undefined, "냉방 전환·운전시간 변경", undefined],
+  light: [undefined, undefined, "LED 전환(2구역)", undefined, undefined, "피크전력 갱신"],
+  pv: [undefined, undefined, undefined, undefined, undefined, "출력제한 1회"],
+  line: [undefined, undefined, undefined, "생산량 증가 +12%", undefined, undefined],
+  water: [undefined, undefined, "폐수처리 설비 정비", undefined, undefined, undefined],
+  fuel: ["동절기 연료 사용 증가", undefined, undefined, undefined, undefined, undefined],
+  refrig: [undefined, undefined, undefined, undefined, "냉매 보충 9 kg — 기록 검토", undefined],
+};
+
+/* 분석 지표 목록 (범위별) — 기본 지표만 월별 시계열 제공, 나머지는 요약값 */
+export interface MetricOption {
+  key: string;
+  label: string;
+  hasSeries?: boolean;
+}
+export const SCOPE_METRICS: Record<string, MetricOption[]> = {
+  factory: [
+    { key: "energy", label: "에너지 사용량", hasSeries: true },
+    { key: "emission", label: "온실가스 배출량" },
+    { key: "linkRate", label: "데이터 연계율" },
+  ],
+  boiler: [
+    { key: "fuelEnergy", label: "연료 환산 에너지", hasSeries: true },
+    { key: "gas", label: "가스 사용량" },
+    { key: "efficiency", label: "보일러 효율" },
+    { key: "steamIntensity", label: "증기 원단위" },
+    { key: "scope1", label: "직접배출량" },
+  ],
+  air: [
+    { key: "electricity", label: "전력사용량", hasSeries: true },
+    { key: "specificPower", label: "비동력" },
+    { key: "unloadRate", label: "무부하 운전율" },
+    { key: "pressure", label: "공급압력" },
+  ],
+  hvac: [
+    { key: "electricity", label: "전력사용량", hasSeries: true },
+    { key: "fanPower", label: "팬 전력" },
+    { key: "outdoorAir", label: "외기량" },
+    { key: "comfort", label: "온습도 적정률" },
+  ],
+  chiller: [
+    { key: "mrvSavings", label: "MRV 에너지 절감", hasSeries: true },
+    { key: "sysEff", label: "시스템 효율" },
+    { key: "cop", label: "플랜트 COP" },
+    { key: "deltaT", label: "냉수 ΔT" },
+    { key: "approach", label: "냉각탑 접근온도" },
+  ],
+  light: [
+    { key: "electricity", label: "전력사용량", hasSeries: true },
+    { key: "peak", label: "피크전력" },
+    { key: "perArea", label: "면적당 전력" },
+    { key: "hours", label: "운영시간" },
+  ],
+  pv: [
+    { key: "generation", label: "발전량", hasSeries: true },
+    { key: "selfUse", label: "자가소비량" },
+    { key: "selfRate", label: "자가소비율" },
+    { key: "essCycle", label: "ESS 충·방전량" },
+  ],
+  line: [
+    { key: "energyIntensity", label: "에너지 원단위", hasSeries: true },
+    { key: "energy", label: "에너지 사용량", hasSeries: true },
+    { key: "production", label: "생산량" },
+    { key: "utilization", label: "가동률" },
+  ],
+  water: [
+    { key: "waterUse", label: "용수 사용량", hasSeries: true },
+    { key: "treatPower", label: "처리 전력", hasSeries: true },
+    { key: "wastewater", label: "폐수 처리량" },
+    { key: "waterIntensity", label: "용수 원단위" },
+  ],
+  fuel: [
+    { key: "scope1", label: "직접배출량", hasSeries: true },
+    { key: "fuelUse", label: "연료 사용량" },
+    { key: "byFuel", label: "연료별 배출 기여도" },
+  ],
+  refrig: [
+    { key: "fugitive", label: "비산배출량", hasSeries: true },
+    { key: "charge", label: "냉매 보충량" },
+    { key: "recovery", label: "냉매 회수량" },
+    { key: "byType", label: "냉매별 배출량" },
+  ],
+};
+export const DEFAULT_METRIC: Record<string, string> = Object.fromEntries(
+  Object.entries(SCOPE_METRICS).map(([k, v]) => [k, v[0].key]),
+);
+
+/* 특수 시계열 (합성, data_origin = SYNTHETIC) */
+export const WATER_USE = { act: dist(182, PROD), base: dist(183, PROD) }; // 천t
+export const LINE_PROD = { act: dist(4580, PROD), base: dist(4580 / 1.12, PROD) }; // t
+
+/* 설비군 상태 한 줄 요약 */
+export const groupSummary = {
+  total: equipGroups.length,
+  full: equipGroups.filter((g) => g.linkState === "연결 완료").length,
+  partial: equipGroups.filter((g) => g.linkState === "일부 연결").length,
+  manual: equipGroups.filter((g) => g.linkState === "수기 입력").length,
+  review: equipGroups.filter((g) => g.state === "검토 필요" || g.state === "보완 필요").length,
+};

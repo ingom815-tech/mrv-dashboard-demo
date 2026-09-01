@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { reviewItems, EF, TARIFF, type EquipGroup } from "./lib/mrvData";
+import { DEFAULT_METRIC } from "./lib/factoryData";
 
 // ---------- 배출계수 버전관리 (CLAUDE.md: 등록·적용·버전관리, 변경 시 새 계산버전) ----------
 export interface EfVersion {
@@ -81,6 +82,10 @@ interface UIState {
   selectedEquip: string;
   equipGroup: string; // 설비군 분석 선택 (all | boiler | chiller | ...)
   setEquipGroup: (g: string) => void;
+  analysisScope: string; // 공장 종합현황 분석 범위 (factory | 설비군 key)
+  analysisMetric: string; // 분석 지표
+  setAnalysisScope: (s: string) => void; // 범위 변경 시 기본 지표로 자동 전환
+  setAnalysisMetric: (m: string) => void;
   role: Role;
   reviewStates: Record<string, ReviewState>;
   audit: AuditEntry[];
@@ -123,6 +128,18 @@ export const useUI = create<UIState>((set, get) => ({
     ? window.location.hash.split("/")[2]
     : "all",
   setEquipGroup: (equipGroup) => set({ equipGroup }),
+  analysisScope: (() => {
+    const seg = window.location.hash.split("/");
+    return seg[1] === "overview" && seg[2] && DEFAULT_METRIC[seg[2]] ? seg[2] : "factory";
+  })(),
+  analysisMetric: (() => {
+    const seg = window.location.hash.split("/");
+    const s = seg[1] === "overview" && seg[2] && DEFAULT_METRIC[seg[2]] ? seg[2] : "factory";
+    return DEFAULT_METRIC[s] ?? "energy";
+  })(),
+  setAnalysisScope: (analysisScope) =>
+    set({ analysisScope, analysisMetric: DEFAULT_METRIC[analysisScope] ?? "energy" }),
+  setAnalysisMetric: (analysisMetric) => set({ analysisMetric }),
   role: "일반",
   reviewStates: { ...defaultStates(), ...loadJson<Record<string, ReviewState>>(LS_STATES, {}) },
   audit: loadJson<AuditEntry[]>(LS_AUDIT, []),
