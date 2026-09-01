@@ -108,37 +108,30 @@ const GROUP_FILTERS: Array<{ key: EquipGroup | "all"; label: string }> = [
 ];
 
 export default function Overview() {
-  const { setMenu, selectedMonth, selectMonth, equipFilter, setEquipFilter, reviewStates, openEvidence } =
-    useUI();
+  const { setMenu, selectedMonth, selectMonth, equipFilter, setEquipFilter, reviewStates } = useUI();
   const calc = useCalc();
   const ef = activeEf(useUI((s) => s.efList));
   const verify = deriveVerify(reviewStates);
   const ck = calc.kpi;
   const k = mrv.kpi;
   const [cumView, setCumView] = useState(false);
-  const pendingItem = reviewItems.find((r) => reviewStates[r.id] === "검토 필요");
   const selPoint = selectedMonth ? calc.monthly.find((p) => p.month === selectedMonth) : null;
   const approved = verify.state === "승인 완료";
   const approvedAt = useUI((s) => s.audit).find((a) => a.action === "승인 완료")?.ts;
   const approvedDate = approvedAt ? approvedAt.slice(0, 10) : "";
-  // 교정 만료(DQ-04) 처리 상태에 따라 Measurement 단계가 CONDITIONAL → PASS·EX로 전환
-  const dq04 = reviewStates["DQ-04"];
-  const assuranceRows = mrv.assurance.map((row) => {
-    if (row.stage === "Measurement") {
-      if (dq04 === "승인 완료")
-        return { ...row, status: "PASS·EX" as const, note: "교정 만료 영향평가 완료 · VR-2026-014" };
-      return { ...row, status: "CONDITIONAL" as const, note: "교정 만료 1건(열량 KPI) · 영향도 검토 필요" };
-    }
-    if (row.stage === "Verification")
-      return {
-        ...row,
-        status: (approved ? "PASS" : "REVIEW") as typeof row.status,
-        metrics: verify.pending > 0 ? `검토 대기 ${verify.pending}건` : "검토 항목 처리 완료",
-        note: approved ? `전건 승인 · ${verify.state}` : "승인 전 · 검토자·승인자 역할 분리",
-      };
-    return row;
-  });
-  const passCount = assuranceRows.filter((r) => r.status === "PASS" || r.status === "PASS·EX").length;
+  // 처리할 일 — 검토 대기 항목 + 보고서 진행 (실무자가 지금 해야 할 것만)
+  const todos = [
+    ...reviewItems
+      .filter((r) => reviewStates[r.id] === "검토 필요")
+      .map((r) => ({
+        title: r.title,
+        meta: `${r.kind} · ${r.id}`,
+        go: () => setMenu("report"),
+      })),
+    ...(!approved
+      ? [{ title: "보고서 초안 검토 후 승인 진행", meta: "보고·승인 · 설명문 초안 준비됨", go: () => setMenu("report") }]
+      : []),
+  ];
 
   return (
     <div className="flex min-h-screen flex-col gap-3 px-6 py-4 xl:h-screen xl:min-h-0">
@@ -192,26 +185,23 @@ export default function Overview() {
           </div>
         </button>
         <button onClick={() => setMenu("verify")} className="rounded-[10px] border border-line/60 bg-white p-4 text-left transition-colors hover:border-accent/50">
-          <div className="text-[13px] font-medium text-body">MRV 검증 상태</div>
-          <div className={`tnum mt-1.5 text-[28px] leading-none font-bold ${verify.state === "승인 완료" ? "text-teal" : "text-review"}`}>
-            {verify.state === "승인 완료" ? "PASS" : "REVIEW"}
+          <div className="text-[13px] font-medium text-body">데이터 완성도</div>
+          <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
+            {fmt(k.trustRate * 100, 1)}<span className="text-[15px] font-semibold">%</span>
           </div>
           <div className="tnum mt-2 text-[13px] text-body">
-            4단계 중 <span className="font-semibold text-navy">{passCount}단계</span> 통과 · 대기{" "}
-            <span className={`font-semibold ${verify.pending > 0 ? "text-review" : "text-teal"}`}>{verify.pending}건</span>
+            수집률 {pct(k.collectRate)} · 결측 {pct(k.missRate, 2)} · 데이터 검증 ›
           </div>
         </button>
-        <button
-          onClick={openEvidence}
-          title="90% 신뢰수준의 데모 추정값 (UNC-v1.0) · 기준선 모델오차와 보고기간 데이터 수 반영 · 계측기별 합성 불확도는 미포함 · 공식 M&V 적용 시 승인된 불확도 산정방법으로 재계산"
-          className="rounded-[10px] border border-line/60 bg-white p-4 text-left transition-colors hover:border-accent/50"
-        >
-          <div className="text-[13.5px] font-medium text-body">산정 불확도</div>
-          <div className="tnum mt-1.5 text-[28px] leading-none font-bold text-navy">
-            ±{fmt(ck.uncertaintyPct * 100, 1)}<span className="text-[15px] font-semibold">%</span>
+        <button onClick={() => setMenu("report")} className="rounded-[10px] border border-line/60 bg-white p-4 text-left transition-colors hover:border-accent/50">
+          <div className="text-[13px] font-medium text-body">보고 진행상태</div>
+          <div className={`tnum mt-1.5 text-[28px] leading-none font-bold ${approved ? "text-teal" : "text-review"}`}>
+            {verify.state}
           </div>
           <div className="tnum mt-2 text-[13px] text-body">
-            90% 신뢰수준 · CV(RMSE) 기반 · 데이터 정상률 {pct(k.trustRate)}
+            확인 필요{" "}
+            <span className={`font-semibold ${verify.pending > 0 ? "text-review" : "text-teal"}`}>{verify.pending}건</span>{" "}
+            · 보고·승인 ›
           </div>
         </button>
       </section>
@@ -336,62 +326,71 @@ export default function Overview() {
           </div>
         </div>
 
-        {/* MRV Assurance 사이드 패널 — 각 단계 박스는 4줄 구조 */}
+        {/* 처리할 일 사이드 패널 — 지금 해야 할 것만 */}
         <div className="flex min-h-0 flex-col rounded-[10px] border border-line/60 bg-white p-4">
           <div className="flex shrink-0 items-center justify-between">
-            <span className="text-[15px] font-semibold text-navy">MRV Assurance</span>
-            <button onClick={() => setMenu("verify")} className="text-[12px] font-medium text-accent hover:underline">
-              검증 상세 ›
-            </button>
+            <span className="text-[15px] font-semibold text-navy">처리할 일</span>
+            <span
+              className={`tnum rounded px-1.5 py-0.5 text-[11px] font-bold ${todos.length > 0 ? "bg-review/10 text-review" : "bg-teal/10 text-teal"}`}
+            >
+              {todos.length}건
+            </span>
           </div>
+
+          {/* 월 클릭 시 해당 월 요약이 이 패널에 표시 */}
+          {selPoint && (
+            <div className="mt-2 rounded-lg bg-accent/6 px-3 py-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] font-semibold text-navy">2026년 {selPoint.label}</span>
+                <button onClick={() => selectMonth(null)} className="text-[13px] leading-none text-slate-400 hover:text-navy" aria-label="닫기">
+                  ×
+                </button>
+              </div>
+              <div className="tnum mt-0.5 text-[12.5px] text-body">
+                절감 <b className="text-teal">{fmt(selPoint.saveMWh, 1)} MWh</b> · 기준선 ±{fmt(selPoint.bandMWh, 1)}
+              </div>
+              <div className="mt-0.5 text-[12px] leading-snug text-body">
+                {selPoint.events.length ? selPoint.events.join(" · ") : "데이터 정상"}
+              </div>
+              <button onClick={() => setMenu("verify")} className="mt-1 text-[12px] font-medium text-accent hover:underline">
+                해당 월 데이터 검증 ›
+              </button>
+            </div>
+          )}
+
           <div className="mt-2 flex min-h-0 flex-1 flex-col gap-1.5">
-            {assuranceRows.map((row) => (
-              <button
-                key={row.stage}
-                onClick={openEvidence}
-                title={`${row.metrics} · ${row.note} — 클릭 시 산정근거`}
-                className="rounded-lg bg-surface/70 px-3 py-1.5 text-left transition-colors hover:bg-surface"
-              >
-                {/* 1줄: 단계 + 상태 배지 */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-baseline gap-1.5 text-[13px] font-semibold text-navy">
-                    <span className="shrink-0 text-[10px] tracking-wide text-slate-400 uppercase">{row.stage}</span>
-                    <span className="truncate">{row.label}</span>
+            {todos.length > 0 ? (
+              todos.map((t) => (
+                <button
+                  key={t.title}
+                  onClick={t.go}
+                  className="rounded-lg bg-surface/70 px-3 py-2 text-left transition-colors hover:bg-surface"
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-review" />
+                    <div className="min-w-0">
+                      <div className="truncate text-[13px] font-semibold text-navy">{t.title}</div>
+                      <div className="mt-0.5 truncate text-[12px] text-body">{t.meta} · 처리하기 ›</div>
+                    </div>
                   </div>
-                  <span
-                    className={`tnum flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${
-                      row.status === "PASS" || row.status === "PASS·EX"
-                        ? "bg-teal/10 text-teal"
-                        : row.status === "FAIL"
-                          ? "bg-risk/10 text-risk"
-                          : "bg-review/10 text-review"
-                    }`}
-                  >
-                    <span className="text-[11px]">{row.status === "PASS" || row.status === "PASS·EX" ? "✓" : "!"}</span>{" "}
-                    {row.status}
-                  </span>
-                </div>
-                {/* 2줄: 핵심 수치 */}
-                <div className="tnum mt-0.5 truncate text-[12.5px] font-medium text-navy">{row.metrics}</div>
-                {/* 3줄: 비고·예외 */}
-                <div className="truncate text-[12px] text-body">{row.note}</div>
-                {/* 4줄: 증적 */}
-                <div className="tnum text-[11px] text-slate-400">증적 {row.evidCount}건 · 클릭 시 산정근거</div>
-              </button>
-            ))}
-            {verify.pending > 0 ? (
-              <button
-                onClick={() => setMenu("verify")}
-                title={`${pendingItem?.title ?? ""}${verify.pending > 1 ? ` 외 ${verify.pending - 1}건` : ""}`}
-                className="truncate rounded-lg bg-review/8 px-3 py-1.5 text-left text-[12px] font-semibold text-review transition-colors hover:bg-review/15"
-              >
-                검토 필요 {verify.pending}건 — 처리하기 ›
-              </button>
+                </button>
+              ))
             ) : (
-              <div className="truncate rounded-lg bg-teal/8 px-3 py-1.5 text-[12px] font-medium text-teal">
-                검토 항목 처리 완료 · {verify.state}
+              <div className="rounded-lg bg-teal/8 px-3 py-3 text-[13px] leading-relaxed text-teal">
+                모든 항목 처리 완료 — 보고서가 승인되었습니다.
+                <button onClick={() => setMenu("report")} className="mt-1 block font-semibold hover:underline">
+                  승인된 보고서 보기 ›
+                </button>
               </div>
             )}
+          </div>
+          <div className="mt-2 flex shrink-0 justify-between border-t border-line/50 pt-2 text-[12px]">
+            <button onClick={() => setMenu("verify")} className="font-medium text-accent hover:underline">
+              데이터 검증 ›
+            </button>
+            <button onClick={() => setMenu("report")} className="font-medium text-accent hover:underline">
+              보고·승인 ›
+            </button>
           </div>
         </div>
       </section>

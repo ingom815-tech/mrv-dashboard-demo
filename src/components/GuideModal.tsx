@@ -13,37 +13,37 @@ export default function GuideModal() {
     {
       n: "1",
       title: "얼마나 아꼈는지 본다",
-      desc: "종합성과 — 6개월간 420 MWh(28.6%) 절감, 탄소 193 tCO₂eq. 아직 '잠정'이라는 표시까지 확인",
+      desc: "성과 현황 — 6개월간 420 MWh(28.6%) 절감, 탄소 193 tCO₂eq. 우측 '처리할 일'까지 확인",
       menu: "overview",
       hash: "#/overview",
     },
     {
       n: "2",
       title: "왜 아껴졌는지 본다",
-      desc: "설비성과 — 같은 부하에서 효율이 30% 좋아진 성능곡선과, 어떤 설비가 얼마나 기여했는지 분해",
+      desc: "설비 분석 — 같은 부하에서 효율이 30% 좋아진 성능곡선과, 어떤 설비가 얼마나 기여했는지 분해",
       menu: "equipment",
       hash: "#/equipment",
     },
     {
       n: "3",
       title: "데이터를 믿을 수 있는지 본다",
-      desc: "데이터·검증 — 품질 히트맵에서 결측·이상 구간과 그 처리 규칙 확인",
+      desc: "데이터 검증 — 품질 히트맵에서 결측·이상 구간과 그 처리 규칙 확인",
       menu: "verify",
       hash: "#/verify",
     },
     {
       n: "4",
       title: "검토하고 승인해 본다 (하이라이트)",
-      desc: "검토·승인 탭 — 역할을 검토자→승인자로 바꿔 2건을 승인하면 절감량이 재계산되고 새 계산버전(v2)이 생김",
-      menu: "verify",
-      hash: "#/verify/approve",
+      desc: "보고·승인 — 역할을 검토자→승인자로 바꿔 2건을 승인하면 절감량이 재계산되고 새 계산버전(v2)이 생김",
+      menu: "report",
+      hash: "#/report",
     },
     {
       n: "5",
-      title: "근거를 추적한다",
-      desc: "증적 문서(교정성적서 등)와 '검증 추적성' 버튼으로 숫자의 출처를 끝까지 따라가 봄",
-      menu: "verify",
-      hash: "#/verify/evidence",
+      title: "보고서로 마무리한다",
+      desc: "보고·승인 › 보고서 작성 — 시스템 데이터로 자동 채워진 작성 현황과 AI 설명문 초안, 성과보고서·데이터팩 출력",
+      menu: "report",
+      hash: "#/report/draft",
     },
   ];
 
@@ -84,12 +84,13 @@ export default function GuideModal() {
 
         {/* 메뉴 지도 */}
         <div className="mt-5">
-          <div className="text-[15px] font-semibold text-navy">왼쪽 메뉴 4개</div>
+          <div className="text-[15px] font-semibold text-navy">왼쪽 메뉴 5개 — 업무 흐름 순서</div>
           <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1.5 text-[13px]">
-            <div><b className="text-navy">종합성과</b> <span className="text-body">— 결론: 얼마나 아꼈고 믿을 수 있는가</span></div>
-            <div><b className="text-navy">설비성과</b> <span className="text-body">— 원인: 어떤 설비가 왜 아꼈는가</span></div>
-            <div><b className="text-navy">데이터·검증</b> <span className="text-body">— 근거: 데이터 품질과 검토·승인·증적</span></div>
-            <div><b className="text-navy">기준정보</b> <span className="text-body">— 약속: 계산 기준(M&V 계획)과 설비·계측 정보</span></div>
+            <div><b className="text-navy">성과 현황</b> <span className="text-body">— 얼마나 절감·감축했는가</span></div>
+            <div><b className="text-navy">설비 분석</b> <span className="text-body">— 어떤 설비에서 변화가 났는가</span></div>
+            <div><b className="text-navy">데이터 검증</b> <span className="text-body">— 결과를 신뢰할 수 있는가</span></div>
+            <div><b className="text-navy">보고·승인</b> <span className="text-body">— 검증 결과를 어떻게 보고하는가</span></div>
+            <div><b className="text-navy">시스템 관리</b> <span className="text-body">— M&V 계획·설비·계수 설정</span></div>
           </div>
         </div>
 

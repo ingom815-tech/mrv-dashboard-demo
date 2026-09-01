@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { mrv } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, type Role } from "../store";
@@ -43,9 +44,10 @@ export function TopActions() {
   );
 }
 
-/* 화면 상단 2단: 조회 컨텍스트 — 줄바꿈 허용, 가로 스크롤 금지 */
+/* 화면 상단 2단: 조회 컨텍스트 — 접기 가능, 줄바꿈 허용, 가로 스크롤 금지 */
 export default function ContextBar() {
   const calc = useCalc();
+  const [open, setOpen] = useState(false);
   const updatedAt = new Date(mrv.meta.generatedAt).toLocaleString("ko-KR", {
     month: "2-digit",
     day: "2-digit",
@@ -60,16 +62,26 @@ export default function ContextBar() {
     </span>
   );
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-line/60 bg-white px-4 py-2">
+    <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 rounded-[10px] border border-line/60 bg-white px-4 py-2">
       <Item label="사업장" value={mrv.meta.site} />
-      <Item label="경계" value={mrv.meta.boundary} />
-      <Item label="기준기간" value="2025.01–12" />
       <Item label="보고기간" value="2026.01–06" />
-      <Item label="집계" value={mrv.meta.aggLabel} />
-      <Item label="대상 설비" value={`${mrv.meta.equipCount}대`} />
-      <Item label="계측 태그" value={`${mrv.meta.tagCount}점`} />
       <Item label="계산버전" value={calc.version} />
-      <Item label="갱신" value={updatedAt} />
+      {open && (
+        <>
+          <Item label="경계" value={mrv.meta.boundary} />
+          <Item label="기준기간" value="2025.01–12" />
+          <Item label="집계" value={mrv.meta.aggLabel} />
+          <Item label="대상 설비" value={`${mrv.meta.equipCount}대`} />
+          <Item label="계측 태그" value={`${mrv.meta.tagCount}점`} />
+          <Item label="갱신" value={updatedAt} />
+        </>
+      )}
+      <button
+        onClick={() => setOpen(!open)}
+        className="ml-auto text-[12px] font-medium whitespace-nowrap text-accent hover:underline"
+      >
+        {open ? "간단히 ▴" : "상세조건 ▾"}
+      </button>
     </div>
   );
 }

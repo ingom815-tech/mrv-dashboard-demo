@@ -569,6 +569,25 @@ const outOfRangeDays = repUsableAll.filter(
 ).length;
 export const baselineStats = { nmbe, cddRange, prodRange, outOfRangeDays, nTrain: baseline.nDays, nExclTrain: baseline.excludedDays.length };
 
+/* 검토 상태를 반영한 Assurance 4단계 (데이터 검증 화면 전용) */
+export function assuranceWith(states: Record<string, string>, pending: number, approved: boolean): AssuranceRow[] {
+  return assurance.map((row) => {
+    if (row.stage === "Measurement") {
+      if (states["DQ-04"] === "승인 완료")
+        return { ...row, status: "PASS·EX" as const, note: "교정 만료 영향평가 완료 · VR-2026-014" };
+      return { ...row, status: "CONDITIONAL" as const, note: "교정 만료 1건(열량 KPI) · 영향도 검토 필요" };
+    }
+    if (row.stage === "Verification")
+      return {
+        ...row,
+        status: (approved ? "PASS" : "REVIEW") as AssuranceRow["status"],
+        metrics: pending > 0 ? `검토 대기 ${pending}건` : "검토 항목 처리 완료",
+        note: approved ? "전건 승인 완료" : "승인 전 · 검토자·승인자 역할 분리",
+      };
+    return row;
+  });
+}
+
 // ---------- M&V 계획 (기준정보 › MRV 계획 탭) ----------
 export const mvPlan = {
   id: "MVP-2026-01",
@@ -877,7 +896,11 @@ export const issueQueue: QueueItem[] = (
     owner: queueOwner[i.id] ?? "—",
     state: queueState[i.state] ?? i.state,
   }))
-  .sort((a, b) => ["High", "Medium", "Low"].indexOf(a.sev) - ["High", "Medium", "Low"].indexOf(b.sev));
+  .sort((a, b) => {
+    // 검토·조치가 필요한 행을 먼저, 그다음 심각도순
+    const act = (s: string) => (s === "처리 대기" || s === "승인 대기" || s === "신규" || s === "조사 중" ? 0 : 1);
+    return act(a.state) - act(b.state) || ["High", "Medium", "Low"].indexOf(a.sev) - ["High", "Medium", "Low"].indexOf(b.sev);
+  });
 
 // ---------- 태그 → 영향 KPI 매핑 (기준정보 Drawer·추적성) ----------
 export const tagKpiMap: Record<string, { kpis: string[]; inCalc: boolean; note?: string }> = {

@@ -60,10 +60,10 @@ const saveJson = (key: string, v: unknown) => {
 const defaultStates = (): Record<string, ReviewState> =>
   Object.fromEntries(reviewItems.map((r) => [r.id, r.initialState as ReviewState]));
 
-export type MenuKey = "overview" | "equipment" | "verify" | "master";
+export type MenuKey = "overview" | "equipment" | "verify" | "report" | "master";
 
 // URL 해시로 화면 딥링크 지원 (#/equipment 등) — 스크린샷·공유용
-const MENU_KEYS: MenuKey[] = ["overview", "equipment", "verify", "master"];
+const MENU_KEYS: MenuKey[] = ["overview", "equipment", "verify", "report", "master"];
 const initialMenu: MenuKey =
   MENU_KEYS.find((k) => k === window.location.hash.split("/")[1]) ?? "overview";
 

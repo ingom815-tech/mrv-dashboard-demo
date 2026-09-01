@@ -2,16 +2,19 @@ import { useUI, type MenuKey } from "./store";
 import Overview from "./screens/Overview";
 import EquipPerformance from "./screens/EquipPerformance";
 import DataVerify from "./screens/DataVerify";
+import Reporting from "./screens/Reporting";
 import MasterData from "./screens/MasterData";
 import EvidencePanel from "./components/EvidencePanel";
 import TraceabilityPanel from "./components/TraceabilityPanel";
 import GuideModal from "./components/GuideModal";
 
+// 업무 흐름 순서: 결과 이해 → 원인 파악 → 문제 처리 → 문서화 → 설정
 const MENUS: Array<{ key: MenuKey; label: string }> = [
-  { key: "overview", label: "종합성과" },
-  { key: "equipment", label: "설비성과" },
-  { key: "verify", label: "데이터·검증" },
-  { key: "master", label: "기준정보" },
+  { key: "overview", label: "성과 현황" },
+  { key: "equipment", label: "설비 분석" },
+  { key: "verify", label: "데이터 검증" },
+  { key: "report", label: "보고·승인" },
+  { key: "master", label: "시스템 관리" },
 ];
 
 export default function App() {
@@ -47,6 +50,7 @@ export default function App() {
         {menu === "overview" && <Overview />}
         {menu === "equipment" && <EquipPerformance />}
         {menu === "verify" && <DataVerify />}
+        {menu === "report" && <Reporting />}
         {menu === "master" && <MasterData />}
       </main>
 
