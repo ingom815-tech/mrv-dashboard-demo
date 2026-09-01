@@ -220,21 +220,85 @@ export const sections: Section[] = [
   { name: "증빙자료", link: "일부 누락", review: "검토 필요", owner: "계측팀(데모)", updated: "2026-07-02 11:02" },
 ];
 
-/* ---------- 업체·사업장 기본정보 (합성) ---------- */
+/* ---------- 업체·사업장 기본정보 (합성) — 서식 1-1(21필드)·2-1 대응 ---------- */
 export const orgInfo: Array<[string, string]> = [
   ["법인명", "삼양식품㈜ (데모)"],
   ["대표자", "홍길동 (데모)"],
+  ["법인등록번호", "000000-0000000 (데모)"],
   ["사업자등록번호", "000-00-00000 (데모)"],
+  ["지정업종 (대표업종)", "식료품 제조업 (C10)"],
+  ["법인 소재지", "서울특별시 ○○구 ○○로 00 (데모)"],
+  ["법인 전화번호", "02-0000-0000 (데모)"],
   ["사업장명", "원주공장"],
-  ["소재지", "강원특별자치도 원주시 ○○로 00 (데모)"],
-  ["업종", "식료품 제조업 (C10)"],
+  ["사업장 일련번호", "01 (단일 사업장 데모)"],
+  ["사업장 소재지", "강원특별자치도 원주시 ○○로 00 (데모)"],
+  ["사업장 전화번호", "033-000-0000 (데모)"],
   ["주요 생산제품", "면류·스낵 (데모)"],
   ["연간 생산량", "9,400 t (2025) · 4,580 t (2026 상반기)"],
+  ["소량배출사업장 여부", "아니오 (데모 기준)"],
   ["담당부서", "에너지관리팀 (데모)"],
-  ["작성 담당자", "작성자(데모)"],
+  ["작성 담당자 · 직급", "작성자(데모) · 대리"],
+  ["담당자 전화번호", "033-000-0001 (데모)"],
+  ["담당자 이메일", "demo@example.com (데모)"],
   ["검토자", "MRV 검토자(데모)"],
   ["승인자", "MRV 승인자(데모)"],
+  ["보고 대상연도", "2026년 (상반기 데모)"],
 ];
+
+/* ---------- 서식 5-1 고정연소 — 온실가스별 산정 (별지 11 실제 서식 구조, 데모 분해) ---------- */
+export interface GasRow {
+  gas: string;
+  ef: string; // 배출계수
+  gwp: number;
+  tGas: number; // 가스량 (t)
+  tco2eq: number;
+}
+export const lngGasRows: GasRow[] = [
+  { gas: "CO₂", ef: "2.078 kgCO₂/Nm³ (데모)", gwp: 1, tGas: 3088, tco2eq: 3088 },
+  { gas: "CH₄", ef: "0.9 gCH₄/Nm³ (데모)", gwp: 21, tGas: 0.9, tco2eq: 19 },
+  { gas: "N₂O", ef: "0.028 gN₂O/Nm³ (데모)", gwp: 310, tGas: 0.042, tco2eq: 13 },
+];
+
+/* ---------- 별지 11 서식 커버리지 — 어떤 서식이 얼마나 자동으로 채워지는지 ---------- */
+export type FormStatus = "자동 작성" | "부분 작성" | "해당 없음" | "범위 외";
+export interface FormCoverage {
+  code: string;
+  name: string;
+  status: FormStatus;
+  fill: string; // 채움 수준 (필드/행 기준)
+  source: string; // 데이터 출처
+}
+export const formCoverage: FormCoverage[] = [
+  { code: "1-1", name: "업체(법인) 일반정보", status: "자동 작성", fill: "21필드 중 19 자동 · 담당자 연락처 2 수기", source: "기준정보 (사업장 마스터)" },
+  { code: "1-2", name: "사업장 목록", status: "자동 작성", fill: "1개 사업장 (단일 사업장 데모)", source: "기준정보" },
+  { code: "1-3", name: "업체 배출량·에너지 총괄", status: "자동 작성", fill: "4개년 Scope 1·2·에너지 TJ", source: "시스템 계산" },
+  { code: "2-1·2-2", name: "사업장 일반정보·조직경계", status: "부분 작성", fill: "정보 자동 · 사진/배치도/공정도 첨부 미지원", source: "기준정보 + 첨부(향후)" },
+  { code: "3-1·3-2", name: "배출시설 정보·소규모시설", status: "자동 작성", fill: "시설 4개 · 소규모 2개 (법정 시설코드 매핑)", source: "설비 계층" },
+  { code: "4-1", name: "사업장 배출량 총괄", status: "자동 작성", fill: "Scope 1·2 · 월별 12행", source: "시스템 계산" },
+  { code: "4-2·4-3", name: "산정제외·CDM", status: "해당 없음", fill: "바이오매스·CDM 미해당", source: "—" },
+  { code: "4-4·4-5", name: "시설·산정방법 변동", status: "자동 작성", fill: "CH-01→CH-01R 교체 1건", source: "변경관리 이력" },
+  { code: "5-1", name: "고정연소 (기체연료)", status: "자동 작성", fill: "LNG · CO₂/CH₄/N₂O 가스별 + 월별", source: "가스미터 + 계수" },
+  { code: "5-2~5-10", name: "이동연소·공정·폐기물", status: "해당 없음", fill: "사내 차량·공정배출·폐기물 소각 미해당(데모)", source: "—" },
+  { code: "5-11", name: "간접배출 (전력)", status: "자동 작성", fill: "12,023 MWh · 월별 6행", source: "전력계 15분 계측" },
+  { code: "5-12", name: "간접배출 (열·스팀)", status: "해당 없음", fill: "외부 스팀 미구매", source: "—" },
+  { code: "5-13", name: "ODS 대체물질 (냉매)", status: "자동 작성", fill: "R-134a 보충 1건", source: "정비기록" },
+  { code: "5-14·5-15", name: "기타 온실가스·CO₂ 포집", status: "해당 없음", fill: "미해당", source: "—" },
+  { code: "6", name: "생산품·공정별 원단위", status: "자동 작성", fill: "생산량·에너지/온실가스 원단위", source: "MES + 시스템 계산" },
+  { code: "7", name: "온실가스·에너지 이동", status: "해당 없음", fill: "외부 구매·판매 없음", source: "—" },
+  { code: "8", name: "배출시설별 감축실적", status: "자동 작성", fill: "냉수플랜트 MRV 1건 (420 MWh·193 tCO₂eq)", source: "MRV 산정 엔진" },
+  { code: "9", name: "기타 온실가스 사용 실적", status: "해당 없음", fill: "미해당", source: "—" },
+  { code: "10", name: "사업장 고유(Tier 3) 배출계수", status: "범위 외", fill: "고유계수 미개발 — 향후 지원 예정", source: "—" },
+  { code: "11", name: "굴뚝연속측정(CEMS) 월별", status: "해당 없음", fill: "CEMS 미설치", source: "—" },
+  { code: "12", name: "작성 관련 기타 참고", status: "자동 작성", fill: "생략 서식·주석 자동 생성", source: "시스템" },
+  { code: "첨부", name: "인증량 총괄 등 첨부서식", status: "범위 외", fill: "배출권 제출용 — 데모 범위 외", source: "—" },
+];
+export const formCoverageSummary = {
+  auto: formCoverage.filter((f) => f.status === "자동 작성").length,
+  partial: formCoverage.filter((f) => f.status === "부분 작성").length,
+  na: formCoverage.filter((f) => f.status === "해당 없음").length,
+  out: formCoverage.filter((f) => f.status === "범위 외").length,
+  total: formCoverage.length,
+};
 
 export const boundary = {
   scope: "원주공장 전체",

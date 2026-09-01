@@ -14,6 +14,9 @@ import {
   readinessPct,
   invMonthly,
   facilityList,
+  lngGasRows,
+  formCoverage,
+  formCoverageSummary,
   planMeta,
   meterPlan,
   tierPlan,
@@ -792,6 +795,52 @@ export default function InventoryReport() {
             </div>
           </div>
 
+          {/* 별지 11 서식 커버리지 — 법정 서식 대비 자동 작성 범위 (화면 전용, 인쇄 제외) */}
+          <details className="no-print rounded-[10px] border border-line/60 bg-white">
+            <summary className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-[14px] font-semibold text-navy">
+              별지 11 서식 커버리지 — 법정 서식 대비 데이터 연결 범위
+              <span className="tnum flex flex-wrap gap-1.5 text-[11px] font-bold">
+                <span className="rounded bg-teal/10 px-1.5 py-0.5 text-teal">자동 작성 {formCoverageSummary.auto}</span>
+                <span className="rounded bg-review/10 px-1.5 py-0.5 text-review">부분 {formCoverageSummary.partial}</span>
+                <span className="rounded bg-line px-1.5 py-0.5 text-body">해당 없음 {formCoverageSummary.na}</span>
+                <span className="rounded bg-line px-1.5 py-0.5 text-slate-400">범위 외 {formCoverageSummary.out}</span>
+              </span>
+              <span className="ml-auto text-[12px] font-normal text-slate-400">펼쳐서 서식별 확인 ▾</span>
+            </summary>
+            <div className="border-t border-line/60 px-4 pt-2 pb-3">
+              <table className="w-full text-[12.5px]">
+                <thead>
+                  <tr className="border-b border-line text-left text-[12px] text-body">
+                    <th className="py-1.5 font-medium">서식</th>
+                    <th className="py-1.5 font-medium">서식명</th>
+                    <th className="py-1.5 font-medium">상태</th>
+                    <th className="py-1.5 font-medium">채움 수준</th>
+                    <th className="py-1.5 font-medium">데이터 출처</th>
+                  </tr>
+                </thead>
+                <tbody className="tnum">
+                  {formCoverage.map((f) => (
+                    <tr key={f.code} className={`border-b border-line/40 last:border-0 ${f.status === "해당 없음" || f.status === "범위 외" ? "text-slate-400" : ""}`}>
+                      <td className="py-1.5 font-semibold whitespace-nowrap text-navy">{f.code}</td>
+                      <td className="py-1.5 font-medium">{f.name}</td>
+                      <td className="py-1.5">
+                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${
+                          f.status === "자동 작성" ? "bg-teal/10 text-teal" : f.status === "부분 작성" ? "bg-review/10 text-review" : "bg-line text-body"
+                        }`}>{f.status}</span>
+                      </td>
+                      <td className="wrap max-w-80 py-1.5">{f.fill}</td>
+                      <td className="py-1.5">{f.source}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="mt-2 text-[12px] text-body">
+                별지 제11호 서식(90p) 전체 대비 데모 커버리지 — "해당 없음"은 원주공장에 그 배출활동이 없는 서식,
+                "범위 외"는 향후 지원 예정 기능 · 미리보기 본문은 자동 작성 서식만 담은 요약본
+              </div>
+            </div>
+          </details>
+
           <div className="print-root mx-auto w-full max-w-[800px] rounded-[10px] border border-line/60 bg-white p-10 text-[13px] leading-relaxed text-navy shadow-sm">
             {/* 표지 */}
             <div className="relative border-b-2 border-navy pb-6 text-center">
@@ -923,6 +972,35 @@ export default function InventoryReport() {
                 </div>
               </div>
             ))}
+            <div className="mt-2 mb-1 text-[13px] font-semibold">서식 5-1 상세 — 고정연소(LNG) 온실가스별 산정</div>
+            <table className="tnum w-full border-t border-navy text-[12.5px]">
+              <thead>
+                <tr className="border-b border-line bg-surface/70 text-body">
+                  <th className="px-2.5 py-1.5 text-left font-medium">온실가스</th>
+                  <th className="px-2.5 py-1.5 text-left font-medium">배출계수</th>
+                  <th className="px-2.5 py-1.5 text-right font-medium">GWP</th>
+                  <th className="px-2.5 py-1.5 text-right font-medium">가스량 (t)</th>
+                  <th className="px-2.5 py-1.5 text-right font-medium">배출량 (tCO₂eq)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lngGasRows.map((g) => (
+                  <tr key={g.gas} className="border-b border-line">
+                    <td className="px-2.5 py-1.5">{g.gas}</td>
+                    <td className="px-2.5 py-1.5">{g.ef}</td>
+                    <td className="px-2.5 py-1.5 text-right">{fmt(g.gwp)}</td>
+                    <td className="px-2.5 py-1.5 text-right">{g.tGas < 10 ? g.tGas.toFixed(g.tGas < 1 ? 3 : 1) : fmt(g.tGas)}</td>
+                    <td className="px-2.5 py-1.5 text-right">{fmt(g.tco2eq)}</td>
+                  </tr>
+                ))}
+                <tr className="border-b border-line font-semibold">
+                  <td colSpan={4} className="px-2.5 py-1.5">고정연소 합계 (활동자료 LNG 1,486 천Nm³ · Tier 2)</td>
+                  <td className="px-2.5 py-1.5 text-right">{fmt(lngGasRows.reduce((s, g) => s + g.tco2eq, 0))}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="mt-1 mb-2 text-[11.5px] text-body">주) 가스별 분해값은 데모 가정 — 화면 표시는 통합 환산계수(2.1 kgCO₂/Nm³) 기준 3,120 tCO₂eq와 반올림 정합</p>
+
             <div className="mt-2 mb-1 text-[13px] font-semibold">월별 활동자료 및 배출량 (2026 상반기)</div>
             <table className="tnum w-full border-t border-navy text-[12.5px]">
               <thead>
