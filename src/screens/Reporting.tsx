@@ -4,6 +4,7 @@ import { useCalc } from "../lib/useCalc";
 import { useUI, deriveVerify, activeEf } from "../store";
 import ContextBar, { TopActions } from "../components/ContextBar";
 import InventoryReport from "./InventoryReport";
+import MrvReportPreview from "./MrvReportPreview";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -12,6 +13,7 @@ const pct = (n: number, d = 1) => `${fmt(n * 100, d)}%`;
 const TABS = [
   { key: "approve", label: "검토·승인" },
   { key: "draft", label: "보고서 작성" },
+  { key: "form", label: "보고서 양식·인쇄" },
   { key: "history", label: "이력·버전 비교" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
@@ -40,9 +42,10 @@ function download(name: string, content: string, type: string) {
 export default function Reporting() {
   const [tab, setTab] = useState<TabKey>(initialTab);
   // 보고 범위: 냉수플랜트 MRV 보고서 | 공장 종합 명세서 (온실가스·에너지 명세서 작성 기능)
-  const [rptScope, setRptScope] = useState<"chiller" | "inventory">(
-    window.location.hash.split("/")[2] === "inventory" ? "inventory" : "chiller",
-  );
+  const [rptScope, setRptScope] = useState<"chiller" | "boiler" | "inventory">(() => {
+    const seg = window.location.hash.split("/")[2];
+    return seg === "inventory" ? "inventory" : seg === "boiler" ? "boiler" : "chiller";
+  });
   const [copied, setCopied] = useState(false);
   const { role, reviewStates, markReviewed, approve, audit, resetDemoStates, openEvidence, setMenu } =
     useUI();
@@ -151,12 +154,17 @@ export default function Reporting() {
         >
           중앙 냉수플랜트 MRV · MVP-2026-01
         </button>
-        <span
-          title="보일러 폐열회수 개선 프로젝트 — 데이터 연계 보완 후 개시 (데모 준비 중)"
-          className="cursor-not-allowed rounded-lg border border-line/60 bg-white px-3 py-1.5 text-[13px] text-slate-400"
+        <button
+          onClick={() => setRptScope("boiler")}
+          title="보일러 폐열회수 개선 프로젝트 — 개시 전. 동일 보고서 양식·산정 파이프라인이 재사용됩니다 (확장 데모)"
+          className={`rounded-lg border px-3 py-1.5 text-[13px] transition-colors ${
+            rptScope === "boiler"
+              ? "border-accent/40 bg-accent/5 font-semibold text-accent"
+              : "border-line/60 bg-white text-body hover:border-accent/40"
+          }`}
         >
-          보일러 효율개선 MRV <span className="text-[11px]">— 준비 중</span>
-        </span>
+          보일러 효율개선 MRV <span className="text-[11px] opacity-80">— 개시 전</span>
+        </button>
         <button
           onClick={() => setRptScope("inventory")}
           title="온실가스 배출량·에너지 사용량 명세서 작성 기능 (별지 11호 참고 · 데모)"
@@ -176,6 +184,45 @@ export default function Reporting() {
             본 자료는 명세서 작성 지원 기능의 테스트 화면이며, 공식 제출 또는 제3자 검증 자료로 사용할 수 없습니다. (DEMO · 합성데이터)
           </div>
           <InventoryReport />
+        </>
+      )}
+
+      {/* ---------- 보일러 MRV (개시 전) — 동일 양식 재사용 확장 데모 ---------- */}
+      {rptScope === "boiler" && (
+        <>
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[15px] font-semibold text-navy">
+                보일러 폐열회수 개선 (MVP-2026-02 · 계획) — 개시 전 준비 상태
+              </span>
+              <span className="rounded bg-review/10 px-2 py-0.5 text-[11px] font-bold text-review">프로젝트 개시 전</span>
+            </div>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+              {(
+                [
+                  ["측정경계 정의", "완료", "보일러·스팀 (LNG 사용량 경계)", undefined],
+                  ["데이터 연계", "진행 중", "가스미터 GM-01·02 연계 완료 · GM-03 연계 진행 중", () => setMenu("master")],
+                  ["기준기간 데이터", "8 / 12개월", "2026-06까지 12개월 확보 예정 (2025-07 개시)", undefined],
+                  ["M&V 계획", "초안 예정", "MVP-2026-02 초안 — 냉수플랜트 계획서 양식 재사용", undefined],
+                ] as Array<[string, string, string, (() => void) | undefined]>
+              ).map(([k, v, sub, go]) => (
+                <div
+                  key={k}
+                  onClick={go}
+                  className={`rounded-lg border border-line/60 p-3 ${go ? "cursor-pointer transition-colors hover:border-accent/50" : ""}`}
+                >
+                  <div className="text-[12px] text-body">{k}</div>
+                  <div className={`tnum mt-0.5 text-[15px] font-bold ${v === "완료" ? "text-teal" : "text-review"}`}>{v}</div>
+                  <div className="mt-0.5 text-[11.5px] leading-snug text-slate-400">{sub}{go && <span className="text-accent"> · 연계 관리 ›</span>}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 text-[12px] text-body">
+              개시 조건이 충족되면 냉수플랜트와 동일한 산정 파이프라인(기준선 OLS → 조정 → 절감량 → 검토·승인)과 동일한
+              보고서 양식이 이 프로젝트에 그대로 적용됩니다 — 아래는 그 양식의 미리보기입니다.
+            </div>
+          </section>
+          <MrvReportPreview mode="template" />
         </>
       )}
 
@@ -409,8 +456,8 @@ export default function Reporting() {
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[15px] font-semibold text-navy">월별 성과 (보고서 본문 표)</span>
               <div className="flex items-center gap-2">
-                <button onClick={() => window.print()} className="rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white hover:opacity-90">
-                  ① MRV 성과보고서 인쇄
+                <button onClick={() => setTab("form")} className="rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white hover:opacity-90">
+                  ① 보고서 양식 보기·인쇄
                 </button>
                 <button onClick={dataPack} className="rounded-lg border border-line px-3 py-1.5 text-[12px] font-medium text-navy hover:border-accent/50">
                   ② 외부 보고용 데이터팩 (JSON)
@@ -495,7 +542,10 @@ export default function Reporting() {
         </>
       )}
 
-      {/* ---------- 탭 3: 이력·버전 비교 ---------- */}
+      {/* ---------- 탭 3: 보고서 양식 (A4 인쇄) ---------- */}
+      {rptScope === "chiller" && tab === "form" && <MrvReportPreview mode="live" />}
+
+      {/* ---------- 탭 4: 이력·버전 비교 ---------- */}
       {rptScope === "chiller" && tab === "history" && (
         <>
           <section className="rounded-[10px] border border-line/60 bg-white p-4">
