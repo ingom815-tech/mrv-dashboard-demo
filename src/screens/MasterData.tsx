@@ -222,7 +222,7 @@ export default function MasterData() {
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <h1 className="text-[20px] leading-tight font-bold text-navy md:shrink-0 md:text-[24px]">
-            설비·연계 관리 — 설비·계측·데이터 연결·변경이력
+            설비·연계 관리
           </h1>
           <span
             className="shrink-0 cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"

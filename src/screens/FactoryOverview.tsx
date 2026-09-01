@@ -264,7 +264,6 @@ export default function FactoryOverview() {
           >
             DEMO · 합성데이터
           </span>
-          <span className="hidden truncate text-[13px] text-slate-400 lg:inline">— 공장 전체 에너지·배출·MRV 성과</span>
         </div>
         <TopActions />
       </header>
