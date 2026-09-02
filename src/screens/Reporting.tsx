@@ -6,6 +6,8 @@ import ContextBar, { TopActions } from "../components/ContextBar";
 import InventoryReport from "./InventoryReport";
 import MrvReportPreview from "./MrvReportPreview";
 import EsgDataPack from "./EsgDataPack";
+import StandardsCompliance from "./StandardsCompliance";
+import type { ComplyNav } from "../lib/standardsData";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -16,6 +18,7 @@ const TABS = [
   { key: "draft", label: "보고서 작성" },
   { key: "mvplan", label: "M&V 계획서" },
   { key: "form", label: "결과보고서 양식" },
+  { key: "standards", label: "표준 준수" },
   { key: "history", label: "이력·버전 비교" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
@@ -607,7 +610,28 @@ export default function Reporting() {
         </>
       )}
 
-      {/* ---------- 탭 3: M&V 계획서 (ESCO 양식 14절 + 표준 정합성) ---------- */}
+      {/* ---------- 탭: 표준 준수 (IPMVP·ISO 50006 대조 — 근거 화면 딥링크) ---------- */}
+      {rptScope === "chiller" && tab === "standards" && (
+        <StandardsCompliance
+          onNav={(nav: ComplyNav) => {
+            if (nav.go === "verify" || nav.go === "master") {
+              setMenu(nav.go);
+              return;
+            }
+            if (nav.go === "evidence") {
+              openEvidence();
+              return;
+            }
+            setTab(nav.go);
+            if (nav.anchor) {
+              // 탭 전환 렌더 후 해당 절로 스크롤
+              setTimeout(() => document.getElementById(nav.anchor!)?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
+            }
+          }}
+        />
+      )}
+
+      {/* ---------- 탭 3: M&V 계획서 (ESCO 양식 14절) ---------- */}
       {rptScope === "chiller" && tab === "mvplan" && <MrvReportPreview mode="plan" />}
 
       {/* ---------- 탭 4: M&V 결과보고서 양식 (ESCO 양식 10절, A4 인쇄) ---------- */}

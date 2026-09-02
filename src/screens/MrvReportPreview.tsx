@@ -1,15 +1,6 @@
 import { mrv, mvPlan, baselineStats, evidenceRegistry, type NonRoutine } from "../lib/mrvData";
 import { meterPlan, qaqcRoles } from "../lib/inventoryData";
-import {
-  TOE_PER_MWH,
-  ipmvpMatrix,
-  iso50006Matrix,
-  matrixSummary,
-  ecmList,
-  mvRequirements,
-  dataCollection,
-  type ComplyRow,
-} from "../lib/standardsData";
+import { TOE_PER_MWH, ecmList, mvRequirements, dataCollection } from "../lib/standardsData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, deriveVerify, activeEf } from "../store";
 
@@ -20,7 +11,7 @@ const pct = (n: number, d = 1) => `${fmt(n * 100, d)}%`;
 /* ---------- 공용 서브컴포넌트 ---------- */
 function H({ n, t, form }: { n: string; t: string; form?: string }) {
   return (
-    <h3 className="mt-6 mb-2 text-[15px] font-bold">
+    <h3 id={`mvsec-${n}`} className="mt-6 mb-2 scroll-mt-20 text-[15px] font-bold">
       {n}. {t} {form && <span className="text-[11px] font-normal text-slate-400">{form}</span>}
     </h3>
   );
@@ -59,50 +50,6 @@ function T({ head, rows, right }: { head: string[]; rows: Array<Array<string | n
         ))}
       </tbody>
     </table>
-  );
-}
-
-/* 표준 정합성 매트릭스 패널 (화면 전용) */
-function MatrixPanel({ title, rows }: { title: string; rows: ComplyRow[] }) {
-  const s = matrixSummary(rows);
-  return (
-    <details className="no-print rounded-[10px] border border-line/60 bg-white">
-      <summary className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-[14px] font-semibold text-navy">
-        {title}
-        <span className="tnum flex flex-wrap gap-1.5 text-[11px] font-bold">
-          <span className="rounded bg-teal/10 px-1.5 py-0.5 text-teal">구현 {s.ok}</span>
-          <span className="rounded bg-review/10 px-1.5 py-0.5 text-review">부분 {s.partial}</span>
-          <span className="rounded bg-line px-1.5 py-0.5 text-body">향후 {s.todo}</span>
-        </span>
-        <span className="ml-auto text-[12px] font-normal text-slate-400">조항별 확인 ▾</span>
-      </summary>
-      <div className="border-t border-line/60 px-4 pt-2 pb-3">
-        <table className="w-full text-[12.5px]">
-          <thead>
-            <tr className="border-b border-line text-left text-[12px] text-body">
-              <th className="py-1.5 font-medium">조항</th>
-              <th className="py-1.5 font-medium">요구사항</th>
-              <th className="py-1.5 font-medium">상태</th>
-              <th className="py-1.5 font-medium">시스템 구현</th>
-            </tr>
-          </thead>
-          <tbody className="tnum">
-            {rows.map((r) => (
-              <tr key={r.clause + r.title} className={`border-b border-line/40 last:border-0 ${r.status === "향후" ? "text-slate-400" : ""}`}>
-                <td className="py-1.5 font-semibold whitespace-nowrap text-navy">{r.clause}</td>
-                <td className="wrap max-w-56 py-1.5 font-medium">{r.title}</td>
-                <td className="py-1.5">
-                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${
-                    r.status === "구현" ? "bg-teal/10 text-teal" : r.status === "부분" ? "bg-review/10 text-review" : "bg-line text-body"
-                  }`}>{r.status}</span>
-                </td>
-                <td className="wrap py-1.5">{r.impl}{r.note && <div className="text-[11.5px] text-slate-400">{r.note}</div>}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </details>
   );
 }
 
@@ -180,13 +127,6 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
 
   return (
     <>
-      {/* 상단: 표준 정합성 (계획서 탭에서만) + 액션 */}
-      {mode === "plan" && (
-        <>
-          <MatrixPanel title="IPMVP Core Concepts 2022 정합성 — 기능명세서 대비" rows={ipmvpMatrix} />
-          <MatrixPanel title="ISO 50006:2023 정합성 — 에너지성과 산정 기능명세서 대비" rows={iso50006Matrix} />
-        </>
-      )}
       <div className="no-print flex shrink-0 flex-wrap items-center justify-between gap-2">
         <span className="text-[13px] text-body">
           {isTpl
