@@ -663,7 +663,10 @@ export default function Reporting() {
         return (
           <>
             <FrameworkPanel framework={doc === "iso" ? "iso" : "ipmvp"} onNav={onNav} />
-            <MrvReportPreview mode={doc === "plan" ? "plan" : doc === "iso" ? "iso" : "report"} />
+            <MrvReportPreview
+              mode={doc === "plan" ? "plan" : doc === "iso" ? "iso" : "report"}
+              onNav={(go) => onNav({ go, label: "" })}
+            />
           </>
         );
       })()}

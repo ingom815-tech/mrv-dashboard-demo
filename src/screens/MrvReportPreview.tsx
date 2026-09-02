@@ -11,10 +11,34 @@ const fmt = (n: number, d = 0) =>
 const pct = (n: number, d = 1) => `${fmt(n * 100, d)}%`;
 
 /* ---------- 공용 서브컴포넌트 ---------- */
-function H({ n, t, form }: { n: string; t: string; form?: string }) {
+export type DocNav = "approve" | "history" | "verify" | "master" | "evidence";
+function H({
+  n,
+  t,
+  form,
+  src,
+  onNav,
+}: {
+  n: string;
+  t: string;
+  form?: string;
+  src?: { go: DocNav; label: string }; // 이 절 데이터의 원천 관리 화면
+  onNav?: (go: DocNav) => void;
+}) {
   return (
-    <h3 id={`mvsec-${n}`} className="mt-6 mb-2 scroll-mt-20 text-[15px] font-bold">
-      {n}. {t} {form && <span className="text-[11px] font-normal text-slate-400">{form}</span>}
+    <h3 id={`mvsec-${n}`} className="mt-6 mb-2 flex flex-wrap items-baseline gap-x-2 scroll-mt-20 text-[15px] font-bold">
+      <span>
+        {n}. {t} {form && <span className="text-[11px] font-normal text-slate-400">{form}</span>}
+      </span>
+      {src && onNav && (
+        <button
+          onClick={() => onNav(src.go)}
+          className="no-print ml-auto rounded border border-accent/40 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-accent transition-colors hover:bg-accent/8"
+          title="이 절의 데이터를 관리하는 화면으로 이동"
+        >
+          원천: {src.label} ›
+        </button>
+      )}
     </h3>
   );
 }
@@ -60,7 +84,13 @@ function T({ head, rows, right }: { head: string[]; rows: Array<Array<string | n
    mode="report"   — M&V 결과보고서 (IPMVP · ESCO 양식 10절): 보고기간 실적
    mode="iso"      — 에너지성과 보고서 (ISO 50006): EnPI·EnB 관점 성과 문서
    mode="template" — 보일러 프로젝트(개시 전): 동일 양식 재사용 확장 데모 */
-export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "iso" | "template" }) {
+export default function MrvReportPreview({
+  mode,
+  onNav,
+}: {
+  mode: "plan" | "report" | "iso" | "template";
+  onNav?: (go: DocNav) => void; // 절별 "원천 관리" 이동 (미전달 시 링크 숨김)
+}) {
   const calc = useCalc();
   const ef = activeEf(useUI((s) => s.efList));
   const tariff = useUI((s) => s.tariffValue);
@@ -321,7 +351,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
         {/* ============ M&V 계획서 (양식 14절) ============ */}
         {mode === "plan" && (
           <>
-            <H n="1" t="개요" form="1.1 사업개요 · 1.2 시설 개요" />
+            <H n="1" t="개요" form="1.1 사업개요 · 1.2 시설 개요" src={{ go: "master", label: "설비·연계 관리" }} onNav={onNav} />
             <p className="mb-2">
               본 사업은 원주공장 중앙 냉수플랜트의 에너지효율 개선(냉동기 교체·펌프 VFD·냉각탑 제어)에 따른
               에너지 절감성과를 계측 기반으로 산정·검증하는 것을 목적으로 한다 (공동진단 제안 기반 데모).
@@ -332,7 +362,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
             {facilityTable}
             <p className="mt-1 text-[11.5px] text-body">주) 기준기간 연간 총 사용량 근사 {fmt(annualBaseMWh)} MWh ({fmt(annualBaseMWh * TOE_PER_MWH, 1)} toe) · toe 환산 0.229 toe/MWh (데모)</p>
 
-            <H n="2" t="에너지효율개선 기술 적용" form="2.1 ECM 개요 · 2.2 적용 범위" />
+            <H n="2" t="에너지효율개선 기술 적용" form="2.1 ECM 개요 · 2.2 적용 범위" src={{ go: "master", label: "변경관리 (CH-01R 교체)" }} onNav={onNav} />
             <T head={["번호", "설비명", "ECM (에너지절약방법)", "절감 요소"]} rows={ecmList.map((e) => [e.no, e.asset, e.ecm, e.saveFactor])} />
             <p className="mt-1 text-[12.5px]">적용 범위: 중앙 냉수플랜트 전체 (냉동기 2대·냉수/냉각수 펌프·냉각탑) — 개념도는 설비·연계 관리의 시스템 경계 화면으로 갈음(데모).</p>
 
@@ -346,7 +376,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               ]}
             />
 
-            <H n="4" t="베이스라인 설정" form="4.1 기간·사용량 · 4.2 주요인자 · 4.3 운용조건 · 4.4 측정·수집" />
+            <H n="4" t="베이스라인 설정" form="4.1 기간·사용량 · 4.2 주요인자 · 4.3 운용조건 · 4.4 측정·수집" src={{ go: "evidence", label: "산정근거 (기준선 모델)" }} onNav={onNav} />
             <KV
               rows={[
                 ["베이스라인 기간", `${mvPlan.baselinePeriod} — 사용일 ${model?.n ?? "—"}일 (제외 ${baselineStats.nExclTrain}일)`],
@@ -365,14 +395,14 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               ]}
             />
 
-            <H n="6" t="조정근거" form="6.1 조정 이유 · 6.2 조정방법" />
+            <H n="6" t="조정근거" form="6.1 조정 이유 · 6.2 조정방법" src={{ go: "approve", label: "검토·승인 (조정 처리)" }} onNav={onNav} />
             <p className="mb-2">
               일상적 변동(기상·생산량)은 회귀모델로 자동 조정하고, 운용조건 변경(냉수 공급온도 조정 등)은
               비일상적 조정으로 등록해 승인된 건만 반영한다.
             </p>
             {regressionBlock}
 
-            <H n="7" t="계산방법론 및 분석절차" form="7.1 절감량 계산 · 7.2 분석절차 (샘플링·불확도 포함)" />
+            <H n="7" t="계산방법론 및 분석절차" form="7.1 절감량 계산 · 7.2 분석절차 (샘플링·불확도 포함)" src={{ go: "evidence", label: "산정근거" }} onNav={onNav} />
             <KV
               rows={[
                 ["산정 방식", "Avoided Energy Consumption — 조정 베이스라인 − 실제 (IPMVP 7.5.1)"],
@@ -382,10 +412,10 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               ]}
             />
 
-            <H n="8" t="에너지가격" />
+            <H n="8" t="에너지가격" src={{ go: "master", label: "기준정보 (가정단가)" }} onNav={onNav} />
             <T head={["구분", "베이스라인", "보고기간", "비고"]} rows={[["전기 (원/kWh)", fmt(tariff), `${fmt(tariff)} (고정 가정)`, "가정단가 · 부가세 포함 가정(데모)"], ["열", "해당 없음", "—", "외부 열 미사용"]]} />
 
-            <H n="9" t="측정기기 사양 및 데이터 관리" form="9.1 사양 · 9.2 데이터 관리" />
+            <H n="9" t="측정기기 사양 및 데이터 관리" form="9.1 사양 · 9.2 데이터 관리" src={{ go: "master", label: "설비·센서" }} onNav={onNav} />
             {meterTable}
             <KV
               rows={[
@@ -417,7 +447,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
             <H n="13" t="보고서 형식" />
             <p>보고기간(반기)별 M&V 결과보고서를 본 시스템이 동일 양식으로 자동 생성한다 — 보고·승인 › 결과보고서 양식.</p>
 
-            <H n="14" t="품질보증" />
+            <H n="14" t="품질보증" src={{ go: "verify", label: "데이터 검증" }} onNav={onNav} />
             <p>
               데이터 수집·계산·보고 전 과정에 자동 검증 규칙(상태코드 7종·물리범위·상호일관성)과
               검토자→승인자 역할 분리 승인 절차를 적용하고, 모든 처리를 감사로그로 보존한다.
@@ -428,7 +458,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
         {/* ============ M&V 결과보고서 (양식 10절) ============ */}
         {mode === "report" && (
           <>
-            <H n="1" t="개요" form="1.1 사업개요·요구사항 · 1.2 시설 · 1.3 ECM · 1.4 적용 범위" />
+            <H n="1" t="개요" form="1.1 사업개요·요구사항 · 1.2 시설 · 1.3 ECM · 1.4 적용 범위" src={{ go: "master", label: "설비·연계 관리" }} onNav={onNav} />
             <p className="mb-2">
               본 보고서는 {mvPlan.baselinePeriod}를 베이스라인으로 하여 보고기간({mvPlan.reportPeriod}) 동안
               중앙 냉수플랜트 효율개선(ECM 3건)의 에너지 절감성과를 산정한 결과이다.
@@ -444,7 +474,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
             <H n="2" t="M&V 옵션 및 측정경계" />
             <KV rows={[["적용 옵션", mvPlan.option], ["측정경계", mvPlan.boundary], ["계측", `경계 내 전력 13점 · ${mvPlan.interval} 주기`]]} />
 
-            <H n="3" t="보고기간" form="3.1 기간·월별 사용량 · 3.2 주요인자 · 3.3 운용조건 · 3.4 측정·수집 · 3.5 조정유무" />
+            <H n="3" t="보고기간" form="3.1 기간·월별 사용량 · 3.2 주요인자 · 3.3 운용조건 · 3.4 측정·수집 · 3.5 조정유무" src={{ go: "verify", label: "데이터 검증" }} onNav={onNav} />
             <T
               head={["월", "조정 베이스라인 (MWh)", "실제 사용량 (MWh)", "제외일"]}
               right={[1, 2, 3]}
@@ -465,7 +495,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
             </div>
             {collectionTables}
 
-            <H n="4" t="에너지절감량 계산" form="4.1 계산 · 4.2 조정 · 4.3 조정 방법" />
+            <H n="4" t="에너지절감량 계산" form="4.1 계산 · 4.2 조정 · 4.3 조정 방법" src={{ go: "approve", label: "검토·승인 (조정 처리)" }} onNav={onNav} />
             {regressionBlock}
             <div className="mt-2 mb-1 text-[13px] font-semibold">비일상적 조정 내역</div>
             <T
@@ -479,7 +509,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               ])}
             />
 
-            <H n="5" t="에너지가격" />
+            <H n="5" t="에너지가격" src={{ go: "master", label: "기준정보 (가정단가)" }} onNav={onNav} />
             <T head={["구분", "베이스라인", "보고기간", "비고"]} rows={[["전기 (원/kWh)", fmt(tariff), fmt(tariff), "가정단가 고정 · 부가세 포함 가정(데모)"]]} />
 
             <H n="6" t="에너지절감량(액)" />
@@ -488,17 +518,17 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               주) 냉매 비산배출 {fmt(mrv.refrigerant.total, 2)} tCO₂eq는 절감량과 합산하지 않는 별도 항목 · 온실가스 감축 {fmt(calc.kpi.co2, 1)} tCO₂eq (배출계수 {ef.version})
             </p>
 
-            <H n="7" t="측정기기 사양" />
+            <H n="7" t="측정기기 사양" src={{ go: "master", label: "설비·센서" }} onNav={onNav} />
             {meterTable}
             <p className="mt-1 text-[11.5px] text-body">주) 교정성적서는 증적 레지스트리 등록 (FM-CHW 만료 1건 — 열량 KPI 한정, 절감량 산정 영향 없음)</p>
 
-            <H n="8" t="정확도" />
+            <H n="8" t="정확도" src={{ go: "evidence", label: "산정근거 (불확도)" }} onNav={onNav} />
             <p>
               측정·데이터수집·분석을 종합한 절감량 정확도는 90% 신뢰수준에서 ±{pct(calc.kpi.uncertaintyPct)}이다
               (z=1.645 · 기준선 모델오차·보고기간 데이터 수 반영 · 계측기 합성 불확도 미포함, 데모 추정값).
             </p>
 
-            <H n="9" t="에너지사용자 검토의견" />
+            <H n="9" t="에너지사용자 검토의견" src={{ go: "approve", label: "검토·승인" }} onNav={onNav} />
             <KV
               rows={[
                 ["검증 상태", `${verify.state} (검토 대기 ${verify.pending}건)`],
@@ -548,7 +578,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               ]}
             />
 
-            <H n="3" t="데이터 수집 및 품질" form="조항 5.6" />
+            <H n="3" t="데이터 수집 및 품질" form="조항 5.6" src={{ go: "verify", label: "데이터 검증" }} onNav={onNav} />
             <KV
               rows={[
                 ["수집", "15분 자동수집 (전력·온도) · 60분 (생산) · 원본 보존"],
@@ -558,7 +588,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               ]}
             />
 
-            <H n="4" t="EnPI 산정 모델 (통계 모델)" form="조항 6.2.1" />
+            <H n="4" t="EnPI 산정 모델 (통계 모델)" form="조항 6.2.1" src={{ go: "evidence", label: "산정근거 (모델)" }} onNav={onNav} />
             {regressionBlock}
 
             <H n="5" t="에너지 베이스라인(EnB) 수립" form="조항 7" />
@@ -570,7 +600,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               ]}
             />
 
-            <H n="6" t="EnB 정규화 및 조정" form="조항 8" />
+            <H n="6" t="EnB 정규화 및 조정" form="조항 8" src={{ go: "approve", label: "검토·승인 (조정 처리)" }} onNav={onNav} />
             <p>
               일상적 변동(기상·생산량)은 회귀모델로 정규화하고, 운용조건 변경은 비일상적 조정으로 등록해
               승인된 건만 반영한다 — 조정 반영 시 새 계산버전({calc.version}) 생성, 기존본 보존.
@@ -590,7 +620,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               주) 에너지성과 개선은 부하 감소가 아닌 설비 효율 개선에서 기인함을 성능곡선으로 확인 · 온실가스 감축 {fmt(calc.kpi.co2, 1)} tCO₂eq (별도 산정)
             </p>
 
-            <H n="8" t="EnB 유지·갱신" form="조항 9" />
+            <H n="8" t="EnB 유지·갱신" form="조항 9" src={{ go: "history", label: "이력·버전 비교" }} onNav={onNav} />
             <p>
               비일상 조정·배출계수 변경 시 새 계산버전을 생성하고 기존 확정본을 보존한다 (이력·버전 비교 화면).
               정기 재수립(모델 재적합) 주기 정책은 확장 대상으로 명시한다.
