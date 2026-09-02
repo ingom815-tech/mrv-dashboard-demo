@@ -115,10 +115,18 @@ interface UIState {
   addProject: (name: string, group: string) => void;
   removeProject: (id: string) => void;
   toggleProjectReport: (id: string) => void;
+  /* M&V 계획서 — 실무자 선택 항목 + 승인 흐름 */
+  planInputs: Record<string, string>;
+  setPlanInput: (key: string, label: string, value: string) => void;
+  planStatus: PlanStatus;
+  planAction: (a: "request" | "approve" | "revoke") => void;
 }
 
 /* 명세서(인벤토리 보고서) 상태 흐름 */
 export type InvStatus = "작성 중" | "검토 요청" | "수정 요청" | "검토 완료·승인 대기" | "승인 완료";
+
+/* M&V 계획서 상태 — 계획은 사전 승인이 원칙 (IPMVP): 승인 전 결과보고서는 초안 취급 */
+export type PlanStatus = "작성 중" | "승인 대기" | "승인 완료";
 
 /* ---------- MRV 프로젝트 관리 (목록·추가·삭제·보고서 생성 대상 선택) ---------- */
 export interface ProjectRec {
@@ -327,6 +335,40 @@ export const useUI = create<UIState>((set, get) => ({
     set({ projects: next });
     logAudit("보고서 대상 변경", target.name, `보고서 생성 ${target.report ? "제외" : "포함"} 처리`);
   },
+  /* M&V 계획서: 선택 항목 편집 — 승인 완료본은 잠금, 승인 대기 중 수정 시 '작성 중' 회귀 */
+  planInputs: loadJson<Record<string, string>>("mrv-plan-inputs", {}),
+  setPlanInput: (key, label, value) => {
+    const { planStatus, planInputs, logAudit } = get();
+    if (planStatus === "승인 완료") return;
+    const next = { ...planInputs, [key]: value };
+    saveJson("mrv-plan-inputs", next);
+    set({ planInputs: next });
+    if (planStatus === "승인 대기") {
+      saveJson("mrv-plan-status", "작성 중");
+      set({ planStatus: "작성 중" });
+      logAudit("계획 변경", "M&V 계획서", `'${label}' 변경 — 승인 대기 중 수정으로 '작성 중' 회귀 (재요청 필요)`);
+    } else {
+      logAudit("계획 입력", "M&V 계획서", `'${label}' 입력·수정 (MVP-2026-01)`);
+    }
+  },
+  planStatus: loadJson<PlanStatus>("mrv-plan-status", "승인 대기"),
+  planAction: (a) => {
+    const { role, planStatus, planInputs, logAudit } = get();
+    let next: PlanStatus | null = null;
+    // Option B 외 선택 시 승인 요청 불가 (시스템 지원 범위 검증)
+    const opt = planInputs["option"] ?? "B";
+    if (a === "request" && planStatus === "작성 중" && opt === "B") next = "승인 대기";
+    if (a === "approve" && role === "승인자" && planStatus === "승인 대기") next = "승인 완료";
+    if (a === "revoke" && role === "승인자" && planStatus === "승인 완료") next = "작성 중";
+    if (!next) return;
+    saveJson("mrv-plan-status", next);
+    set({ planStatus: next });
+    logAudit(
+      a === "request" ? "계획 승인 요청" : a === "approve" ? "계획 승인" : "계획 승인 해제",
+      "M&V 계획서",
+      `${next} — MVP-2026-01 (계획서 버전 이력 보존)`,
+    );
+  },
   revokeInvApproval: () => {
     const { role, invStatus, logAudit } = get();
     if (role !== "승인자" || invStatus !== "승인 완료") return;
@@ -356,7 +398,11 @@ export const useUI = create<UIState>((set, get) => ({
     saveJson("mrv-inv-status", "작성 중");
     saveJson("mrv-inv-inputs", {});
     saveJson("mrv-projects", defaultProjects());
+    saveJson("mrv-plan-inputs", {});
+    saveJson("mrv-plan-status", "승인 대기");
     set({
+      planInputs: {},
+      planStatus: "승인 대기",
       reviewStates: defaultStates(),
       audit: nextAudit,
       efList: defaultEfList(),

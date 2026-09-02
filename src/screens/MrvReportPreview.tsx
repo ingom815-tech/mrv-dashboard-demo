@@ -3,6 +3,7 @@ import { meterPlan, qaqcRoles } from "../lib/inventoryData";
 import { TOE_PER_MWH, ecmList, mvRequirements, dataCollection } from "../lib/standardsData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, deriveVerify, activeEf } from "../store";
+import ManualField from "../components/ManualField";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -64,6 +65,23 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
   const tariff = useUI((s) => s.tariffValue);
   const verify = deriveVerify(useUI((s) => s.reviewStates));
   const audit = useUI((s) => s.audit);
+  const { role, planInputs, setPlanInput, planStatus, planAction, setTariff } = useUI();
+  const planLocked = planStatus === "승인 완료";
+  /* 계획서 실무자 선택값 (기본값 = 데모 프리셋) */
+  const pv = (k: string, def: string) => planInputs[k] ?? def;
+  const OPTION_LABEL: Record<string, string> = {
+    A: "IPMVP Option A — 핵심 매개변수 측정 (일부 추정)",
+    B: "IPMVP Option B — 경계 내 전체 계측",
+    C: "IPMVP Option C — 전체 시설 (요금 분석)",
+    D: "IPMVP Option D — 시뮬레이션",
+  };
+  const CYCLE_LABEL: Record<string, string> = {
+    half: "반기 · 반기 종료 후 10일 이내 제출",
+    quarter: "분기 · 분기 종료 후 10일 이내 제출",
+    year: "연간 · 연도 종료 후 1개월 이내 제출",
+  };
+  const optSel = pv("option", "B");
+  const cycleSel = pv("cycle", "half");
   const model = mrv.baseline.model as { a: number; b: number; c: number; n: number; r2: number; cvRmse: number; yMean: number } | null;
 
   const saveToe = calc.kpi.saveMWh * TOE_PER_MWH;
@@ -78,7 +96,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
   const frameLabel = mode === "iso" ? "ISO 50006:2023 (EnPI·EnB) 준용" : "ESCO 표준계약 M&V 양식 준용 · IPMVP Core Concepts 2022";
   const P = isTpl
     ? { project: "보일러 폐열회수 개선", id: "MVP-2026-02 (계획)", state: "프로젝트 개시 전", ver: "개시 후 생성" }
-    : { project: "중앙 냉수플랜트 효율개선", id: mvPlan.id, state: mode === "plan" ? mvPlan.status : verify.state, ver: mode === "plan" ? `${mvPlan.version} · 기준선 BL-v1.0` : mode === "iso" ? `${calc.version} · EnB BL-v1.0` : `${calc.version} · BL-v1.0` };
+    : { project: "중앙 냉수플랜트 효율개선", id: mvPlan.id, state: mode === "plan" ? `계획서 ${planStatus}` : verify.state, ver: mode === "plan" ? `${mvPlan.version} · 기준선 BL-v1.0` : mode === "iso" ? `${calc.version} · EnB BL-v1.0` : `${calc.version} · BL-v1.0` };
   const actDailyKwh = calc.kpi.nDays > 0 ? calc.savings.sumAct / calc.kpi.nDays : 0;
 
   const na = <span className="text-slate-400">개시 후 자동 산정</span>;
@@ -149,6 +167,129 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
         )}
       </div>
 
+      {/* ---------- 계획서 설정 — 실무자가 선택·입력하는 항목 (문서 본문에 즉시 반영) ---------- */}
+      {mode === "plan" && (
+        <section className="no-print rounded-[10px] border border-line/60 bg-white p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[15px] font-semibold text-navy">
+              계획서 설정 <span className="text-[12px] font-normal text-body">— 실무자 선택 항목 (아래 문서에 즉시 반영 · 감사로그 기록)</span>
+            </span>
+            <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${planStatus === "승인 완료" ? "bg-teal/10 text-teal" : planStatus === "승인 대기" ? "bg-review/10 text-review" : "bg-line text-body"}`}>
+              계획서 {planStatus}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-3 md:grid-cols-2">
+            <label className="flex flex-col gap-1 text-[12px] text-body">
+              M&V 옵션 (3절) <span className="text-[10px] font-bold text-review">수기 선택</span>
+              <select
+                aria-label="M&V 옵션 선택"
+                value={optSel}
+                disabled={planLocked}
+                onChange={(e) => setPlanInput("option", "M&V 옵션", e.target.value)}
+                className="min-h-9 rounded border border-line bg-white px-2 py-1.5 text-[13px] font-medium text-navy disabled:cursor-not-allowed disabled:bg-surface disabled:text-slate-400"
+              >
+                {Object.entries(OPTION_LABEL).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+              {optSel !== "B" && (
+                <span className="text-[11.5px] font-medium text-risk">
+                  현재 시스템은 Option B 산정만 지원 — 승인 요청이 차단됩니다 (A·C·D는 향후 지원)
+                </span>
+              )}
+            </label>
+            <label className="flex flex-col gap-1 text-[12px] text-body">
+              보고 주기 (5절) <span className="text-[10px] font-bold text-review">수기 선택</span>
+              <select
+                aria-label="보고 주기 선택"
+                value={cycleSel}
+                disabled={planLocked}
+                onChange={(e) => setPlanInput("cycle", "보고 주기", e.target.value)}
+                className="min-h-9 rounded border border-line bg-white px-2 py-1.5 text-[13px] font-medium text-navy disabled:cursor-not-allowed disabled:bg-surface disabled:text-slate-400"
+              >
+                <option value="half">반기 (기본)</option>
+                <option value="quarter">분기</option>
+                <option value="year">연간</option>
+              </select>
+            </label>
+            <div className="flex flex-col gap-1 text-[12px] text-body md:col-span-2">
+              옵션 선택 이유 (3절) <span className="text-[10px] font-bold text-review">수기 입력</span>
+              <ManualField
+                fieldKey="optionReason"
+                label="옵션 선택 이유"
+                stored={pv("optionReason", "경계 내 전 전력을 15분 주기로 직접 계측 가능, ECM이 복수 설비에 걸쳐 있어 개별 분리(A)보다 경계 전체 계측(B)이 적합")}
+                disabled={planLocked}
+                multiline
+                commit={setPlanInput}
+              />
+            </div>
+            <label className="flex flex-col gap-1 text-[12px] text-body">
+              에너지가격 (8절, 원/kWh) <span className="text-[10px] font-bold text-review">수기 입력 · 변경 시 절감액 전체 재산정</span>
+              <input
+                key={"tariff:" + tariff}
+                type="number"
+                defaultValue={tariff}
+                disabled={planLocked || role === "일반"}
+                aria-label="에너지가격 입력"
+                onBlur={(e) => {
+                  const v = Number(e.target.value);
+                  if (Number.isFinite(v) && v > 0 && v !== tariff) setTariff(v);
+                }}
+                className="min-h-9 rounded border border-line bg-white px-2 py-1.5 text-[16px] text-navy disabled:cursor-not-allowed disabled:bg-surface disabled:text-slate-400 md:text-[13px]"
+              />
+              {role === "일반" && <span className="text-[11px] text-slate-400">검토자·승인자 역할만 변경 가능 (기준정보 정책)</span>}
+            </label>
+            <div className="flex flex-col gap-1 text-[12px] text-body">
+              모니터링 담당 지정 (10절) <span className="text-[10px] font-bold text-review">수기 입력</span>
+              <div className="grid grid-cols-2 gap-2">
+                <ManualField fieldKey="ownerIndep" label="독립변수 담당" stored={pv("ownerIndep", "계측팀(데모)")} disabled={planLocked} commit={setPlanInput} />
+                <ManualField fieldKey="ownerEnergy" label="에너지데이터 담당" stored={pv("ownerEnergy", "에너지관리팀(데모)")} disabled={planLocked} commit={setPlanInput} />
+              </div>
+            </div>
+          </div>
+          {/* 승인 흐름 — 계획은 사전 승인이 원칙 */}
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line/60 pt-3">
+            <span className="text-[12.5px] text-body">
+              {planStatus === "승인 완료"
+                ? "승인 완료 — 계획서가 잠겼습니다. 수정하려면 승인을 해제하세요 (결과보고서가 초안으로 전환)."
+                : planStatus === "승인 대기"
+                  ? "고객(에너지사용자) 승인 대기 — 대기 중 수정하면 '작성 중'으로 회귀합니다."
+                  : "작성 중 — 설정 확정 후 승인을 요청하세요. 계획 미승인 상태의 결과보고서는 초안 취급됩니다."}
+            </span>
+            <div className="ml-auto flex gap-2">
+              <button
+                disabled={!(planStatus === "작성 중" && optSel === "B")}
+                onClick={() => planAction("request")}
+                className="min-h-9 rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                승인 요청
+              </button>
+              <button
+                disabled={!(role === "승인자" && planStatus === "승인 대기")}
+                onClick={() => planAction("approve")}
+                className="min-h-9 rounded-lg bg-teal px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                계획 승인 (승인자)
+              </button>
+              <button
+                disabled={!(role === "승인자" && planStatus === "승인 완료")}
+                onClick={() => planAction("revoke")}
+                className="min-h-9 rounded-lg border border-review/50 px-3 py-1.5 text-[12.5px] font-semibold text-review hover:bg-review/8 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                승인 해제
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 결과보고서: 계획 미승인 경고 (IPMVP — 계획 사전 승인 원칙) */}
+      {mode === "report" && planStatus !== "승인 완료" && (
+        <div className="no-print rounded-lg border border-review/40 bg-review/8 px-3.5 py-2 text-[12.5px] text-review">
+          M&V 계획서가 아직 승인되지 않았습니다 ({planStatus}) — 계획 사전 승인 전의 결과보고서는 초안으로 취급됩니다. 문서 선택에서 M&V 계획서를 승인하세요.
+        </div>
+      )}
+
       <div className={`${!isTpl ? "print-root" : ""} mx-auto w-full max-w-[800px] rounded-[10px] border border-line/60 bg-white p-10 text-[13px] leading-relaxed text-navy shadow-sm`}>
         {/* 표지 */}
         <div className="relative border-b-2 border-navy pb-6 text-center">
@@ -187,9 +328,9 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
             <H n="3" t="M&V 옵션 및 측정경계" />
             <KV
               rows={[
-                ["적용 옵션", mvPlan.option],
+                ["적용 옵션", `${OPTION_LABEL[optSel]}${optSel !== "B" ? " — 시스템 미지원 (승인 불가)" : " 후보"}`],
                 ["측정경계", mvPlan.boundary],
-                ["옵션 선택 이유", "경계 내 전 전력을 15분 주기로 직접 계측 가능, ECM이 복수 설비에 걸쳐 있어 개별 분리(A)보다 경계 전체 계측(B)이 적합"],
+                ["옵션 선택 이유", pv("optionReason", "경계 내 전 전력을 15분 주기로 직접 계측 가능, ECM이 복수 설비에 걸쳐 있어 개별 분리(A)보다 경계 전체 계측(B)이 적합")],
                 ["상호작용 효과", "경계 외부 영향(공조 부하 변화 등)은 독립변수(냉방도일·생산량)로 통제 — 잔여 상호작용은 무시 가능 수준으로 판단(데모)"],
               ]}
             />
@@ -208,7 +349,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
             <H n="5" t="보고기간" form="5.1 설정 · 5.2 데이터 수집" />
             <KV
               rows={[
-                ["보고기간", `${mvPlan.reportPeriod} (반기) · 보고서 제출: 반기 종료 후 10일 이내(데모 가정)`],
+                ["보고기간", `${mvPlan.reportPeriod} · 보고 주기: ${CYCLE_LABEL[cycleSel]} (데모 가정)`],
                 ["데이터 수집", "베이스라인 기간과 동일한 계측·수집·품질 규칙 적용 (15분 자동수집·상태코드 7종)"],
               ]}
             />
@@ -244,7 +385,14 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
             />
 
             <H n="10" t="모니터링 책임" />
-            <T head={["담당", "역할", "모니터링 대상·업무"]} rows={qaqcRoles.map(([a, b, c]) => [a, b, c])} />
+            <T
+              head={["담당", "역할", "모니터링 대상·업무"]}
+              rows={[
+                ...qaqcRoles.map(([a, b, c]) => [a, b, c]),
+                [pv("ownerIndep", "계측팀(데모)"), "독립변수 모니터링", "냉방도일·생산량 데이터 수집·검증 (담당 지정: 수기)"],
+                [pv("ownerEnergy", "에너지관리팀(데모)"), "에너지데이터 모니터링", "전력 계측·품질 확인 (담당 지정: 수기)"],
+              ]}
+            />
 
             <H n="11" t="예상정확도" />
             <p>
