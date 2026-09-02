@@ -5,6 +5,7 @@ import { TOE_PER_MWH, ecmList, mvRequirements, dataCollection } from "../lib/sta
 import { useCalc } from "../lib/useCalc";
 import { useUI, deriveVerify, activeEf } from "../store";
 import ManualField from "../components/ManualField";
+import LegalBasis from "../components/LegalBasis";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -349,6 +350,23 @@ export default function MrvReportPreview({
             본 자료는 데모용 합성데이터로 작성된 테스트 출력물이며, 공식 M&V 보고 또는 제3자 검증 자료로 사용할 수 없습니다.
           </div>
         </div>
+
+        {/* 작성 근거 — 문서별 준거 규정·표준 명시 (인쇄 포함) */}
+        <LegalBasis
+          items={
+            mode === "iso"
+              ? [
+                  ["ISO 50006:2023", "Energy management systems — EnPI·EnB를 이용한 에너지성과 산정 국제표준 (절별 조항 번호 병기)"],
+                  ["ISO 50001:2018", "에너지경영시스템 — 성과평가 요구사항과 정합 (연계 준거)"],
+                  ["IPMVP Core Concepts 2022", "EVO 측정·검증 국제 프로토콜 — 절감량 산정 보조 준거"],
+                ]
+              : [
+                  [mode === "plan" ? "ESCO 표준계약서 붙임 M&V 계획서 양식" : "ESCO 표준계약서 붙임 M&V 결과보고서 양식", `본 문서의 ${mode === "plan" ? "14" : "10"}개 절 구조·항목을 그대로 준용`],
+                  ["IPMVP Core Concepts 2022", "EVO(Efficiency Valuation Organization) 측정·검증 국제 프로토콜 — Option B·조정·불확도 산정 준거"],
+                  ["ISO 50006:2023", "에너지 베이스라인(EnB)·성과지표 산정 보조 준거"],
+                ]
+          }
+        />
 
         {/* ============ M&V 계획서 (양식 14절) ============ */}
         {mode === "plan" && (

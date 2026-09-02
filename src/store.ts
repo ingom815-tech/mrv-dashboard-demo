@@ -120,6 +120,11 @@ interface UIState {
   setPlanInput: (key: string, label: string, value: string) => void;
   planStatus: PlanStatus;
   planAction: (a: "request" | "approve" | "revoke", opinion?: string) => void;
+  /* ESG 공시 데이터 — 2030 환경목표 수기 입력 + 확정 흐름 (공시 검증은 외부 기관 소관이라 2단계만) */
+  esgInputs: Record<string, string>;
+  setEsgInput: (key: string, label: string, value: string) => void;
+  esgStatus: "작성 중" | "확정";
+  esgAction: (a: "confirm" | "revoke") => void;
 }
 
 /* 명세서(인벤토리 보고서) 상태 흐름 */
@@ -369,6 +374,26 @@ export const useUI = create<UIState>((set, get) => ({
       `${next}${opinion ? ` — 의견: ${opinion}` : ""} (MVP-2026-01 · 계획서 버전 이력 보존)`,
     );
   },
+  /* ESG: 목표 입력은 확정 전만, 확정/해제는 검토자·승인자 (감사로그 기록) */
+  esgInputs: loadJson<Record<string, string>>("mrv-esg-inputs", {}),
+  setEsgInput: (key, label, value) => {
+    const { esgStatus, esgInputs, logAudit } = get();
+    if (esgStatus === "확정") return;
+    const next = { ...esgInputs, [key]: value };
+    saveJson("mrv-esg-inputs", next);
+    set({ esgInputs: next });
+    logAudit("ESG 목표 입력", "ESG 공시 데이터", `'${label}' 입력·수정`);
+  },
+  esgStatus: loadJson<"작성 중" | "확정">("mrv-esg-status", "작성 중"),
+  esgAction: (a) => {
+    const { role, esgStatus, logAudit } = get();
+    if (role === "일반") return;
+    const next = a === "confirm" && esgStatus === "작성 중" ? "확정" : a === "revoke" && esgStatus === "확정" ? "작성 중" : null;
+    if (!next) return;
+    saveJson("mrv-esg-status", next);
+    set({ esgStatus: next });
+    logAudit(a === "confirm" ? "ESG 데이터 확정" : "ESG 확정 해제", "ESG 공시 데이터", `${next} — 부록 문서·데이터 팩 기준 (외부 공시 검증은 별도)`);
+  },
   revokeInvApproval: () => {
     const { role, invStatus, logAudit } = get();
     if (role !== "승인자" || invStatus !== "승인 완료") return;
@@ -400,9 +425,13 @@ export const useUI = create<UIState>((set, get) => ({
     saveJson("mrv-projects", defaultProjects());
     saveJson("mrv-plan-inputs", {});
     saveJson("mrv-plan-status", "승인 대기");
+    saveJson("mrv-esg-inputs", {});
+    saveJson("mrv-esg-status", "작성 중");
     set({
       planInputs: {},
       planStatus: "승인 대기",
+      esgInputs: {},
+      esgStatus: "작성 중",
       reviewStates: defaultStates(),
       audit: nextAudit,
       efList: defaultEfList(),

@@ -31,6 +31,7 @@ import { evidenceRegistry } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, deriveVerify, activeEf, type InvStatus } from "../store";
 import ManualField from "../components/ManualField";
+import LegalBasis from "../components/LegalBasis";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -983,6 +984,14 @@ export default function InventoryReport() {
                 본 자료는 명세서 작성 지원 기능의 테스트 화면이며, 공식 제출 또는 제3자 검증 자료로 사용할 수 없습니다.
               </div>
             </div>
+
+            {/* 작성 근거 — 법령·지침 명시 (인쇄 포함) */}
+            <LegalBasis
+              items={[
+                ["온실가스 배출권의 할당 및 거래에 관한 법률", "제13조제2항 및 같은 법 시행령 제21조 — 배출량 보고 의무"],
+                ["온실가스 배출권거래제의 배출량 보고 및 인증에 관한 지침", "별지 제11호 서식(명세서) 준용 · 별지 제10호 서식(배출량 산정계획서, 제24조 관련)은 산정계획서 탭에서 관리"],
+              ]}
+            />
 
             {/* 1. 기본정보 */}
             <h3 className="mt-6 mb-2 text-[15px] font-bold">1. 업체·사업장 일반정보 <span className="text-[11px] font-normal text-slate-400">서식 1-1 · 2-1</span></h3>
