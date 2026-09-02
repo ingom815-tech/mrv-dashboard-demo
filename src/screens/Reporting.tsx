@@ -14,7 +14,8 @@ const pct = (n: number, d = 1) => `${fmt(n * 100, d)}%`;
 const TABS = [
   { key: "approve", label: "검토·승인" },
   { key: "draft", label: "보고서 작성" },
-  { key: "form", label: "보고서 양식·인쇄" },
+  { key: "mvplan", label: "M&V 계획서" },
+  { key: "form", label: "결과보고서 양식" },
   { key: "history", label: "이력·버전 비교" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
@@ -606,8 +607,11 @@ export default function Reporting() {
         </>
       )}
 
-      {/* ---------- 탭 3: 보고서 양식 (A4 인쇄) ---------- */}
-      {rptScope === "chiller" && tab === "form" && <MrvReportPreview mode="live" />}
+      {/* ---------- 탭 3: M&V 계획서 (ESCO 양식 14절 + 표준 정합성) ---------- */}
+      {rptScope === "chiller" && tab === "mvplan" && <MrvReportPreview mode="plan" />}
+
+      {/* ---------- 탭 4: M&V 결과보고서 양식 (ESCO 양식 10절, A4 인쇄) ---------- */}
+      {rptScope === "chiller" && tab === "form" && <MrvReportPreview mode="report" />}
 
       {/* ---------- 탭 4: 이력·버전 비교 ---------- */}
       {rptScope === "chiller" && tab === "history" && (
