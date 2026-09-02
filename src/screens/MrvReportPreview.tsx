@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { mrv, mvPlan, baselineStats, evidenceRegistry, perfCurve, type NonRoutine } from "../lib/mrvData";
 import { meterPlan, qaqcRoles } from "../lib/inventoryData";
 import { TOE_PER_MWH, ecmList, mvRequirements, dataCollection } from "../lib/standardsData";
@@ -66,6 +67,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
   const verify = deriveVerify(useUI((s) => s.reviewStates));
   const audit = useUI((s) => s.audit);
   const { role, planInputs, setPlanInput, planStatus, planAction, setTariff } = useUI();
+  const [planOpinion, setPlanOpinion] = useState("");
   const planLocked = planStatus === "승인 완료";
   /* 계획서 실무자 선택값 (기본값 = 데모 프리셋) */
   const pv = (k: string, def: string) => planInputs[k] ?? def;
@@ -247,33 +249,42 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               </div>
             </div>
           </div>
-          {/* 승인 흐름 — 계획은 사전 승인이 원칙 */}
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line/60 pt-3">
-            <span className="text-[12.5px] text-body">
+          {/* 승인 흐름 — 계획은 사전 승인이 원칙. 처리 의견은 감사로그에 기록 */}
+          <div className="mt-3 border-t border-line/60 pt-3">
+            <div className="mb-2 text-[12.5px] text-body">
               {planStatus === "승인 완료"
                 ? "승인 완료 — 계획서가 잠겼습니다. 수정하려면 승인을 해제하세요 (결과보고서가 초안으로 전환)."
                 : planStatus === "승인 대기"
                   ? "고객(에너지사용자) 승인 대기 — 대기 중 수정하면 '작성 중'으로 회귀합니다."
                   : "작성 중 — 설정 확정 후 승인을 요청하세요. 계획 미승인 상태의 결과보고서는 초안 취급됩니다."}
-            </span>
-            <div className="ml-auto flex gap-2">
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="flex min-w-56 flex-1 flex-col gap-1 text-[12px] text-body">
+                처리 의견 (감사로그 기록)
+                <input
+                  value={planOpinion}
+                  onChange={(e) => setPlanOpinion(e.target.value)}
+                  placeholder="예: 측정경계·옵션 선정 타당함, 반기 보고 주기 동의"
+                  className="min-h-9 rounded border border-line bg-white px-2 py-1.5 text-[16px] text-navy md:text-[13px]"
+                />
+              </label>
               <button
                 disabled={!(planStatus === "작성 중" && optSel === "B")}
-                onClick={() => planAction("request")}
+                onClick={() => { planAction("request", planOpinion); setPlanOpinion(""); }}
                 className="min-h-9 rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 승인 요청
               </button>
               <button
                 disabled={!(role === "승인자" && planStatus === "승인 대기")}
-                onClick={() => planAction("approve")}
+                onClick={() => { planAction("approve", planOpinion); setPlanOpinion(""); }}
                 className="min-h-9 rounded-lg bg-teal px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 계획 승인 (승인자)
               </button>
               <button
                 disabled={!(role === "승인자" && planStatus === "승인 완료")}
-                onClick={() => planAction("revoke")}
+                onClick={() => { planAction("revoke", planOpinion); setPlanOpinion(""); }}
                 className="min-h-9 rounded-lg border border-review/50 px-3 py-1.5 text-[12.5px] font-semibold text-review hover:bg-review/8 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 승인 해제

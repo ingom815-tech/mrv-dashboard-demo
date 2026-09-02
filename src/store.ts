@@ -119,7 +119,7 @@ interface UIState {
   planInputs: Record<string, string>;
   setPlanInput: (key: string, label: string, value: string) => void;
   planStatus: PlanStatus;
-  planAction: (a: "request" | "approve" | "revoke") => void;
+  planAction: (a: "request" | "approve" | "revoke", opinion?: string) => void;
 }
 
 /* 명세서(인벤토리 보고서) 상태 흐름 */
@@ -352,7 +352,7 @@ export const useUI = create<UIState>((set, get) => ({
     }
   },
   planStatus: loadJson<PlanStatus>("mrv-plan-status", "승인 대기"),
-  planAction: (a) => {
+  planAction: (a, opinion) => {
     const { role, planStatus, planInputs, logAudit } = get();
     let next: PlanStatus | null = null;
     // Option B 외 선택 시 승인 요청 불가 (시스템 지원 범위 검증)
@@ -366,7 +366,7 @@ export const useUI = create<UIState>((set, get) => ({
     logAudit(
       a === "request" ? "계획 승인 요청" : a === "approve" ? "계획 승인" : "계획 승인 해제",
       "M&V 계획서",
-      `${next} — MVP-2026-01 (계획서 버전 이력 보존)`,
+      `${next}${opinion ? ` — 의견: ${opinion}` : ""} (MVP-2026-01 · 계획서 버전 이력 보존)`,
     );
   },
   revokeInvApproval: () => {
