@@ -33,7 +33,7 @@ function H({
       {src && onNav && (
         <button
           onClick={() => onNav(src.go)}
-          className="no-print ml-auto rounded border border-accent/40 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-accent transition-colors hover:bg-accent/8"
+          className="no-print ml-auto text-[11px] font-normal whitespace-nowrap text-slate-400 underline-offset-2 transition-colors hover:text-accent hover:underline"
           title="이 절의 데이터를 관리하는 화면으로 이동"
         >
           원천: {src.label} ›
@@ -87,9 +87,11 @@ function T({ head, rows, right }: { head: string[]; rows: Array<Array<string | n
 export default function MrvReportPreview({
   mode,
   onNav,
+  showSettings = true,
 }: {
   mode: "plan" | "report" | "iso" | "template";
   onNav?: (go: DocNav) => void; // 절별 "원천 관리" 이동 (미전달 시 링크 숨김)
+  showSettings?: boolean; // 계획서 설정 패널 표시 여부 (편집 버튼으로 제어)
 }) {
   const calc = useCalc();
   const ef = activeEf(useUI((s) => s.efList));
@@ -199,9 +201,9 @@ export default function MrvReportPreview({
         )}
       </div>
 
-      {/* ---------- 계획서 설정 — 실무자가 선택·입력하는 항목 (문서 본문에 즉시 반영) ---------- */}
-      {mode === "plan" && (
-        <section className="no-print rounded-[10px] border border-line/60 bg-white p-4">
+      {/* ---------- 계획서 설정 — 실무자가 선택·입력하는 항목 (편집 버튼으로 펼침, 문서에 즉시 반영) ---------- */}
+      {mode === "plan" && showSettings && (
+        <section className="no-print rounded-[10px] border border-accent/40 bg-white p-4">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <span className="text-[15px] font-semibold text-navy">
               계획서 설정 <span className="text-[12px] font-normal text-body">— 실무자 선택 항목 (아래 문서에 즉시 반영 · 감사로그 기록)</span>

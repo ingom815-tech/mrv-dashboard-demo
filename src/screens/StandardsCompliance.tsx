@@ -5,9 +5,11 @@ import { ipmvpMatrix, iso50006Matrix, matrixSummary, type ComplyNav, type Comply
 export default function FrameworkPanel({
   framework,
   onNav,
+  forceOpen,
 }: {
   framework: "ipmvp" | "iso";
   onNav: (nav: ComplyNav) => void;
+  forceOpen?: boolean;
 }) {
   const rows: ComplyRow[] = framework === "ipmvp" ? ipmvpMatrix : iso50006Matrix;
   const title = framework === "ipmvp" ? "IPMVP Core Concepts 2022" : "ISO 50006:2023";
@@ -18,7 +20,7 @@ export default function FrameworkPanel({
   const s = matrixSummary(rows);
 
   return (
-    <details className="no-print rounded-[10px] border border-line/60 bg-white">
+    <details className="no-print rounded-[10px] border border-line/60 bg-white" open={forceOpen || undefined}>
       <summary className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
         <span className="text-[14px] font-semibold text-navy">{title} 정합성</span>
         <span className="tnum flex flex-wrap gap-1.5 text-[11px] font-bold">

@@ -64,6 +64,14 @@ function download(name: string, content: string, type: string) {
 export default function Reporting() {
   const [tab, setTab] = useState<TabKey>(initialTab);
   const [doc, setDoc] = useState<DocKey>(initialDoc);
+  // 문서 탭 기본은 "깨끗한 문서만" — 편집·표준 근거는 버튼으로 펼침 (복잡도 축소)
+  const [editOpen, setEditOpen] = useState(false);
+  const [stdOpen, setStdOpen] = useState(false);
+  const pickDoc = (k: DocKey) => {
+    setDoc(k);
+    setEditOpen(false);
+    setStdOpen(false);
+  };
   // 보고 범위: 냉수플랜트 MRV 보고서 | 공장 종합 명세서 (온실가스·에너지 명세서 작성 기능)
   const [rptScope, setRptScope] = useState<string>(() => {
     const seg = window.location.hash.split("/")[2];
@@ -72,7 +80,7 @@ export default function Reporting() {
   const [copied, setCopied] = useState(false);
   // 승인 실수 방지: 첫 탭에서 무장(arm), 두 번째 탭에서 확정 (모바일 지시문 §8.7)
   const [armId, setArmId] = useState<string | null>(null);
-  const { role, reviewStates, markReviewed, approve, audit, resetDemoStates, openEvidence, setMenu, projects } =
+  const { role, reviewStates, markReviewed, approve, audit, resetDemoStates, openEvidence, setMenu, projects, planStatus } =
     useUI();
   /* 보고서 생성 대상 프로젝트만 목록에 노출 (설비·연계 관리에서 대상 선택) */
   const reportProjects = projects.filter((p) => p.report);
@@ -449,6 +457,28 @@ export default function Reporting() {
       )}
 
       {/* ---------- 탭 2: 보고서 작성 ---------- */}
+      {/* ---------- 지금 할 일 — 현재 상태가 다음 행동 하나를 안내 ---------- */}
+      {rptScope === "chiller" && (() => {
+        const step =
+          planStatus === "작성 중"
+            ? { label: "M&V 계획서 설정을 확정하고 승인을 요청하세요", sub: "계획서 편집에서 옵션·주기 확인 후 승인 요청", go: () => { setTab("report"); setDoc("plan"); setEditOpen(true); setStdOpen(false); } }
+            : planStatus === "승인 대기"
+              ? { label: "M&V 계획서를 승인하세요", sub: "승인자 역할로 전환 후 계획서 편집에서 계획 승인", go: () => { setTab("report"); setDoc("plan"); setEditOpen(true); setStdOpen(false); } }
+              : verify.pending > 0
+                ? { label: `검토 대기 ${verify.pending}건을 처리하세요`, sub: "검토자 검토 완료 → 승인자 승인 시 절감량 재산정·새 계산버전", go: () => setTab("approve") }
+                : { label: "산정 확정 — 결과보고서를 출력할 수 있습니다", sub: `${calc.version} · 절감 ${fmt(calc.kpi.saveMWh)} MWh 확정값`, go: () => { setTab("report"); setDoc("mvreport"); setEditOpen(false); setStdOpen(false); } };
+        return (
+          <div className="no-print flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-accent/25 bg-accent/5 px-3.5 py-2">
+            <span className="text-[12px] font-bold text-accent">지금 할 일</span>
+            <span className="text-[13px] font-semibold text-navy">{step.label}</span>
+            <span className="hidden text-[12px] text-body md:inline">{step.sub}</span>
+            <button onClick={step.go} className="ml-auto min-h-8 rounded-lg bg-accent px-3 py-1 text-[12px] font-semibold text-white hover:opacity-90">
+              이동 ›
+            </button>
+          </div>
+        );
+      })()}
+
       {/* ---------- 탭 2: 보고서 — 기준(프레임워크)별 문서 선택 ---------- */}
       {rptScope === "chiller" && tab === "report" && (
         <div className="no-print flex shrink-0 flex-wrap items-center gap-2">
@@ -456,7 +486,7 @@ export default function Reporting() {
           {DOCS.map((d) => (
             <button
               key={d.key}
-              onClick={() => setDoc(d.key)}
+              onClick={() => pickDoc(d.key)}
               className={`min-h-9 rounded-lg border px-3 py-1.5 text-[13px] transition-colors ${
                 doc === d.key ? "border-accent/40 bg-accent/5 font-semibold text-accent" : "border-line/60 bg-white text-body hover:border-accent/40"
               }`}
@@ -465,6 +495,28 @@ export default function Reporting() {
               {d.frame && <span className={`ml-1.5 rounded px-1 py-0.5 text-[10px] font-bold ${doc === d.key ? "bg-accent/10" : "bg-line/60 text-slate-400"}`}>{d.frame}</span>}
             </button>
           ))}
+          {doc !== "draft" && (
+            <div className="ml-auto flex gap-2">
+              {doc === "plan" && (
+                <button
+                  onClick={() => setEditOpen((v) => !v)}
+                  className={`min-h-9 rounded-lg border px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                    editOpen ? "border-accent bg-accent text-white" : "border-accent/40 bg-white text-accent hover:bg-accent/8"
+                  }`}
+                >
+                  ✎ 계획서 편집
+                </button>
+              )}
+              <button
+                onClick={() => setStdOpen((v) => !v)}
+                className={`min-h-9 rounded-lg border px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                  stdOpen ? "border-navy bg-navy text-white" : "border-line/60 bg-white text-body hover:border-navy/40"
+                }`}
+              >
+                표준 근거 ({doc === "iso" ? "ISO 50006" : "IPMVP"})
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -662,10 +714,11 @@ export default function Reporting() {
         };
         return (
           <>
-            <FrameworkPanel framework={doc === "iso" ? "iso" : "ipmvp"} onNav={onNav} />
+            {stdOpen && <FrameworkPanel framework={doc === "iso" ? "iso" : "ipmvp"} onNav={onNav} forceOpen />}
             <MrvReportPreview
               mode={doc === "plan" ? "plan" : doc === "iso" ? "iso" : "report"}
               onNav={(go) => onNav({ go, label: "" })}
+              showSettings={editOpen}
             />
           </>
         );
