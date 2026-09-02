@@ -1,23 +1,36 @@
 import { ipmvpMatrix, iso50006Matrix, matrixSummary, type ComplyNav, type ComplyRow } from "../lib/standardsData";
 
-/* 표준 준수 현황 — 국제표준(IPMVP·ISO 50006) 요구 조항 대비 시스템 기능의 충족 여부 대조표.
-   각 행의 "근거 보기"를 누르면 실제 구현된 화면·보고서 절로 이동한다 (말이 아니라 클릭으로 증명). */
-export default function StandardsCompliance({ onNav }: { onNav: (nav: ComplyNav) => void }) {
-  const total = [...ipmvpMatrix, ...iso50006Matrix];
-  const ts = matrixSummary(total);
+/* 보고서 기준(프레임워크)별 표준 정합성 패널 — 해당 보고서 위에 접힘 상태로 붙는다.
+   각 행의 "근거 보기"를 누르면 실제 구현된 화면·보고서 절로 이동 (말이 아니라 클릭으로 증명). */
+export default function FrameworkPanel({
+  framework,
+  onNav,
+}: {
+  framework: "ipmvp" | "iso";
+  onNav: (nav: ComplyNav) => void;
+}) {
+  const rows: ComplyRow[] = framework === "ipmvp" ? ipmvpMatrix : iso50006Matrix;
+  const title = framework === "ipmvp" ? "IPMVP Core Concepts 2022" : "ISO 50006:2023";
+  const docDesc =
+    framework === "ipmvp"
+      ? "에너지 절감량 측정·검증(M&V) 국제 프로토콜 — 이 보고서가 따르는 기준"
+      : "에너지성과지표(EnPI)·베이스라인(EnB) 국제표준 — 이 보고서가 따르는 기준";
+  const s = matrixSummary(rows);
 
-  const Section = ({ title, doc, rows }: { title: string; doc: string; rows: ComplyRow[] }) => {
-    const s = matrixSummary(rows);
-    return (
-      <section className="rounded-[10px] border border-line/60 bg-white p-4">
-        <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="text-[15px] font-semibold text-navy">{title}</span>
-          <span className="text-[12px] text-slate-400">{doc}</span>
-          <span className="tnum ml-auto flex flex-wrap gap-1.5 text-[11px] font-bold">
-            <span className="rounded bg-teal/10 px-1.5 py-0.5 text-teal">구현 {s.ok}</span>
-            <span className="rounded bg-review/10 px-1.5 py-0.5 text-review">부분 {s.partial}</span>
-            <span className="rounded bg-line px-1.5 py-0.5 text-body">향후 {s.todo}</span>
-          </span>
+  return (
+    <details className="no-print rounded-[10px] border border-line/60 bg-white">
+      <summary className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
+        <span className="text-[14px] font-semibold text-navy">{title} 정합성</span>
+        <span className="tnum flex flex-wrap gap-1.5 text-[11px] font-bold">
+          <span className="rounded bg-teal/10 px-1.5 py-0.5 text-teal">구현 {s.ok}</span>
+          <span className="rounded bg-review/10 px-1.5 py-0.5 text-review">부분 {s.partial}</span>
+          <span className="rounded bg-line px-1.5 py-0.5 text-body">향후 {s.todo}</span>
+        </span>
+        <span className="ml-auto text-[12px] text-slate-400">조항별 대조 · 근거 화면 이동 ▾</span>
+      </summary>
+      <div className="border-t border-line/60 px-4 pt-2 pb-3">
+        <div className="mb-2 text-[12.5px] text-body">
+          {docDesc} · 각 행의 <b className="text-accent">근거 보기</b>를 누르면 실제 구현 화면·보고서 절로 이동합니다
         </div>
         <table className="w-full text-[12.5px]">
           <thead>
@@ -59,31 +72,10 @@ export default function StandardsCompliance({ onNav }: { onNav: (nav: ComplyNav)
             ))}
           </tbody>
         </table>
-      </section>
-    );
-  };
-
-  return (
-    <>
-      {/* 요약 줄 — 이 화면의 용도 */}
-      <section className="rounded-[10px] border border-line/60 bg-white px-4 py-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <div className="tnum text-[15px] font-semibold text-navy">
-            국제표준 요구 {ts.total}개 조항 — <span className="text-teal">구현 {ts.ok}</span> · <span className="text-review">부분 {ts.partial}</span> · <span className="text-body">향후 {ts.todo}</span>
-          </div>
-          <span className="text-[12.5px] text-body">
-            이 시스템의 산정·검증 기능이 표준의 어느 조항을 충족하는지 대조한 표 — 각 행의 <b className="text-accent">근거 보기</b>를 누르면 실제 구현 화면·보고서 절로 이동합니다
-          </span>
+        <div className="mt-2 text-[12px] text-body">
+          "부분·향후" 항목은 데모 범위 밖이거나 확장 대상임을 정직하게 표기 · 사용자 제공 기능명세서 v1.0 기준 · DEMO — 공식 적합성 평가 결과 아님
         </div>
-      </section>
-
-      <Section title="IPMVP Core Concepts 2022" doc="에너지 절감량 측정·검증(M&V) 국제 프로토콜 — 기능명세서 v1.0 대비" rows={ipmvpMatrix} />
-      <Section title="ISO 50006:2023" doc="에너지성과지표(EnPI)·베이스라인(EnB) 국제표준 — 기능명세서 v1.0 대비" rows={iso50006Matrix} />
-
-      <div className="text-[12px] text-body">
-        "부분·향후" 항목은 데모 범위 밖이거나 확장 대상임을 정직하게 표기한 것으로, 해당 조항의 비고에 사유를 명시 ·
-        전체 항목은 사용자 제공 기능명세서(IPMVP·ISO 50006 v1.0)의 요구사항 기준 · DEMO — 공식 적합성 평가 결과 아님
       </div>
-    </>
+    </details>
   );
 }

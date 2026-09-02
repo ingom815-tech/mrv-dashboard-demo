@@ -1,4 +1,4 @@
-import { mrv, mvPlan, baselineStats, evidenceRegistry, type NonRoutine } from "../lib/mrvData";
+import { mrv, mvPlan, baselineStats, evidenceRegistry, perfCurve, type NonRoutine } from "../lib/mrvData";
 import { meterPlan, qaqcRoles } from "../lib/inventoryData";
 import { TOE_PER_MWH, ecmList, mvRequirements, dataCollection } from "../lib/standardsData";
 import { useCalc } from "../lib/useCalc";
@@ -53,11 +53,12 @@ function T({ head, rows, right }: { head: string[]; rows: Array<Array<string | n
   );
 }
 
-/* M&V 계획서(14절)·결과보고서(10절) — ESCO 표준계약 M&V 양식 절 구조를 그대로 따르는 A4 문서.
-   mode="plan"     — M&V 계획서: 산정 방법의 사전 정의 (베이스라인·조정·계측·품질보증)
-   mode="report"   — M&V 결과보고서: 보고기간 실적 (월별 사용량·절감량(액)·정확도·검토의견)
+/* 기준(프레임워크)별 보고서 문서 — A4 인쇄 양식.
+   mode="plan"     — M&V 계획서 (IPMVP · ESCO 양식 14절): 산정 방법의 사전 정의
+   mode="report"   — M&V 결과보고서 (IPMVP · ESCO 양식 10절): 보고기간 실적
+   mode="iso"      — 에너지성과 보고서 (ISO 50006): EnPI·EnB 관점 성과 문서
    mode="template" — 보일러 프로젝트(개시 전): 동일 양식 재사용 확장 데모 */
-export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "template" }) {
+export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "iso" | "template" }) {
   const calc = useCalc();
   const ef = activeEf(useUI((s) => s.efList));
   const tariff = useUI((s) => s.tariffValue);
@@ -73,10 +74,12 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
 
   /* 문서 머리 정보 — 프로젝트별 */
   const isTpl = mode === "template";
-  const docTitle = mode === "plan" ? "M&V 계획서" : "M&V 결과보고서";
+  const docTitle = mode === "plan" ? "M&V 계획서" : mode === "iso" ? "에너지성과 보고서" : "M&V 결과보고서";
+  const frameLabel = mode === "iso" ? "ISO 50006:2023 (EnPI·EnB) 준용" : "ESCO 표준계약 M&V 양식 준용 · IPMVP Core Concepts 2022";
   const P = isTpl
     ? { project: "보일러 폐열회수 개선", id: "MVP-2026-02 (계획)", state: "프로젝트 개시 전", ver: "개시 후 생성" }
-    : { project: "중앙 냉수플랜트 효율개선", id: mvPlan.id, state: mode === "plan" ? mvPlan.status : verify.state, ver: mode === "plan" ? `${mvPlan.version} · 기준선 BL-v1.0` : `${calc.version} · BL-v1.0` };
+    : { project: "중앙 냉수플랜트 효율개선", id: mvPlan.id, state: mode === "plan" ? mvPlan.status : verify.state, ver: mode === "plan" ? `${mvPlan.version} · 기준선 BL-v1.0` : mode === "iso" ? `${calc.version} · EnB BL-v1.0` : `${calc.version} · BL-v1.0` };
+  const actDailyKwh = calc.kpi.nDays > 0 ? calc.savings.sumAct / calc.kpi.nDays : 0;
 
   const na = <span className="text-slate-400">개시 후 자동 산정</span>;
 
@@ -133,7 +136,9 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
             ? "양식 미리보기 — 프로젝트 개시 후 동일 양식으로 자동 작성됩니다"
             : mode === "plan"
               ? "ESCO 표준계약 M&V 계획서 양식(14절) 기준 — 시스템 기준정보·산정 설정에서 자동 작성"
-              : `ESCO 표준계약 M&V 결과보고서 양식(10절) 기준 · ${verify.state === "승인 완료" ? "승인 완료 버전" : `${verify.state} — 승인 전 초안`}`}
+              : mode === "iso"
+                ? "ISO 50006:2023 EnPI·EnB 체계 기준 — 동일 산정 결과를 에너지성과 관점으로 재구성"
+                : `ESCO 표준계약 M&V 결과보고서 양식(10절) 기준 · ${verify.state === "승인 완료" ? "승인 완료 버전" : `${verify.state} — 승인 전 초안`}`}
         </span>
         {!isTpl ? (
           <button onClick={() => window.print()} className="rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90">
@@ -152,7 +157,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               {isTpl ? "양식 미리보기" : "DEMO · 합성데이터"}
             </span>
           </div>
-          <div className="text-[12px] tracking-widest text-slate-400">ESCO 표준계약 M&V 양식 준용 · IPMVP Core Concepts 2022 (데모 요약본)</div>
+          <div className="text-[12px] tracking-widest text-slate-400">{frameLabel} (데모 요약본)</div>
           <div className="mt-2 text-[24px] font-bold">{docTitle}</div>
           <div className="mt-1 text-[14px]">{P.project} · 원주공장</div>
           <div className="tnum mt-3 text-[12px] text-body">프로젝트 {P.id} · {P.ver} · 상태 {P.state}</div>
@@ -361,6 +366,79 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
           </>
         )}
 
+        {/* ============ 에너지성과 보고서 (ISO 50006 — EnPI·EnB 체계) ============ */}
+        {mode === "iso" && (
+          <>
+            <H n="1" t="에너지성과지표(EnPI) 정의 및 경계" form="ISO 50006 조항 4 · 5.3" />
+            <T
+              head={["EnPI", "단위", "용도", "산정 주기"]}
+              rows={[
+                ["일 전력 사용량 (주 EnPI)", "kWh/일", "베이스라인 대비 성과 산정", "일별 (15분 집계)"],
+                ["시스템 효율", "kW/RT", "효율 개선 원인 분석", "일별"],
+                ["냉동기 COP", "—", "설비 단위 성능 추적", "일별"],
+              ]}
+            />
+            <p className="mt-1 text-[12.5px]">EnPI 경계: {mvPlan.boundary} — 경계 내 전 전력 계측 13점.</p>
+
+            <H n="2" t="관련 변수 정의·정량화" form="조항 5.5" />
+            <KV
+              rows={[
+                ["관련 변수", `${mvPlan.independent} — 에너지사용량과 통계적 유의성 확인 후 채택`],
+                ["변수 범위 (기준기간)", `냉방도일 ${Number((baselineStats.cddRange as number[])[0]).toFixed(1)}~${Number((baselineStats.cddRange as number[])[1]).toFixed(1)} ℃·day · 생산량 ${Number((baselineStats.prodRange as number[])[0]).toFixed(0)}~${Number((baselineStats.prodRange as number[])[1]).toFixed(0)} ton/일`],
+                ["정적 인자", "설비 구성·운전 체계 — 변경 시 비일상 조정 대상"],
+              ]}
+            />
+
+            <H n="3" t="데이터 수집 및 품질" form="조항 5.6" />
+            <KV
+              rows={[
+                ["수집", "15분 자동수집 (전력·온도) · 60분 (생산) · 원본 보존"],
+                ["품질 통계", `수집률 ${pct(mrv.kpi.collectRate)} · 정상률 ${pct(mrv.kpi.trustRate)} · 추정률 ${pct(mrv.kpi.estRate, 2)}`],
+                ["이상치 처리", "물리범위·급변·고착 자동 검출(R-02) — 원본 유지, 정제값 별도 (조항 5.6.5)"],
+                ["계측기", "사양·정확도·교정주기 관리 · 만료 시 검증 이슈 자동 생성 (조항 5.6.3)"],
+              ]}
+            />
+
+            <H n="4" t="EnPI 산정 모델 (통계 모델)" form="조항 6.2.1" />
+            {regressionBlock}
+
+            <H n="5" t="에너지 베이스라인(EnB) 수립" form="조항 7" />
+            <KV
+              rows={[
+                ["EnB 버전", "BL-v1.0 — 모델·기간·조건 문서화, 변경 시 새 버전"],
+                ["기준기간", `${mvPlan.baselinePeriod} · 사용일 ${model?.n ?? "—"}일`],
+                ["제외 규칙", mvPlan.exclusionRule],
+              ]}
+            />
+
+            <H n="6" t="EnB 정규화 및 조정" form="조항 8" />
+            <p>
+              일상적 변동(기상·생산량)은 회귀모델로 정규화하고, 운용조건 변경은 비일상적 조정으로 등록해
+              승인된 건만 반영한다 — 조정 반영 시 새 계산버전({calc.version}) 생성, 기존본 보존.
+            </p>
+
+            <H n="7" t="에너지성과 결과" />
+            <T
+              head={["지표", "기준기간 (EnB)", "보고기간", "성과"]}
+              right={[1, 2, 3]}
+              rows={[
+                ["일평균 전력 사용량 (kWh/일)", fmt(model?.yMean ?? 0), fmt(actDailyKwh), `조정 기준선 대비 ${pct(calc.kpi.savePct)} 절감`],
+                ["기간 절감량 (MWh)", "—", fmt(calc.kpi.saveMWh), `불확도 ±${pct(calc.kpi.uncertaintyPct)} (90% 신뢰수준)`],
+                ["동일부하 시스템 효율 (kW/RT)", "기준", `${fmt(perfCurve.sameLoadImprovePct * 100, 1)}% 개선`, "부하율–효율 성능곡선 비교"],
+              ]}
+            />
+            <p className="mt-1 text-[11.5px] text-body">
+              주) 에너지성과 개선은 부하 감소가 아닌 설비 효율 개선에서 기인함을 성능곡선으로 확인 · 온실가스 감축 {fmt(calc.kpi.co2, 1)} tCO₂eq (별도 산정)
+            </p>
+
+            <H n="8" t="EnB 유지·갱신" form="조항 9" />
+            <p>
+              비일상 조정·배출계수 변경 시 새 계산버전을 생성하고 기존 확정본을 보존한다 (이력·버전 비교 화면).
+              정기 재수립(모델 재적합) 주기 정책은 확장 대상으로 명시한다.
+            </p>
+          </>
+        )}
+
         {/* ============ 템플릿 (보일러 · 개시 전) ============ */}
         {isTpl && (
           <>
@@ -390,7 +468,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
         )}
 
         <div className="mt-6 text-center text-[11.5px] text-review">
-          DEMO · 합성데이터 — 본 문서는 ESCO 표준계약 M&V 양식을 준용한 테스트 출력물이며 공식 제출·제3자 검증 자료로 사용할 수 없습니다.
+          DEMO · 합성데이터 — 본 문서는 {mode === "iso" ? "ISO 50006 체계를 준용한" : "ESCO 표준계약 M&V 양식을 준용한"} 테스트 출력물이며 공식 제출·제3자 검증 자료로 사용할 수 없습니다.
         </div>
       </div>
     </>

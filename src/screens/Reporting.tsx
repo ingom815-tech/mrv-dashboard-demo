@@ -6,7 +6,7 @@ import ContextBar, { TopActions } from "../components/ContextBar";
 import InventoryReport from "./InventoryReport";
 import MrvReportPreview from "./MrvReportPreview";
 import EsgDataPack from "./EsgDataPack";
-import StandardsCompliance from "./StandardsCompliance";
+import FrameworkPanel from "./StandardsCompliance";
 import type { ComplyNav } from "../lib/standardsData";
 
 const fmt = (n: number, d = 0) =>
@@ -15,16 +15,33 @@ const pct = (n: number, d = 1) => `${fmt(n * 100, d)}%`;
 
 const TABS = [
   { key: "approve", label: "검토·승인" },
-  { key: "draft", label: "보고서 작성" },
-  { key: "mvplan", label: "M&V 계획서" },
-  { key: "form", label: "결과보고서 양식" },
-  { key: "standards", label: "표준 준수" },
+  { key: "report", label: "보고서" },
   { key: "history", label: "이력·버전 비교" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
+
+/* 보고서 탭 안의 문서 선택 — 기준(프레임워크)별로 분리 */
+const DOCS = [
+  { key: "draft", label: "작성 현황·초안", frame: null },
+  { key: "plan", label: "M&V 계획서", frame: "IPMVP" },
+  { key: "mvreport", label: "M&V 결과보고서", frame: "IPMVP" },
+  { key: "iso", label: "에너지성과 보고서", frame: "ISO 50006" },
+] as const;
+type DocKey = (typeof DOCS)[number]["key"];
+
+/* 딥링크: 구 해시(draft·mvplan·form·standards)도 새 구조로 흡수 */
 const initialTab = (): TabKey => {
   const seg = window.location.hash.split("/")[2];
-  return (TABS.find((t) => t.key === seg)?.key ?? "approve") as TabKey;
+  if (seg === "history" || seg === "approve") return seg;
+  if (["draft", "mvplan", "form", "standards", "report", "plan", "iso"].includes(seg ?? "")) return "report";
+  return "approve";
+};
+const initialDoc = (): DocKey => {
+  const seg = window.location.hash.split("/")[2];
+  if (seg === "mvplan" || seg === "plan" || seg === "standards") return "plan";
+  if (seg === "form" || seg === "mvreport") return "mvreport";
+  if (seg === "iso") return "iso";
+  return "draft";
 };
 
 const stateBadge = (s: string) =>
@@ -46,6 +63,7 @@ function download(name: string, content: string, type: string) {
 
 export default function Reporting() {
   const [tab, setTab] = useState<TabKey>(initialTab);
+  const [doc, setDoc] = useState<DocKey>(initialDoc);
   // 보고 범위: 냉수플랜트 MRV 보고서 | 공장 종합 명세서 (온실가스·에너지 명세서 작성 기능)
   const [rptScope, setRptScope] = useState<string>(() => {
     const seg = window.location.hash.split("/")[2];
@@ -431,7 +449,26 @@ export default function Reporting() {
       )}
 
       {/* ---------- 탭 2: 보고서 작성 ---------- */}
-      {rptScope === "chiller" && tab === "draft" && (
+      {/* ---------- 탭 2: 보고서 — 기준(프레임워크)별 문서 선택 ---------- */}
+      {rptScope === "chiller" && tab === "report" && (
+        <div className="no-print flex shrink-0 flex-wrap items-center gap-2">
+          <span className="text-[12.5px] text-slate-400">문서 선택</span>
+          {DOCS.map((d) => (
+            <button
+              key={d.key}
+              onClick={() => setDoc(d.key)}
+              className={`min-h-9 rounded-lg border px-3 py-1.5 text-[13px] transition-colors ${
+                doc === d.key ? "border-accent/40 bg-accent/5 font-semibold text-accent" : "border-line/60 bg-white text-body hover:border-accent/40"
+              }`}
+            >
+              {d.label}
+              {d.frame && <span className={`ml-1.5 rounded px-1 py-0.5 text-[10px] font-bold ${doc === d.key ? "bg-accent/10" : "bg-line/60 text-slate-400"}`}>{d.frame}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {rptScope === "chiller" && tab === "report" && doc === "draft" && (
         <>
           {/* 상단 요약 */}
           <section className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
@@ -524,8 +561,8 @@ export default function Reporting() {
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[15px] font-semibold text-navy">월별 성과 (보고서 본문 표)</span>
               <div className="flex items-center gap-2">
-                <button onClick={() => setTab("form")} className="rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white hover:opacity-90">
-                  ① 보고서 양식 보기·인쇄
+                <button onClick={() => setDoc("mvreport")} className="rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white hover:opacity-90">
+                  ① 결과보고서 양식 보기·인쇄
                 </button>
                 <button onClick={dataPack} className="rounded-lg border border-line px-3 py-1.5 text-[12px] font-medium text-navy hover:border-accent/50">
                   ② 외부 보고용 데이터팩 (JSON)
@@ -610,32 +647,26 @@ export default function Reporting() {
         </>
       )}
 
-      {/* ---------- 탭: 표준 준수 (IPMVP·ISO 50006 대조 — 근거 화면 딥링크) ---------- */}
-      {rptScope === "chiller" && tab === "standards" && (
-        <StandardsCompliance
-          onNav={(nav: ComplyNav) => {
-            if (nav.go === "verify" || nav.go === "master") {
-              setMenu(nav.go);
-              return;
-            }
-            if (nav.go === "evidence") {
-              openEvidence();
-              return;
-            }
-            setTab(nav.go);
-            if (nav.anchor) {
-              // 탭 전환 렌더 후 해당 절로 스크롤
-              setTimeout(() => document.getElementById(nav.anchor!)?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
-            }
-          }}
-        />
-      )}
-
-      {/* ---------- 탭 3: M&V 계획서 (ESCO 양식 14절) ---------- */}
-      {rptScope === "chiller" && tab === "mvplan" && <MrvReportPreview mode="plan" />}
-
-      {/* ---------- 탭 4: M&V 결과보고서 양식 (ESCO 양식 10절, A4 인쇄) ---------- */}
-      {rptScope === "chiller" && tab === "form" && <MrvReportPreview mode="report" />}
+      {/* ---------- 기준별 보고서 문서 — 각 문서 위에 해당 표준의 정합성 패널(접힘) ---------- */}
+      {rptScope === "chiller" && tab === "report" && doc !== "draft" && (() => {
+        const onNav = (nav: ComplyNav) => {
+          if (nav.go === "verify" || nav.go === "master") { setMenu(nav.go); return; }
+          if (nav.go === "evidence") { openEvidence(); return; }
+          if (nav.go === "approve" || nav.go === "history") { setTab(nav.go); return; }
+          // 보고서 문서 간 이동 (mvplan → 계획서, form → 결과보고서)
+          setDoc(nav.go === "mvplan" ? "plan" : "mvreport");
+          if (nav.anchor) {
+            // 문서 렌더 완료 후 해당 절로 스크롤
+            setTimeout(() => document.getElementById(nav.anchor!)?.scrollIntoView({ behavior: "smooth", block: "start" }), 450);
+          }
+        };
+        return (
+          <>
+            <FrameworkPanel framework={doc === "iso" ? "iso" : "ipmvp"} onNav={onNav} />
+            <MrvReportPreview mode={doc === "plan" ? "plan" : doc === "iso" ? "iso" : "report"} />
+          </>
+        );
+      })()}
 
       {/* ---------- 탭 4: 이력·버전 비교 ---------- */}
       {rptScope === "chiller" && tab === "history" && (
