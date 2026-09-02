@@ -180,7 +180,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
           </div>
           <div className="grid grid-cols-1 gap-x-6 gap-y-3 md:grid-cols-2">
             <label className="flex flex-col gap-1 text-[12px] text-body">
-              M&V 옵션 (3절) <span className="text-[10px] font-bold text-review">수기 선택</span>
+              <span>M&V 옵션 <span className="rounded bg-review/10 px-1 py-0.5 text-[10px] font-bold text-review">수기 선택</span> <span className="text-[11px] text-slate-400">· 양식 3.1 M&V옵션 적용</span></span>
               <select
                 aria-label="M&V 옵션 선택"
                 value={optSel}
@@ -199,7 +199,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               )}
             </label>
             <label className="flex flex-col gap-1 text-[12px] text-body">
-              보고 주기 (5절) <span className="text-[10px] font-bold text-review">수기 선택</span>
+              <span>보고 주기 <span className="rounded bg-review/10 px-1 py-0.5 text-[10px] font-bold text-review">수기 선택</span> <span className="text-[11px] text-slate-400">· 양식 5.1 보고기간 설정</span></span>
               <select
                 aria-label="보고 주기 선택"
                 value={cycleSel}
@@ -213,7 +213,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               </select>
             </label>
             <div className="flex flex-col gap-1 text-[12px] text-body md:col-span-2">
-              옵션 선택 이유 (3절) <span className="text-[10px] font-bold text-review">수기 입력</span>
+              <span>옵션 선택 이유 <span className="rounded bg-review/10 px-1 py-0.5 text-[10px] font-bold text-review">수기 입력</span> <span className="text-[11px] text-slate-400">· 양식 3.1 옵션 선택 이유</span></span>
               <ManualField
                 fieldKey="optionReason"
                 label="옵션 선택 이유"
@@ -224,7 +224,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               />
             </div>
             <label className="flex flex-col gap-1 text-[12px] text-body">
-              에너지가격 (8절, 원/kWh) <span className="text-[10px] font-bold text-review">수기 입력 · 변경 시 절감액 전체 재산정</span>
+              <span>에너지가격 (원/kWh) <span className="rounded bg-review/10 px-1 py-0.5 text-[10px] font-bold text-review">수기 입력</span> <span className="text-[11px] text-slate-400">· 양식 8 에너지가격 — 변경 시 절감액 전체 재산정</span></span>
               <input
                 key={"tariff:" + tariff}
                 type="number"
@@ -240,7 +240,7 @@ export default function MrvReportPreview({ mode }: { mode: "plan" | "report" | "
               {role === "일반" && <span className="text-[11px] text-slate-400">검토자·승인자 역할만 변경 가능 (기준정보 정책)</span>}
             </label>
             <div className="flex flex-col gap-1 text-[12px] text-body">
-              모니터링 담당 지정 (10절) <span className="text-[10px] font-bold text-review">수기 입력</span>
+              <span>모니터링 담당 지정 <span className="rounded bg-review/10 px-1 py-0.5 text-[10px] font-bold text-review">수기 입력</span> <span className="text-[11px] text-slate-400">· 양식 10 모니터링 책임 (독립변수 / 에너지데이터)</span></span>
               <div className="grid grid-cols-2 gap-2">
                 <ManualField fieldKey="ownerIndep" label="독립변수 담당" stored={pv("ownerIndep", "계측팀(데모)")} disabled={planLocked} commit={setPlanInput} />
                 <ManualField fieldKey="ownerEnergy" label="에너지데이터 담당" stored={pv("ownerEnergy", "에너지관리팀(데모)")} disabled={planLocked} commit={setPlanInput} />
