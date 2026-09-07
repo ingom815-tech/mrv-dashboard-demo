@@ -208,12 +208,14 @@ export default function MasterData() {
   const [connectStep, setConnectStep] = useState<number>(() => ls("mrv-connect-step", 0));
   const [mesOk, setMesOk] = useState<boolean>(() => ls("mrv-mes-ok", false));
   const [form2, setForm2] = useState({ name: "", group: "보일러·스팀", cap: "", mrv: true });
-  const { role, efList, registerEf, tariffValue, setTariff, logAudit, setMenu, setEquipGroup, projects, addProject, removeProject, toggleProjectReport, sites, currentSite, setCurrentSite, addSite, removeSite, users, inviteUser, changeUserRole, removeUser, acceptInvite } = useUI();
+  const { role, efList, registerEf, tariffValue, setTariff, logAudit, setMenu, setEquipGroup, projects, addProject, removeProject, toggleProjectReport, reorderProjects, sites, currentSite, setCurrentSite, addSite, removeSite, users, inviteUser, changeUserRole, removeUser, acceptInvite } = useUI();
   const [newPrjName, setNewPrjName] = useState("");
   const [newPrjGroup, setNewPrjGroup] = useState("공조기·환기");
   const [newSiteName, setNewSiteName] = useState("");
   const [newSiteRegion, setNewSiteRegion] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [inviteRole, setInviteRole] = useState<Role>("일반");
   const calc = useCalc();
   const ef = activeEf(efList);
@@ -363,14 +365,56 @@ export default function MasterData() {
 
       {tab === "plan" && (
         <>
+          {/* 신규 프로젝트 등록 — 입력이 먼저, 목록은 아래 별도 섹션 */}
           <section className="rounded-[10px] border border-line/60 bg-white p-4">
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[15px] font-semibold text-navy">신규 개선 프로젝트 등록</span>
+              <span className="text-[12px] text-slate-400">후보 → 사전진단 → M&V 계획 수립 → 개시 · 등록은 감사로그 기록</span>
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="flex min-w-56 flex-1 flex-col gap-1 text-[12px] text-body">
+                프로젝트명
+                <input
+                  value={newPrjName}
+                  onChange={(e) => setNewPrjName(e.target.value)}
+                  placeholder="예: 공조기 외기냉방 제어 개선"
+                  className="min-h-10 rounded border border-line bg-white px-2 py-1.5 text-[16px] text-navy md:text-[13px]"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[12px] text-body">
+                대상 설비군
+                <select
+                  aria-label="대상 설비군 선택"
+                  value={newPrjGroup}
+                  onChange={(e) => setNewPrjGroup(e.target.value)}
+                  className="min-h-10 rounded border border-line bg-white px-2 py-1.5 text-[13px] font-medium text-navy"
+                >
+                  {equipGroups.map((g) => (
+                    <option key={g.key} value={g.name}>{g.name}</option>
+                  ))}
+                </select>
+              </label>
+              <button
+                onClick={() => { addProject(newPrjName, newPrjGroup); setNewPrjName(""); }}
+                disabled={role === "일반" || !newPrjName.trim()}
+                className="min-h-10 rounded-lg bg-accent px-4 py-1.5 text-[13px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                후보 등록
+              </button>
+            </div>
+            {role === "일반" && <div className="mt-2 text-[11.5px] text-slate-400">일반 역할은 조회만 — 검토자·승인자 역할로 전환 후 등록하세요</div>}
+          </section>
+
+          {/* 프로젝트 목록 — 드래그(또는 ▲▼)로 표시 순서 변경, 보고·승인 드롭다운 순서에 반영 */}
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <span className="text-[15px] font-semibold text-navy">MRV 프로젝트 목록</span>
-              <span className="text-[12px] text-slate-400">공장의 개선 프로젝트별로 M&V 계획이 존재합니다</span>
+              <span className="text-[12px] text-slate-400">⠿ 핸들을 드래그해 순서 변경 (모바일 ▲▼) · 순서는 보고서 드롭다운에 반영</span>
             </div>
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-line text-left text-[12px] text-body">
+                  <th className="w-10 py-2" aria-label="순서" />
                   <th className="py-2 font-medium">프로젝트</th>
                   <th className="py-2 font-medium">대상 설비군</th>
                   <th className="py-2 font-medium">계획 ID</th>
@@ -380,8 +424,42 @@ export default function MasterData() {
                 </tr>
               </thead>
               <tbody className="tnum">
-                {projects.map((p) => (
-                  <tr key={p.id} className={`border-b border-line/50 last:border-0 ${p.builtin === "chiller" ? "bg-accent/4" : p.stage === "후보" ? "text-slate-400" : ""}`}>
+                {projects.map((p, idx) => (
+                  <tr
+                    key={p.id}
+                    draggable={role !== "일반"}
+                    onDragStart={() => setDragId(p.id)}
+                    onDragOver={(e) => { e.preventDefault(); if (dragOverId !== p.id) setDragOverId(p.id); }}
+                    onDrop={() => { if (dragId && dragId !== p.id) reorderProjects(dragId, p.id); setDragId(null); setDragOverId(null); }}
+                    onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+                    className={`border-b border-line/50 transition-colors last:border-0 ${
+                      dragId === p.id ? "opacity-40" : ""
+                    } ${dragOverId === p.id && dragId && dragId !== p.id ? "border-t-2 border-t-accent" : ""} ${
+                      p.builtin === "chiller" ? "bg-accent/4" : p.stage === "후보" ? "text-slate-400" : ""
+                    }`}
+                  >
+                    <td className="py-2 pr-1 whitespace-nowrap">
+                      <span
+                        className={`select-none text-[15px] ${role === "일반" ? "text-slate-200" : "cursor-grab text-slate-300 hover:text-accent active:cursor-grabbing"}`}
+                        title={role === "일반" ? "검토자·승인자만 순서 변경" : "드래그하여 순서 변경"}
+                      >
+                        ⠿
+                      </span>
+                      <span className="ml-0.5 inline-flex flex-col align-middle md:hidden">
+                        <button
+                          onClick={() => idx > 0 && reorderProjects(p.id, projects[idx - 1].id)}
+                          disabled={role === "일반" || idx === 0}
+                          aria-label="위로"
+                          className="leading-none text-slate-400 disabled:opacity-30"
+                        >▲</button>
+                        <button
+                          onClick={() => idx < projects.length - 1 && reorderProjects(p.id, projects[idx + 1].id)}
+                          disabled={role === "일반" || idx === projects.length - 1}
+                          aria-label="아래로"
+                          className="leading-none text-slate-400 disabled:opacity-30"
+                        >▼</button>
+                      </span>
+                    </td>
                     <td className="py-2 font-medium text-navy">
                       {p.name}
                       {p.builtin === "chiller" && <span className="ml-1 rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">대표 실증</span>}
@@ -422,40 +500,8 @@ export default function MasterData() {
                 ))}
               </tbody>
             </table>
-            {/* 프로젝트 추가 — 후보 등록 (사전진단 → M&V 계획 수립 → 개시 순서) */}
-            <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-line/60 pt-3">
-              <label className="flex min-w-56 flex-1 flex-col gap-1 text-[12px] text-body">
-                신규 개선 프로젝트명
-                <input
-                  value={newPrjName}
-                  onChange={(e) => setNewPrjName(e.target.value)}
-                  placeholder="예: 공조기 외기냉방 제어 개선"
-                  className="min-h-9 rounded border border-line bg-white px-2 py-1.5 text-[16px] text-navy md:text-[13px]"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-[12px] text-body">
-                대상 설비군
-                <select
-                  aria-label="대상 설비군 선택"
-                  value={newPrjGroup}
-                  onChange={(e) => setNewPrjGroup(e.target.value)}
-                  className="min-h-9 rounded border border-line bg-white px-2 py-1.5 text-[13px] font-medium text-navy"
-                >
-                  {equipGroups.map((g) => (
-                    <option key={g.key} value={g.name}>{g.name}</option>
-                  ))}
-                </select>
-              </label>
-              <button
-                onClick={() => { addProject(newPrjName, newPrjGroup); setNewPrjName(""); }}
-                disabled={role === "일반" || !newPrjName.trim()}
-                className="min-h-9 rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
-              >
-                후보 등록
-              </button>
-              <span className="text-[11.5px] text-slate-400">
-                후보 → 사전진단 → M&V 계획 수립 → 개시 · 등록/삭제/보고서 대상 변경은 감사로그 기록 (일반 역할 조회만)
-              </span>
+            <div className="mt-2 text-[11.5px] text-slate-400">
+              등록/삭제/보고서 대상/순서 변경은 감사로그 기록 (일반 역할 조회만)
             </div>
           </section>
           {/* 준비도 진단 (공동 사전진단 결과) */}

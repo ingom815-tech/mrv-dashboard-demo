@@ -115,6 +115,7 @@ interface UIState {
   addProject: (name: string, group: string) => void;
   removeProject: (id: string) => void;
   toggleProjectReport: (id: string) => void;
+  reorderProjects: (fromId: string, toId: string) => void;
   /* M&V 계획서 — 실무자 선택 항목 + 승인 흐름 */
   planInputs: Record<string, string>;
   setPlanInput: (key: string, label: string, value: string) => void;
@@ -376,6 +377,20 @@ export const useUI = create<UIState>((set, get) => ({
     saveJson("mrv-projects", next);
     set({ projects: next });
     logAudit("프로젝트 삭제", target.name, `${id} 삭제 — 후보 단계 프로젝트 (감사로그 보존)`);
+  },
+  /* 드래그·버튼으로 표시 순서 변경 — 보고·승인 프로젝트 드롭다운 순서에도 반영 */
+  reorderProjects: (fromId, toId) => {
+    const { role, projects, logAudit } = get();
+    if (role === "일반" || fromId === toId) return;
+    const list = [...projects];
+    const fi = list.findIndex((p) => p.id === fromId);
+    const ti = list.findIndex((p) => p.id === toId);
+    if (fi < 0 || ti < 0) return;
+    const [item] = list.splice(fi, 1);
+    list.splice(ti, 0, item);
+    saveJson("mrv-projects", list);
+    set({ projects: list });
+    logAudit("프로젝트 순서 변경", item.name, `표시 순서 ${fi + 1} → ${ti + 1}`);
   },
   toggleProjectReport: (id) => {
     const { role, projects, logAudit } = get();
