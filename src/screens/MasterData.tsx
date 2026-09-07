@@ -427,10 +427,15 @@ export default function MasterData() {
                 {projects.map((p, idx) => (
                   <tr
                     key={p.id}
-                    draggable={role !== "일반"}
-                    onDragStart={() => setDragId(p.id)}
-                    onDragOver={(e) => { e.preventDefault(); if (dragOverId !== p.id) setDragOverId(p.id); }}
-                    onDrop={() => { if (dragId && dragId !== p.id) reorderProjects(dragId, p.id); setDragId(null); setDragOverId(null); }}
+                    draggable
+                    onDragStart={(e) => {
+                      // dataTransfer 설정이 없으면 브라우저에 따라 드래그가 시작되지 않음
+                      e.dataTransfer.setData("text/plain", p.id);
+                      e.dataTransfer.effectAllowed = "move";
+                      setDragId(p.id);
+                    }}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (dragOverId !== p.id) setDragOverId(p.id); }}
+                    onDrop={(e) => { e.preventDefault(); const from = dragId ?? e.dataTransfer.getData("text/plain"); if (from && from !== p.id) reorderProjects(from, p.id); setDragId(null); setDragOverId(null); }}
                     onDragEnd={() => { setDragId(null); setDragOverId(null); }}
                     className={`border-b border-line/50 transition-colors last:border-0 ${
                       dragId === p.id ? "opacity-40" : ""
@@ -440,21 +445,21 @@ export default function MasterData() {
                   >
                     <td className="py-2 pr-1 whitespace-nowrap">
                       <span
-                        className={`select-none text-[15px] ${role === "일반" ? "text-slate-200" : "cursor-grab text-slate-300 hover:text-accent active:cursor-grabbing"}`}
-                        title={role === "일반" ? "검토자·승인자만 순서 변경" : "드래그하여 순서 변경"}
+                        className="cursor-grab text-[15px] text-slate-300 select-none hover:text-accent active:cursor-grabbing"
+                        title="드래그하여 순서 변경"
                       >
                         ⠿
                       </span>
                       <span className="ml-0.5 inline-flex flex-col align-middle md:hidden">
                         <button
                           onClick={() => idx > 0 && reorderProjects(p.id, projects[idx - 1].id)}
-                          disabled={role === "일반" || idx === 0}
+                          disabled={idx === 0}
                           aria-label="위로"
                           className="leading-none text-slate-400 disabled:opacity-30"
                         >▲</button>
                         <button
                           onClick={() => idx < projects.length - 1 && reorderProjects(p.id, projects[idx + 1].id)}
-                          disabled={role === "일반" || idx === projects.length - 1}
+                          disabled={idx === projects.length - 1}
                           aria-label="아래로"
                           className="leading-none text-slate-400 disabled:opacity-30"
                         >▼</button>

@@ -378,10 +378,10 @@ export const useUI = create<UIState>((set, get) => ({
     set({ projects: next });
     logAudit("프로젝트 삭제", target.name, `${id} 삭제 — 후보 단계 프로젝트 (감사로그 보존)`);
   },
-  /* 드래그·버튼으로 표시 순서 변경 — 보고·승인 프로젝트 드롭다운 순서에도 반영 */
+  /* 드래그·버튼으로 표시 순서 변경 — 보고·승인 프로젝트 드롭다운 순서에도 반영 (전 역할 허용·감사로그) */
   reorderProjects: (fromId, toId) => {
-    const { role, projects, logAudit } = get();
-    if (role === "일반" || fromId === toId) return;
+    const { projects, logAudit } = get();
+    if (fromId === toId) return;
     const list = [...projects];
     const fi = list.findIndex((p) => p.id === fromId);
     const ti = list.findIndex((p) => p.id === toId);
