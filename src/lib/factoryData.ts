@@ -123,7 +123,7 @@ export const equipGroups: EquipGroupInfo[] = [
   mk({
     key: "pv", name: "태양광·ESS", zone: "utility", detail: "template", scope: 0,
     unit: "MWh 발전", usage: 840, deltaPct: 0.052, deltaBase: "전년 대비", meters: [4, 4],
-    linkState: "연결 완료", state: "정상", note: "자가소비율 91.2% · REC 별도 관리",
+    linkState: "연결 완료", state: "정상", note: "자가소비율 91.2% · 자가용(잉여 상계) · IEC 61724-1 상세",
     kpis: [
       { label: "발전량", value: "840 MWh" },
       { label: "자가소비율", value: "91.2%" },

@@ -14,6 +14,7 @@ import { useUI } from "../store";
 import ContextBar, { TopActions } from "../components/ContextBar";
 import Overview from "./Overview";
 import EquipPerformance from "./EquipPerformance";
+import PvEssDetail from "./PvEssDetail";
 
 const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -223,8 +224,11 @@ export default function EquipGroups() {
         </>
       )}
 
+      {/* ---------- 태양광·ESS: 세 번째 상세 모듈 (IEC 61724-1 기반 PR 산정) ---------- */}
+      {sel && sel.key === "pv" && <PvEssDetail />}
+
       {/* ---------- 나머지: 공통 템플릿 ---------- */}
-      {sel && sel.detail === "template" && (
+      {sel && sel.detail === "template" && sel.key !== "pv" && (
         <>
           <div className="flex shrink-0 items-center justify-between rounded-[10px] border border-line/60 bg-white px-4 py-2.5">
             <div className="tnum flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
