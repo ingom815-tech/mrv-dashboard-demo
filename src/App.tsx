@@ -127,7 +127,7 @@ export default function App() {
         <div className="px-5 pt-6 pb-5">
           <img src={`${BASE}logo-white.svg`} alt="infoSquare" className="h-[18px]" />
           <div className="mt-2 text-[15px] leading-tight font-bold text-white">디지털 MRV</div>
-          <div className="mt-0.5 text-[11px] text-slate-400">냉열원 성과관리</div>
+          <div className="mt-0.5 text-[11px] text-slate-400">에너지·온실가스 통합관리</div>
         </div>
         <nav className="flex flex-col gap-1 px-3" aria-label="주 메뉴">
           {MENUS.map((m) => (
