@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "note": "설비 유형 템플릿 — 유형별 계측 항목과 필수/선택. 유형 추가는 이 배열에 항목을 더하면 됨 (화면·스토어는 목록을 동적으로 읽음).",
+  "sources": ["수기입력", "CSV 업로드", "커넥터(데모 합성데이터)"],
+  "types": [
+    {
+      "key": "chiller",
+      "name": "냉열원 (칠러·히트펌프)",
+      "fields": [
+        { "key": "elec_kwh", "label": "전력 사용량", "unit": "kWh", "required": true, "efLink": true },
+        { "key": "run_h", "label": "운전 시간", "unit": "h", "required": true, "efLink": false },
+        { "key": "chw_out_t", "label": "냉수 출구 온도", "unit": "℃", "required": false, "efLink": false },
+        { "key": "chw_in_t", "label": "냉수 입구 온도", "unit": "℃", "required": false, "efLink": false },
+        { "key": "chw_flow", "label": "냉수 유량", "unit": "m³/h", "required": false, "efLink": false },
+        { "key": "oat", "label": "외기 온도", "unit": "℃", "required": false, "efLink": false },
+        { "key": "refrigerant", "label": "냉매 종류·충전량", "unit": "kg", "required": false, "efLink": true }
+      ]
+    },
+    {
+      "key": "ahu",
+      "name": "공조 (AHU·FCU)",
+      "fields": [
+        { "key": "elec_kwh", "label": "전력 사용량", "unit": "kWh", "required": true, "efLink": true },
+        { "key": "run_h", "label": "운전 시간", "unit": "h", "required": true, "efLink": false },
+        { "key": "sa_t", "label": "급기 온도", "unit": "℃", "required": false, "efLink": false },
+        { "key": "sa_flow", "label": "급기 풍량", "unit": "m³/h", "required": false, "efLink": false },
+        { "key": "oat", "label": "외기 온도", "unit": "℃", "required": false, "efLink": false },
+        { "key": "room_t", "label": "실내 온도", "unit": "℃", "required": false, "efLink": false }
+      ]
+    },
+    {
+      "key": "boiler",
+      "name": "보일러·열원",
+      "fields": [
+        { "key": "fuel_amount", "label": "연료 사용량", "unit": "Nm³ 또는 L", "required": true, "efLink": true },
+        { "key": "fuel_type", "label": "연료 종류", "unit": "-", "required": true, "efLink": true },
+        { "key": "steam_ton", "label": "증기 생산량", "unit": "ton", "required": false, "efLink": false },
+        { "key": "feedwater_t", "label": "급수 온도", "unit": "℃", "required": false, "efLink": false },
+        { "key": "run_h", "label": "운전 시간", "unit": "h", "required": false, "efLink": false }
+      ]
+    }
+  ]
+}

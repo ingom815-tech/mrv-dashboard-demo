@@ -1,0 +1,74 @@
+/* 디자인 토큰 — 2026-09 화면 단순화 개편 (토스 카드 구조 + 애플 설정 위계 레퍼런스)
+   기본 모드(고객용) 화면의 기준. 관리자 모드 화면은 배경·서체 등 전역 토큰만 상속. */
+
+:root {
+  /* 색 */
+  --tk-bg: #f2f4f6; /* 배경 */
+  --tk-card: #ffffff; /* 카드 */
+  --tk-ink: #191f28; /* 본문 */
+  --tk-sub: #6b7684; /* 보조 텍스트 */
+  --tk-brand: #0f766e; /* 강조 (감축·양호) */
+  --tk-warn: #d97706; /* 주의 */
+  --tk-line: #e5e8eb; /* 최소한의 구분선 */
+
+  /* 형태 */
+  --tk-radius: 16px;
+  --tk-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+
+  /* 간격 (8px 단위) */
+  --tk-gap: 20px; /* 카드 간 */
+  --tk-maxw: 1200px; /* 본문 최대 폭 */
+}
+
+/* 카드 — radius 16, 테두리 없음, 은은한 그림자 */
+.tk-card {
+  background: var(--tk-card);
+  border-radius: var(--tk-radius);
+  box-shadow: var(--tk-shadow);
+}
+
+/* 타입 스케일 */
+.tk-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--tk-ink);
+  letter-spacing: -0.02em;
+}
+.tk-card-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--tk-sub);
+}
+.tk-kpi {
+  font-size: 36px;
+  font-weight: 600;
+  color: var(--tk-ink);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.tk-label {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--tk-sub);
+}
+
+/* 입력란 — 배경 #F2F4F6, 포커스 시 강조색 테두리 */
+.tk-input {
+  background: var(--tk-bg);
+  border: 1.5px solid transparent;
+  border-radius: 10px;
+  color: var(--tk-ink);
+  transition: border-color 0.12s, background 0.12s;
+}
+.tk-input::placeholder {
+  color: #adb5bd;
+}
+.tk-input:focus {
+  outline: none;
+  border-color: var(--tk-brand);
+  background: #fff;
+}
+.tk-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

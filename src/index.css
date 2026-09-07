@@ -1,6 +1,9 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
+/* Pretendard (CDN — CLAUDE.md 허용 웹폰트) */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
 
-/* v3 통합 설계 지시문 §10 디자인 시스템 */
+/* v3 통합 설계 지시문 §10 디자인 시스템 + 2026-09 단순화 개편 토큰(tk-*) */
 @theme {
   --color-navy: #102a43;
   --color-teal: #159f9e;
@@ -8,9 +11,14 @@
   --color-baseline: #1e63c6;
   --color-review: #d97706;
   --color-risk: #dc3545;
-  --color-surface: #f3f6f9;
+  --color-surface: #f2f4f6; /* 개편 배경 토큰과 통일 */
   --color-line: #dde4ec;
   --color-body: #667085;
+  /* 개편 토큰의 Tailwind 매핑 */
+  --color-ink: #191f28;
+  --color-sub: #6b7684;
+  --color-brand: #0f766e;
+  --color-warn: #d97706;
   --font-sans: "Pretendard Variable", Pretendard, "Malgun Gothic", sans-serif;
 }
 

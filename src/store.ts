@@ -61,12 +61,16 @@ const saveJson = (key: string, v: unknown) => {
 const defaultStates = (): Record<string, ReviewState> =>
   Object.fromEntries(reviewItems.map((r) => [r.id, r.initialState as ReviewState]));
 
-export type MenuKey = "overview" | "equipment" | "verify" | "report" | "master";
+/* 2026-09 단순화 개편: 기본 모드(고객용) 3화면 + 관리자 모드(기존 화면 전부 재배치, 삭제 없음) */
+export type MenuKey =
+  | "summary" | "equipperf" | "reportdoc" // 기본 모드
+  | "overview" | "equipment" | "verify" | "report" | "master" | "equipconfig"; // 관리자 모드
 
 // URL 해시로 화면 딥링크 지원 (#/equipment 등) — 스크린샷·공유용
-const MENU_KEYS: MenuKey[] = ["overview", "equipment", "verify", "report", "master"];
+const MENU_KEYS: MenuKey[] = ["summary", "equipperf", "reportdoc", "overview", "equipment", "verify", "report", "master", "equipconfig"];
+export const ADMIN_MENUS: MenuKey[] = ["overview", "equipment", "verify", "report", "master", "equipconfig"];
 const initialMenu: MenuKey =
-  MENU_KEYS.find((k) => k === window.location.hash.split("/")[1]) ?? "overview";
+  MENU_KEYS.find((k) => k === window.location.hash.split("/")[1]) ?? "summary";
 
 interface UIState {
   menu: MenuKey;
@@ -83,6 +87,9 @@ interface UIState {
   closeNotif: () => void;
   notifRead: string[];
   markNotifRead: (ids: string[]) => void;
+  /* 관리자 모드 — 기본 진입 시 비노출, 좌측 내비 하단 토글 */
+  adminMode: boolean;
+  setAdminMode: (v: boolean) => void;
   selectedMonth: string | null;
   equipFilter: EquipGroup | "all";
   selectedEquip: string;
@@ -232,6 +239,14 @@ export const useUI = create<UIState>((set, get) => ({
     saveJson("mrv-notif-read", next);
     set({ notifRead: next });
   },
+  // 관리자 화면 해시로 직접 진입한 경우 토글도 켜진 상태로 시작
+  adminMode: loadJson<boolean>("mrv-admin-mode", false) || ADMIN_MENUS.includes(initialMenu),
+  setAdminMode: (v) => {
+    saveJson("mrv-admin-mode", v);
+    // 관리자 모드를 끄면 관리자 화면에서 기본 첫 화면으로 복귀
+    const cur = get().menu;
+    set(v ? { adminMode: v } : { adminMode: v, menu: ADMIN_MENUS.includes(cur) ? "summary" : cur });
+  },
   selectedMonth: null,
   equipFilter: "all",
   selectedEquip: "ch1",
@@ -256,7 +271,13 @@ export const useUI = create<UIState>((set, get) => ({
   audit: loadJson<AuditEntry[]>(LS_AUDIT, []),
   efList: loadJson<EfVersion[]>("mrv-ef-list", defaultEfList()),
   tariffValue: loadJson<number>("mrv-tariff", TARIFF.value),
-  setMenu: (menu) => set({ menu }),
+  // 딥링크(알림·가이드·근거 링크)로 관리자 화면 이동 시 관리자 모드 자동 활성 (내비 맥락 일치)
+  setMenu: (menu) => {
+    if (ADMIN_MENUS.includes(menu) && !get().adminMode) {
+      saveJson("mrv-admin-mode", true);
+      set({ menu, adminMode: true });
+    } else set({ menu });
+  },
   setSelectedEquip: (selectedEquip) => set({ selectedEquip }),
   openEvidence: () => set({ evidenceOpen: true }),
   closeEvidence: () => set({ evidenceOpen: false }),
