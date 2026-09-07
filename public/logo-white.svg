@@ -1,0 +1,5 @@
+<svg viewBox="0 0 336 84" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="infoSquare">
+  <path d="M16 24 C5 22 0 13 0 3 C11 3 19 9 21 20 Z" fill="#ffffff" opacity="0.9"/>
+  <path d="M188 16 C190 6 199 0 210 0 C209 11 202 18 191 19 Z" fill="#ffffff" opacity="0.9"/>
+  <text x="4" y="66" font-family="'Pretendard Variable', Pretendard, sans-serif" font-weight="800" font-size="58" letter-spacing="-1.5" fill="#ffffff">infoSquare</text>
+</svg>

@@ -8,6 +8,9 @@ import MasterData from "./screens/MasterData";
 import EvidencePanel from "./components/EvidencePanel";
 import TraceabilityPanel from "./components/TraceabilityPanel";
 import GuideModal from "./components/GuideModal";
+import Login from "./screens/Login";
+
+const BASE = import.meta.env.BASE_URL;
 
 // 업무 흐름 순서: 공장 전체 → 설비군 → 검증 → 보고 → 관리 (구조 고정)
 const MENUS: Array<{ key: MenuKey; label: string }> = [
@@ -19,7 +22,7 @@ const MENUS: Array<{ key: MenuKey; label: string }> = [
 ];
 
 export default function App() {
-  const { menu, setMenu, evidenceOpen, traceOpen, guideOpen, reviewStates } = useUI();
+  const { menu, setMenu, evidenceOpen, traceOpen, guideOpen, reviewStates, authed, logout } = useUI();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pending = deriveVerify(reviewStates).pending;
 
@@ -33,6 +36,9 @@ export default function App() {
     setMenu(k);
     setDrawerOpen(false); // 메뉴 선택 후 드로어 자동 닫힘 (§3.1)
   };
+
+  // 데모 로그인 게이트 — SaaS 진입 화면 (localStorage 세션)
+  if (!authed) return <Login />;
 
   return (
     <div className="flex h-full min-h-screen flex-col xl:flex-row">
@@ -98,9 +104,17 @@ export default function App() {
                 </button>
               ))}
             </nav>
-            <div className="mt-auto px-5 pb-5 text-[11px] leading-relaxed text-slate-500">
-              DEMO · 합성데이터
-              <br />공식 MRV 사용 불가
+            <div className="mt-auto px-5 pb-5">
+              <button
+                onClick={() => { logout(); setDrawerOpen(false); }}
+                className="mb-3 flex min-h-11 w-full items-center justify-center rounded-lg border border-white/15 text-[13px] text-slate-300 active:bg-white/10"
+              >
+                로그아웃
+              </button>
+              <img src={`${BASE}logo-white.svg`} alt="infoSquare" className="h-5 opacity-70" />
+              <div className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
+                DEMO · 합성데이터 · 공식 MRV 사용 불가
+              </div>
             </div>
           </aside>
         </div>
@@ -109,7 +123,8 @@ export default function App() {
       {/* 데스크톱 사이드바 — 1200px 이상에서만 상시 노출 (§2·§3.1) */}
       <aside className="no-print hidden w-40 shrink-0 flex-col bg-navy xl:flex">
         <div className="px-5 pt-6 pb-5">
-          <div className="text-[15px] leading-tight font-bold text-white">디지털 MRV</div>
+          <img src={`${BASE}logo-white.svg`} alt="infoSquare" className="h-[18px]" />
+          <div className="mt-2 text-[15px] leading-tight font-bold text-white">디지털 MRV</div>
           <div className="mt-0.5 text-[11px] text-slate-400">냉열원 성과관리</div>
         </div>
         <nav className="flex flex-col gap-1 px-3" aria-label="주 메뉴">
@@ -128,6 +143,14 @@ export default function App() {
             </button>
           ))}
         </nav>
+        <div className="mt-auto px-3 pb-4">
+          <button
+            onClick={logout}
+            className="w-full rounded-lg px-3 py-2 text-left text-[12px] text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            로그아웃
+          </button>
+        </div>
       </aside>
 
       {/* 메인 영역 */}

@@ -125,6 +125,10 @@ interface UIState {
   setEsgInput: (key: string, label: string, value: string) => void;
   esgStatus: "작성 중" | "확정";
   esgAction: (a: "confirm" | "revoke") => void;
+  /* 로그인 (데모 — 인증 서버 없음, SaaS 전환 시 SSO/OAuth) */
+  authed: boolean;
+  loginAs: (email: string) => void;
+  logout: () => void;
 }
 
 /* 명세서(인벤토리 보고서) 상태 흐름 */
@@ -373,6 +377,18 @@ export const useUI = create<UIState>((set, get) => ({
       "M&V 계획서",
       `${next}${opinion ? ` — 의견: ${opinion}` : ""} (MVP-2026-01 · 계획서 버전 이력 보존)`,
     );
+  },
+  /* 데모 로그인 — 세션 표시용 (임의 자격증명 허용, 서버 검증 없음을 화면에 명시) */
+  authed: loadJson<boolean>("mrv-authed", false),
+  loginAs: (email) => {
+    saveJson("mrv-authed", true);
+    set({ authed: true });
+    get().logAudit("로그인", "세션", `${email || "demo@example.com"} 데모 로그인 (인증 서버 없음)`);
+  },
+  logout: () => {
+    get().logAudit("로그아웃", "세션", "데모 세션 종료");
+    saveJson("mrv-authed", false);
+    set({ authed: false });
   },
   /* ESG: 목표 입력은 확정 전만, 확정/해제는 검토자·승인자 (감사로그 기록) */
   esgInputs: loadJson<Record<string, string>>("mrv-esg-inputs", {}),
