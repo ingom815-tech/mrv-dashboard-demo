@@ -21,6 +21,7 @@ const fmt = (n: number, d = 0) =>
   n.toLocaleString("ko-KR", { minimumFractionDigits: d, maximumFractionDigits: d });
 
 const TABS = [
+  { key: "site", label: "사업장" },
   { key: "plan", label: "MRV 프로젝트" },
   { key: "asset", label: "설비·센서" },
   { key: "change", label: "변경관리" },
@@ -207,9 +208,11 @@ export default function MasterData() {
   const [connectStep, setConnectStep] = useState<number>(() => ls("mrv-connect-step", 0));
   const [mesOk, setMesOk] = useState<boolean>(() => ls("mrv-mes-ok", false));
   const [form2, setForm2] = useState({ name: "", group: "보일러·스팀", cap: "", mrv: true });
-  const { role, efList, registerEf, tariffValue, setTariff, logAudit, setMenu, setEquipGroup, projects, addProject, removeProject, toggleProjectReport } = useUI();
+  const { role, efList, registerEf, tariffValue, setTariff, logAudit, setMenu, setEquipGroup, projects, addProject, removeProject, toggleProjectReport, sites, currentSite, setCurrentSite, addSite, removeSite } = useUI();
   const [newPrjName, setNewPrjName] = useState("");
   const [newPrjGroup, setNewPrjGroup] = useState("공조기·환기");
+  const [newSiteName, setNewSiteName] = useState("");
+  const [newSiteRegion, setNewSiteRegion] = useState("");
   const calc = useCalc();
   const ef = activeEf(efList);
   const [form, setForm] = useState({ value: "", source: "", baseYear: "2025", validFrom: "2026-07-01", validTo: "2027-06-30" });
@@ -254,6 +257,108 @@ export default function MasterData() {
       </div>
 
       {/* ---------- 탭 0: MRV 프로젝트 (개선 프로젝트별 계획) ---------- */}
+      {/* ---------- 탭 0: 사업장 등록·선택 (SaaS 멀티사업장) ---------- */}
+      {tab === "site" && (
+        <>
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[15px] font-semibold text-navy">사업장 목록</span>
+              <span className="text-[12px] text-slate-400">데모 데이터는 기본 사업장에만 존재 · 신규 등록분은 온보딩 흐름 시연용</span>
+            </div>
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-line text-left text-[12px] text-body">
+                  <th className="py-2 font-medium">사업장</th>
+                  <th className="py-2 font-medium">지역</th>
+                  <th className="py-2 font-medium">ID</th>
+                  <th className="py-2 pl-3 font-medium">상태</th>
+                  <th className="py-2 pl-3 font-medium">선택</th>
+                  <th className="py-2 pl-3 font-medium">관리</th>
+                </tr>
+              </thead>
+              <tbody className="tnum">
+                {sites.map((s) => (
+                  <tr key={s.id} className={`border-b border-line/50 last:border-0 ${s.id === currentSite ? "bg-accent/4" : ""}`}>
+                    <td className="py-2 font-medium text-navy">
+                      {s.name}
+                      {s.demo && <span className="ml-1.5 rounded bg-teal/10 px-1.5 py-0.5 text-[10px] font-bold text-teal">데모 데이터</span>}
+                    </td>
+                    <td className="py-2 text-body">{s.region}</td>
+                    <td className="py-2 text-body">{s.id}</td>
+                    <td className="py-2 pl-3">
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${s.status === "운영 중" ? "bg-teal/10 text-teal" : "bg-review/10 text-review"}`}>
+                        {s.status}
+                      </span>
+                    </td>
+                    <td className="py-2 pl-3">
+                      {s.id === currentSite ? (
+                        <span className="rounded bg-accent/10 px-2 py-0.5 text-[11px] font-bold text-accent">현재 사업장</span>
+                      ) : (
+                        <button
+                          onClick={() => setCurrentSite(s.id)}
+                          className="min-h-8 rounded-lg border border-accent/40 px-2.5 py-1 text-[11.5px] font-medium text-accent hover:bg-accent/8"
+                        >
+                          전환 ›
+                        </button>
+                      )}
+                    </td>
+                    <td className="py-2 pl-3">
+                      {s.demo ? (
+                        <span className="text-[11px] text-slate-400" title="합성데이터 보유 기본 사업장 — 삭제 불가">고정</span>
+                      ) : (
+                        <button
+                          onClick={() => removeSite(s.id)}
+                          disabled={role === "일반"}
+                          className="rounded px-2 py-0.5 text-[11px] font-medium text-risk hover:bg-risk/8 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          삭제
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {/* 사업장 등록 */}
+            <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-line/60 pt-3">
+              <label className="flex min-w-48 flex-1 flex-col gap-1 text-[12px] text-body">
+                신규 사업장명
+                <input
+                  value={newSiteName}
+                  onChange={(e) => setNewSiteName(e.target.value)}
+                  placeholder="예: 제2공장"
+                  className="min-h-9 rounded border border-line bg-white px-2 py-1.5 text-[16px] text-navy md:text-[13px]"
+                />
+              </label>
+              <label className="flex min-w-36 flex-col gap-1 text-[12px] text-body">
+                지역
+                <input
+                  value={newSiteRegion}
+                  onChange={(e) => setNewSiteRegion(e.target.value)}
+                  placeholder="예: 경북"
+                  className="min-h-9 rounded border border-line bg-white px-2 py-1.5 text-[16px] text-navy md:text-[13px]"
+                />
+              </label>
+              <button
+                onClick={() => { addSite(newSiteName, newSiteRegion); setNewSiteName(""); setNewSiteRegion(""); }}
+                disabled={role === "일반" || !newSiteName.trim()}
+                className="min-h-9 rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                사업장 등록
+              </button>
+              <span className="text-[11.5px] text-slate-400">
+                등록 → 온보딩 중 상태 (전환 시 온보딩 안내 화면) · 등록/삭제 감사로그 기록 (일반 역할 조회만)
+              </span>
+            </div>
+          </section>
+          <section className="rounded-[10px] border border-line/60 bg-white p-4 text-[12.5px] leading-relaxed text-body">
+            <b className="text-navy">SaaS 멀티사업장 구조</b> — 사업장이 과금·데이터 격리의 단위입니다. 각 사업장은 자체
+            설비 계층·계측 연계·기준선·보고 회차를 갖고, 상단 컨텍스트바의 사업장 셀렉터로 전환합니다. 본 데모는
+            합성데이터가 기본 사업장 1곳에만 생성되어 있어, 신규 사업장은 온보딩 5단계 안내로 확장 흐름을 시연합니다.
+          </section>
+        </>
+      )}
+
       {tab === "plan" && (
         <>
           <section className="rounded-[10px] border border-line/60 bg-white p-4">
@@ -454,7 +559,7 @@ export default function MasterData() {
               데이터 연계 현황 ›
             </button>
             {/* 공장 → 구역 → 설비군 계층 — 냉동·냉장만 상세(냉수플랜트) 전개 */}
-            <div className="text-[12px] font-semibold text-navy">원주공장</div>
+            <div className="text-[12px] font-semibold text-navy">제1공장</div>
             <div className="mt-1.5 flex flex-col gap-0.5">
               {ZONES.map((z) => (
                 <div key={z.key}>
@@ -1124,7 +1229,7 @@ export default function MasterData() {
               </thead>
               <tbody>
                 {[
-                  { name: "현장 운영자 (데모)", role: "일반", org: "원주공장 시설팀" },
+                  { name: "현장 운영자 (데모)", role: "일반", org: "제1공장 시설팀" },
                   { name: "MRV 검토자 (데모)", role: "검토자", org: "에너지관리 담당" },
                   { name: "MRV 승인자 (데모)", role: "승인자", org: "MRV 책임자" },
                 ].map((u) => (

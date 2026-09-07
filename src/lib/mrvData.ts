@@ -594,7 +594,7 @@ export const mvPlan = {
   version: "v0.9 (사전검토 완료)",
   status: "고객 승인 전",
   project: "냉열원·공조 시스템 개선 성과검증 (데모)",
-  site: "원주공장",
+  site: "제1공장",
   boundary: "중앙 냉수플랜트 (전력 사용량 경계)",
   equipment: "냉동기 2대 · 냉수펌프 · 냉각수펌프 · 냉각탑",
   option: "IPMVP Option B 후보 (경계 내 전체 계측)",
@@ -1034,7 +1034,7 @@ export const mrv = {
     reviewCount: reviewIssues.length,
   },
   meta: {
-    site: "원주공장",
+    site: "제1공장",
     boundary: "중앙 냉수플랜트",
     periodLabel: "2026.01 – 06",
     aggLabel: "월간",

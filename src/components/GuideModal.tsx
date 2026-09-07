@@ -61,7 +61,7 @@ export default function GuideModal() {
 
         <div className="text-[22px] font-bold text-navy">시스템 개요</div>
         <p className="mt-2 text-[15px] leading-relaxed text-navy">
-          <b className="text-navy">원주공장 전체</b>의 에너지 사용·온실가스 배출·개선사업 성과를 통합
+          <b className="text-navy">제1공장 전체</b>의 에너지 사용·온실가스 배출·개선사업 성과를 통합
           관리하고, <b className="text-teal">절감 숫자를 계산</b>해 <b className="text-accent">제3자가 믿을
           수 있도록 검증·승인</b>하는 디지털 MRV 플랫폼입니다. 10개 설비군 중{" "}
           <b className="text-teal">냉동·냉장(냉수플랜트)</b>이 가장 상세하게 구현된 대표 실증 모듈입니다.

@@ -1,4 +1,4 @@
-// 원주공장 전체 계층 — 10개 설비군의 합성 요약데이터 (결정론, 데모)
+// 제1공장 전체 계층 — 10개 설비군의 합성 요약데이터 (결정론, 데모)
 // 냉동·냉장 설비군만 실제 MRV 엔진 산정값을 사용하고, 나머지는 합성 요약값이다.
 import { mrv } from "./mrvData";
 
@@ -205,7 +205,7 @@ const totalEnergyMWh = elecMWh + 4280; // 전력 + 보일러 연료환산(MWh)
 void scope1;
 
 export const factory = {
-  name: "삼양식품 원주공장 (데모)",
+  name: "삼양식품 제1공장 (데모)",
   totalEnergyMWh,
   scope1: scope1Total,
   scope2,

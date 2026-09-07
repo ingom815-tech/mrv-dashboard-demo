@@ -61,6 +61,7 @@ export function TopActions() {
 /* 화면 상단 2단: 조회 컨텍스트 — 접기 가능, 줄바꿈 허용, 가로 스크롤 금지 */
 export default function ContextBar() {
   const calc = useCalc();
+  const { sites, currentSite, setCurrentSite, setMenu } = useUI();
   const [open, setOpen] = useState(false);
   const updatedAt = new Date(mrv.meta.generatedAt).toLocaleString("ko-KR", {
     month: "2-digit",
@@ -77,7 +78,30 @@ export default function ContextBar() {
   );
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 rounded-[10px] border border-line/60 bg-white px-4 py-2">
-      <Item label="사업장" value={mrv.meta.site} />
+      {/* 사업장 셀렉터 — SaaS 멀티사업장 (등록은 설비·연계 관리 › 사업장) */}
+      <span className="flex items-center gap-1.5 whitespace-nowrap">
+        <span className="text-[11px] text-slate-400">사업장</span>
+        <select
+          aria-label="사업장 선택"
+          value={currentSite}
+          onChange={(e) => {
+            if (e.target.value === "__manage__") {
+              setMenu("master");
+              window.location.hash = "#/master/site";
+              return;
+            }
+            setCurrentSite(e.target.value);
+          }}
+          className="rounded border border-line bg-white px-1.5 py-0.5 text-[12.5px] font-semibold text-navy focus:border-accent focus:outline-none"
+        >
+          {sites.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}{s.status === "온보딩 중" ? " (온보딩 중)" : ""}
+            </option>
+          ))}
+          <option value="__manage__">＋ 사업장 등록·관리…</option>
+        </select>
+      </span>
       <Item label="보고기간" value="2026.01–06" />
       <Item label="계산버전" value={calc.version} />
       {open && (

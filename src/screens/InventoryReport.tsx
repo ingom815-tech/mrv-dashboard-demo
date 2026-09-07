@@ -173,7 +173,7 @@ export default function InventoryReport() {
               {(
                 [
                   ["보고서 유형", "온실가스 배출량·에너지 사용량 명세서"],
-                  ["사업장", "원주공장"],
+                  ["사업장", "제1공장"],
                   ["보고연도", "2026년 (상반기 데모)"],
                   ["보고기간", "2026.01.01 – 06.30"],
                   ["계산 버전", calc.version],
@@ -556,7 +556,7 @@ export default function InventoryReport() {
             <div className="rounded-[10px] border border-line/60 bg-white p-4">
               <div className="mb-2 text-[15px] font-semibold text-navy">보고범위 · 조직경계</div>
               <div className="mb-2 flex flex-wrap gap-1.5">
-                {["원주공장 전체", "일부 공정", "선택 설비", "기타"].map((o) => (
+                {["제1공장 전체", "일부 공정", "선택 설비", "기타"].map((o) => (
                   <span
                     key={o}
                     className={`rounded-lg border px-3 py-1.5 text-[13px] ${
@@ -962,7 +962,7 @@ export default function InventoryReport() {
                 </tbody>
               </table>
               <div className="mt-2 text-[12px] text-body">
-                별지 제11호 서식(90p) 전체 대비 데모 커버리지 — "해당 없음"은 원주공장에 그 배출활동이 없는 서식,
+                별지 제11호 서식(90p) 전체 대비 데모 커버리지 — "해당 없음"은 제1공장에 그 배출활동이 없는 서식,
                 "범위 외"는 향후 지원 예정 기능 · 미리보기 본문은 자동 작성 서식만 담은 요약본
               </div>
             </div>
@@ -976,7 +976,7 @@ export default function InventoryReport() {
               </div>
               <div className="text-[12px] tracking-widest text-slate-400">별지 제11호 서식 참고 (데모 요약본)</div>
               <div className="mt-2 text-[24px] font-bold">온실가스 배출량 및 에너지 사용량 명세서</div>
-              <div className="mt-1 text-[14px]">2026년 (상반기 데모) · 원주공장</div>
+              <div className="mt-1 text-[14px]">2026년 (상반기 데모) · 제1공장</div>
               <div className="tnum mt-3 text-[12px] text-body">
                 보고서 번호 RPT-2026-DEMO · 계산버전 {calc.version} · 배출계수 {ef.version} · 상태 {invStatus}
               </div>

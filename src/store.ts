@@ -129,6 +129,12 @@ interface UIState {
   authed: boolean;
   loginAs: (email: string) => void;
   logout: () => void;
+  /* 사업장(공장) 등록·선택 — SaaS 멀티사업장 */
+  sites: SiteRec[];
+  currentSite: string;
+  setCurrentSite: (id: string) => void;
+  addSite: (name: string, region: string) => void;
+  removeSite: (id: string) => void;
 }
 
 /* 명세서(인벤토리 보고서) 상태 흐름 */
@@ -136,6 +142,18 @@ export type InvStatus = "작성 중" | "검토 요청" | "수정 요청" | "검�
 
 /* M&V 계획서 상태 — 계획은 사전 승인이 원칙 (IPMVP): 승인 전 결과보고서는 초안 취급 */
 export type PlanStatus = "작성 중" | "승인 대기" | "승인 완료";
+
+/* ---------- 사업장(공장) 관리 — SaaS 멀티사업장 구조 ---------- */
+export interface SiteRec {
+  id: string;
+  name: string;
+  region: string;
+  status: "운영 중" | "온보딩 중";
+  demo?: boolean; // 합성데이터가 존재하는 기본 사업장 (삭제 불가)
+}
+const defaultSites = (): SiteRec[] => [
+  { id: "SITE-01", name: "제1공장", region: "강원 (데모)", status: "운영 중", demo: true },
+];
 
 /* ---------- MRV 프로젝트 관리 (목록·추가·삭제·보고서 생성 대상 선택) ---------- */
 export interface ProjectRec {
@@ -378,6 +396,36 @@ export const useUI = create<UIState>((set, get) => ({
       `${next}${opinion ? ` — 의견: ${opinion}` : ""} (MVP-2026-01 · 계획서 버전 이력 보존)`,
     );
   },
+  /* 사업장 관리 — 데모 데이터는 SITE-01에만 존재, 신규 등록분은 온보딩 중 상태 */
+  sites: loadJson<SiteRec[]>("mrv-sites", defaultSites()),
+  currentSite: loadJson<string>("mrv-current-site", "SITE-01"),
+  setCurrentSite: (id) => {
+    if (!get().sites.some((s) => s.id === id)) return;
+    saveJson("mrv-current-site", id);
+    set({ currentSite: id });
+  },
+  addSite: (name, region) => {
+    const { role, sites, logAudit } = get();
+    if (role === "일반" || !name.trim()) return;
+    const id = `SITE-${String(sites.length + 1).padStart(2, "0")}`;
+    const next: SiteRec[] = [...sites, { id, name: name.trim(), region: region.trim() || "미지정", status: "온보딩 중" }];
+    saveJson("mrv-sites", next);
+    set({ sites: next });
+    logAudit("사업장 등록", name.trim(), `${id} 등록 — 온보딩(설비·계측·기준선) 후 운영 전환`);
+  },
+  removeSite: (id) => {
+    const { role, sites, currentSite, logAudit } = get();
+    const target = sites.find((s) => s.id === id);
+    if (role === "일반" || !target || target.demo) return;
+    const next = sites.filter((s) => s.id !== id);
+    saveJson("mrv-sites", next);
+    set({ sites: next });
+    if (currentSite === id) {
+      saveJson("mrv-current-site", "SITE-01");
+      set({ currentSite: "SITE-01" });
+    }
+    logAudit("사업장 삭제", target.name, `${id} 삭제 (온보딩 중 사업장)`);
+  },
   /* 데모 로그인 — 세션 표시용 (임의 자격증명 허용, 서버 검증 없음을 화면에 명시) */
   authed: loadJson<boolean>("mrv-authed", false),
   loginAs: (email) => {
@@ -443,7 +491,11 @@ export const useUI = create<UIState>((set, get) => ({
     saveJson("mrv-plan-status", "승인 대기");
     saveJson("mrv-esg-inputs", {});
     saveJson("mrv-esg-status", "작성 중");
+    saveJson("mrv-sites", defaultSites());
+    saveJson("mrv-current-site", "SITE-01");
     set({
+      sites: defaultSites(),
+      currentSite: "SITE-01",
       planInputs: {},
       planStatus: "승인 대기",
       esgInputs: {},

@@ -244,11 +244,11 @@ export default function FactoryOverview() {
     return null;
   })();
 
-  const scopeName = scope === "factory" ? "원주공장" : (group?.name ?? "");
+  const scopeName = scope === "factory" ? "제1공장" : (group?.name ?? "");
   const chartTitle = summary
     ? `${scopeName} — ${metricLabel}`
     : scope === "factory"
-      ? "원주공장 월별 에너지 사용량"
+      ? "제1공장 월별 에너지 사용량"
       : scope === "chiller"
         ? "중앙 냉수플랜트 조정 기준선 대비 실제 사용량"
         : (series?.title ?? `${group?.name} — ${metricLabel}`);
@@ -257,7 +257,7 @@ export default function FactoryOverview() {
     <div className="flex min-h-screen flex-col gap-3 px-4 py-3 md:px-6 md:py-4">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <h1 className="text-[20px] leading-tight font-bold text-navy md:text-[24px]">원주공장 종합현황</h1>
+          <h1 className="text-[20px] leading-tight font-bold text-navy md:text-[24px]">제1공장 종합현황</h1>
           <span
             className="cursor-help rounded bg-review/10 px-1.5 py-0.5 text-[11px] font-semibold text-review"
             title="본 화면의 모든 값은 데모용 합성데이터입니다. 냉동·냉장 설비군만 MRV 엔진 실산정값이며 나머지 설비군은 합성 요약값입니다."
@@ -336,7 +336,7 @@ export default function FactoryOverview() {
                 className="rounded-lg border border-line bg-white px-2 py-1.5 text-[13px] font-semibold text-navy"
               >
                 <optgroup label="공장">
-                  <option value="factory">원주공장 전체</option>
+                  <option value="factory">제1공장 전체</option>
                 </optgroup>
                 {ZONES.map((z) => (
                   <optgroup key={z.key} label={z.name}>

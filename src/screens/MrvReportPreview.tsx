@@ -344,7 +344,7 @@ export default function MrvReportPreview({
           </div>
           <div className="text-[12px] tracking-widest text-slate-400">{frameLabel} (데모 요약본)</div>
           <div className="mt-2 text-[24px] font-bold">{docTitle}</div>
-          <div className="mt-1 text-[14px]">{P.project} · 원주공장</div>
+          <div className="mt-1 text-[14px]">{P.project} · 제1공장</div>
           <div className="tnum mt-3 text-[12px] text-body">프로젝트 {P.id} · {P.ver} · 상태 {P.state}</div>
           <div className="mt-2 text-[11.5px] text-review">
             본 자료는 데모용 합성데이터로 작성된 테스트 출력물이며, 공식 M&V 보고 또는 제3자 검증 자료로 사용할 수 없습니다.
@@ -373,7 +373,7 @@ export default function MrvReportPreview({
           <>
             <H n="1" t="개요" form="1.1 사업개요 · 1.2 시설 개요" src={{ go: "master", label: "설비·연계 관리" }} onNav={onNav} />
             <p className="mb-2">
-              본 사업은 원주공장 중앙 냉수플랜트의 에너지효율 개선(냉동기 교체·펌프 VFD·냉각탑 제어)에 따른
+              본 사업은 제1공장 중앙 냉수플랜트의 에너지효율 개선(냉동기 교체·펌프 VFD·냉각탑 제어)에 따른
               에너지 절감성과를 계측 기반으로 산정·검증하는 것을 목적으로 한다 (공동진단 제안 기반 데모).
             </p>
             <div className="mb-1 text-[13px] font-semibold">제시 에너지절감량(액) — 연간 목표(데모 가정)</div>

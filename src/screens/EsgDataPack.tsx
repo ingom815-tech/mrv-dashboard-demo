@@ -44,7 +44,7 @@ export default function EsgDataPack() {
   const csvExport = () => {
     const lines = [
       "# DEMO · 합성데이터 — 공식 공시·제3자 검증 사용 불가",
-      "# ESG 공시 데이터 팩 (K-ESG 가이드라인 v2.0 분류체계 참고) · 원주공장",
+      "# ESG 공시 데이터 팩 (K-ESG 가이드라인 v2.0 분류체계 참고) · 제1공장",
       `# 계산버전 ${calc.version} · 배출계수 ${ef.version} · 명세서 상태 ${invStatus} · ESG 데이터 ${esgStatus}`,
       `구분,항목,단위,${YEAR_COLS.join(",")},추세(CAGR 2023-2025),비고`,
       ...esgTable.map((r) =>
@@ -57,7 +57,7 @@ export default function EsgDataPack() {
       "K-ESG 분류번호,범주,진단항목,제공 상태,시스템 데이터,데이터 출처",
       ...esgMap.map((m) => `${m.code},${m.category},"${m.item}",${m.status},"${m.value}","${m.source}"`),
     ];
-    download("ESG공시데이터팩_원주공장_DEMO.csv", "﻿" + lines.join("\n"), "text/csv");
+    download("ESG공시데이터팩_제1공장_DEMO.csv", "﻿" + lines.join("\n"), "text/csv");
   };
 
   const jsonExport = () => {
@@ -65,7 +65,7 @@ export default function EsgDataPack() {
       notice: "DEMO · 합성데이터 — 공식 공시 또는 제3자 검증 자료로 사용 불가",
       purpose: "지속가능경영보고서(ESG Facts & Figures)·K-ESG 대응 작성 지원 데이터 팩",
       framework: "K-ESG 가이드라인 v2.0 (2024.12, 산업통상자원부·한국생산성본부) 분류체계 참고",
-      site: "원주공장",
+      site: "제1공장",
       data_origin: "SYNTHETIC",
       calcVersion: calc.version,
       emissionFactor: ef,
@@ -77,7 +77,7 @@ export default function EsgDataPack() {
       kEsgMapping: esgMap,
       gaps: esgMap.filter((m) => m.status !== "자동 제공").map((m) => `${m.code} ${m.item} — ${m.note ?? m.value}`),
     };
-    download("ESG공시데이터팩_원주공장_DEMO.json", JSON.stringify(body, null, 2), "application/json");
+    download("ESG공시데이터팩_제1공장_DEMO.json", JSON.stringify(body, null, 2), "application/json");
   };
 
   return (
@@ -283,7 +283,7 @@ export default function EsgDataPack() {
             </div>
             <div className="text-[12px] tracking-widest text-slate-400">지속가능경영보고서 부록 형식 준용 (데모 요약본)</div>
             <div className="mt-2 text-[24px] font-bold">환경 데이터 부록 — ESG Facts &amp; Figures</div>
-            <div className="mt-1 text-[14px]">원주공장 · 2023–2026 (상반기)</div>
+            <div className="mt-1 text-[14px]">제1공장 · 2023–2026 (상반기)</div>
             <div className="tnum mt-3 text-[12px] text-body">
               계산버전 {calc.version} · 배출계수 {ef.version} · 명세서 {invStatus} · ESG 데이터 {esgStatus}
             </div>

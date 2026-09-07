@@ -170,7 +170,7 @@ export interface CheckRow {
 }
 export const checks: CheckRow[] = [
   { rule: "필수 기본정보", status: "정상", detail: "업체·사업장 필수 12항목 입력 완료" },
-  { rule: "조직경계 확정", status: "정상", detail: "원주공장 전체 · 전년 대비 변경 없음" },
+  { rule: "조직경계 확정", status: "정상", detail: "제1공장 전체 · 전년 대비 변경 없음" },
   { rule: "설비-배출활동 연결", status: "정상", detail: "10개 설비군 전체 매핑 완료" },
   { rule: "활동자료 누락", status: "정상", detail: "전력·LNG·냉매 활동자료 연결됨" },
   {
@@ -229,7 +229,7 @@ export const orgInfo: Array<[string, string]> = [
   ["지정업종 (대표업종)", "식료품 제조업 (C10)"],
   ["법인 소재지", "서울특별시 ○○구 ○○로 00 (데모)"],
   ["법인 전화번호", "02-0000-0000 (데모)"],
-  ["사업장명", "원주공장"],
+  ["사업장명", "제1공장"],
   ["사업장 일련번호", "01 (단일 사업장 데모)"],
   ["사업장 소재지", "강원특별자치도 원주시 ○○로 00 (데모)"],
   ["사업장 전화번호", "033-000-0000 (데모)"],
@@ -301,9 +301,9 @@ export const formCoverageSummary = {
 };
 
 export const boundary = {
-  scope: "원주공장 전체",
+  scope: "제1공장 전체",
   operational: "Scope 1 (고정연소·비산) + Scope 2 (구매전력)",
-  included: "원주공장 1개 사업장 (본 데모 범위)",
+  included: "제1공장 1개 사업장 (본 데모 범위)",
   excluded: "사택·복지시설 (소량배출, 데모 가정)",
   excludedReason: "연간 배출량 미미 (소량배출시설 기준, 데모)",
   changed: "전년 대비 변경 없음",

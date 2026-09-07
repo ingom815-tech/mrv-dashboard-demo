@@ -77,7 +77,7 @@ export default function Login() {
         </form>
 
         <div className="mt-4 text-center text-[11px] leading-relaxed text-slate-400">
-          원주공장 공동진단 데모 · 합성데이터 — 공식 MRV 사용 불가
+          제1공장 공동진단 데모 · 합성데이터 — 공식 MRV 사용 불가
           <br />IPMVP 2022 · ISO 50006 · 배출권거래제 지침 · K-ESG v2.0 준거
         </div>
       </div>
