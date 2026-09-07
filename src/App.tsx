@@ -9,6 +9,7 @@ import EvidencePanel from "./components/EvidencePanel";
 import TraceabilityPanel from "./components/TraceabilityPanel";
 import GuideModal from "./components/GuideModal";
 import Login from "./screens/Login";
+import SiteOnboarding from "./screens/SiteOnboarding";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -22,7 +23,7 @@ const MENUS: Array<{ key: MenuKey; label: string }> = [
 ];
 
 export default function App() {
-  const { menu, setMenu, evidenceOpen, traceOpen, guideOpen, reviewStates, authed, logout, sites, currentSite, setCurrentSite } = useUI();
+  const { menu, setMenu, evidenceOpen, traceOpen, guideOpen, reviewStates, authed, logout, sites, currentSite } = useUI();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pending = deriveVerify(reviewStates).pending;
   const site = sites.find((s) => s.id === currentSite) ?? sites[0];
@@ -157,52 +158,7 @@ export default function App() {
       {/* 메인 영역 — 온보딩 중 사업장은 데이터가 없으므로 온보딩 안내로 대체 */}
       <main className="min-w-0 flex-1 overflow-y-auto">
         {site.status === "온보딩 중" ? (
-          <div className="flex min-h-screen flex-col gap-4 px-4 py-6 md:px-8 md:py-10">
-            <div>
-              <h1 className="text-[20px] font-bold text-navy md:text-[24px]">{site.name} — 온보딩 진행 중</h1>
-              <p className="mt-1 text-[13.5px] text-body">
-                {site.region} · {site.id} · 신규 사업장은 아래 단계를 마치면 {sites.find((s) => s.demo)?.name}과 동일한
-                화면·산정·보고 체계가 자동으로 적용됩니다 (SaaS 확장 구조).
-              </p>
-            </div>
-            <section className="rounded-[10px] border border-line/60 bg-white p-4 md:p-5">
-              <div className="mb-3 text-[15px] font-semibold text-navy">온보딩 단계</div>
-              <div className="flex flex-col gap-2">
-                {(
-                  [
-                    ["① 사업장 등록", "완료", "기본정보·지역 등록 — 감사로그 기록됨"],
-                    ["② 설비 계층 구성", "대기", "설비군·설비 등록 (설비·연계 관리 화면 재사용)"],
-                    ["③ 계측·데이터 연계", "대기", "전력계·가스미터 연결, 연계 키 발급"],
-                    ["④ 기준기간 데이터 확보", "대기", "12개월 데이터 축적 후 기준선(EnB) 수립"],
-                    ["⑤ MRV·보고 개시", "대기", "명세서·M&V·ESG 보고 자동 생성 시작"],
-                  ] as Array<[string, string, string]>
-                ).map(([t, st, d]) => (
-                  <div key={t} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 rounded-lg bg-surface/60 px-3.5 py-2.5">
-                    <span className="text-[13.5px] font-semibold text-navy">{t}</span>
-                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${st === "완료" ? "bg-teal/10 text-teal" : "bg-line text-body"}`}>{st}</span>
-                    <span className="w-full text-[12.5px] text-body md:w-auto">{d}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  onClick={() => setCurrentSite(sites.find((s) => s.demo)?.id ?? "SITE-01")}
-                  className="min-h-11 rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90"
-                >
-                  {sites.find((s) => s.demo)?.name}(데모 데이터)으로 전환
-                </button>
-                <button
-                  onClick={() => { setCurrentSite(sites.find((s) => s.demo)?.id ?? "SITE-01"); setMenu("master"); window.location.hash = "#/master/site"; }}
-                  className="min-h-11 rounded-lg border border-line px-4 py-2 text-[13px] font-medium text-navy hover:border-accent/50"
-                >
-                  사업장 관리로 이동
-                </button>
-              </div>
-            </section>
-            <div className="text-[12px] text-slate-400">
-              합성데이터는 데모 사업장에만 생성되어 있음 — 실제 SaaS에서는 온보딩 완료 시 이 사업장의 계측 데이터로 동일 파이프라인이 구동됩니다
-            </div>
-          </div>
+          <SiteOnboarding site={site} />
         ) : (
           <>
             {menu === "overview" && <FactoryOverview />}

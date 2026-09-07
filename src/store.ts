@@ -135,6 +135,7 @@ interface UIState {
   setCurrentSite: (id: string) => void;
   addSite: (name: string, region: string) => void;
   removeSite: (id: string) => void;
+  siteOnboardNext: (id: string, stepLabel: string, patch: Record<string, string>) => void;
 }
 
 /* 명세서(인벤토리 보고서) 상태 흐름 */
@@ -150,6 +151,8 @@ export interface SiteRec {
   region: string;
   status: "운영 중" | "온보딩 중";
   demo?: boolean; // 합성데이터가 존재하는 기본 사업장 (삭제 불가)
+  onboard?: number; // 완료된 온보딩 단계 수 (1 = 등록 완료, 5 = 개시 요청 완료)
+  onboardData?: Record<string, string>; // 단계별 입력 요약 (설비군·연계 소스·기준기간 등)
 }
 const defaultSites = (): SiteRec[] => [
   { id: "SITE-01", name: "제1공장", region: "강원 (데모)", status: "운영 중", demo: true },
@@ -408,10 +411,23 @@ export const useUI = create<UIState>((set, get) => ({
     const { role, sites, logAudit } = get();
     if (role === "일반" || !name.trim()) return;
     const id = `SITE-${String(sites.length + 1).padStart(2, "0")}`;
-    const next: SiteRec[] = [...sites, { id, name: name.trim(), region: region.trim() || "미지정", status: "온보딩 중" }];
+    const next: SiteRec[] = [...sites, { id, name: name.trim(), region: region.trim() || "미지정", status: "온보딩 중", onboard: 1, onboardData: {} }];
     saveJson("mrv-sites", next);
     set({ sites: next });
     logAudit("사업장 등록", name.trim(), `${id} 등록 — 온보딩(설비·계측·기준선) 후 운영 전환`);
+  },
+  /* 온보딩 단계 진행 — 단계별 입력을 저장하고 감사로그 기록 (일반 역할 조회만) */
+  siteOnboardNext: (id, stepLabel, patch) => {
+    const { role, sites, logAudit } = get();
+    const target = sites.find((s) => s.id === id);
+    if (role === "일반" || !target || target.demo) return;
+    const nextStep = Math.min((target.onboard ?? 1) + 1, 5);
+    const next = sites.map((s) =>
+      s.id === id ? { ...s, onboard: nextStep, onboardData: { ...(s.onboardData ?? {}), ...patch } } : s,
+    );
+    saveJson("mrv-sites", next);
+    set({ sites: next });
+    logAudit("온보딩 단계 완료", target.name, `${stepLabel} 완료 (${nextStep}/5)${nextStep === 5 ? " — 개시 요청, 계측 수집 대기" : ""}`);
   },
   removeSite: (id) => {
     const { role, sites, currentSite, logAudit } = get();
