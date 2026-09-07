@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { mrv, reviewItems, perfCurve, type NonRoutine } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, deriveVerify, activeEf } from "../store";
@@ -6,6 +6,7 @@ import ContextBar, { TopActions } from "../components/ContextBar";
 import InventoryReport from "./InventoryReport";
 import MrvReportPreview from "./MrvReportPreview";
 import PvReportDoc, { type PvDocNav } from "./PvReportDoc";
+import AuditLogViewer from "../components/AuditLogViewer";
 import EsgDataPack from "./EsgDataPack";
 import FrameworkPanel from "./StandardsCompliance";
 import type { ComplyNav } from "../lib/standardsData";
@@ -86,9 +87,26 @@ export default function Reporting() {
     return seg === "inventory" ? "inventory" : seg === "boiler" ? "boiler" : seg === "esg" ? "esg" : seg === "pv" ? "pv" : "chiller";
   });
   const [copied, setCopied] = useState(false);
+  // 화면이 이미 떠 있는 상태의 딥링크(알림 센터 등) — 해시 변경 시 내부 탭·문서·범위 동기화
+  useEffect(() => {
+    const sync = () => {
+      if (!window.location.hash.startsWith("#/report")) return;
+      const seg = window.location.hash.split("/")[2];
+      if (!seg) return;
+      setTab(initialTab());
+      setDoc(initialDoc());
+      setRptScope(
+        seg === "inventory" ? "inventory" : seg === "boiler" ? "boiler" : seg === "esg" ? "esg" : seg === "pv" ? "pv" : "chiller",
+      );
+      setEditOpen(false);
+      setStdOpen(false);
+    };
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
   // 승인 실수 방지: 첫 탭에서 무장(arm), 두 번째 탭에서 확정 (모바일 지시문 §8.7)
   const [armId, setArmId] = useState<string | null>(null);
-  const { role, reviewStates, markReviewed, approve, audit, resetDemoStates, openEvidence, setMenu, setEquipGroup, projects, planStatus } =
+  const { role, reviewStates, markReviewed, approve, resetDemoStates, openEvidence, setMenu, setEquipGroup, projects, planStatus } =
     useUI();
   /* 보고서 생성 대상 프로젝트만 목록에 노출 (설비·연계 관리에서 대상 선택) */
   const reportProjects = projects.filter((p) => p.report);
@@ -871,30 +889,7 @@ export default function Reporting() {
             )}
           </section>
 
-          <section className="rounded-[10px] border border-line/60 bg-white p-4">
-            <div className="mb-2 text-[15px] font-semibold text-navy">
-              변경이력·감사로그 <span className="tnum text-[12px] font-normal text-body">({audit.length}건 · localStorage 보존)</span>
-            </div>
-            {audit.length === 0 ? (
-              <div className="text-[12px] text-body">기록 없음 — 검토·승인 탭에서 처리 시 기록됩니다.</div>
-            ) : (
-              <div className="flex max-h-72 flex-col gap-1 overflow-y-auto">
-                {audit.map((a, i) => (
-                  <div key={i} className="tnum flex items-center gap-3 border-b border-line/50 py-1.5 text-[12px] last:border-0">
-                    <span className="w-36 shrink-0 text-body">
-                      {new Date(a.ts).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}
-                    </span>
-                    <span className="w-14 shrink-0 font-medium text-navy">{a.actor}</span>
-                    <span className={`w-20 shrink-0 rounded px-1.5 py-0.5 text-center text-[10px] font-bold ${stateBadge(a.action)}`}>
-                      {a.action}
-                    </span>
-                    <span className="w-14 shrink-0 text-body">{a.target}</span>
-                    <span className="min-w-0 truncate text-body">{a.detail}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+          <AuditLogViewer />
         </>
       )}
     </div>

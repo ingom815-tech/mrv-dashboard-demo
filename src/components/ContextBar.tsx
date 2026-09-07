@@ -2,13 +2,28 @@ import { useState } from "react";
 import { mrv } from "../lib/mrvData";
 import { useCalc } from "../lib/useCalc";
 import { useUI, type Role } from "../store";
+import { useNotifs } from "./NotifCenter";
 
-/* 화면 상단 1단: 도움말 아이콘 + 사용자(역할) 메뉴 + 산정근거 — 최소 구성 */
+/* 화면 상단 1단: 알림 종 + 도움말 아이콘 + 사용자(역할) 메뉴 + 산정근거 — 최소 구성 */
 export function TopActions() {
-  const { role, setRole, openEvidence, openGuide } = useUI();
+  const { role, setRole, openEvidence, openGuide, openNotif } = useUI();
+  const { unread } = useNotifs();
   const [userOpen, setUserOpen] = useState(false);
   return (
     <div className="relative flex shrink-0 items-center gap-2">
+      <button
+        onClick={openNotif}
+        aria-label="알림 센터 열기"
+        title="알림 센터 — 처리할 일·주의·안내"
+        className="relative hidden size-7 items-center justify-center rounded-full border border-line bg-white text-[13px] transition-colors hover:border-accent/50 xl:flex"
+      >
+        🔔
+        {unread > 0 && (
+          <span className="tnum absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-review px-0.5 text-[9px] font-bold text-white">
+            {unread}
+          </span>
+        )}
+      </button>
       <button
         onClick={openGuide}
         aria-label="가이드 열기"

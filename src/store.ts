@@ -77,6 +77,12 @@ interface UIState {
   guideOpen: boolean;
   openGuide: () => void;
   closeGuide: () => void;
+  /* 알림 센터 — 파생 알림(저장 안 함) + 읽음 상태만 영속 */
+  notifOpen: boolean;
+  openNotif: () => void;
+  closeNotif: () => void;
+  notifRead: string[];
+  markNotifRead: (ids: string[]) => void;
   selectedMonth: string | null;
   equipFilter: EquipGroup | "all";
   selectedEquip: string;
@@ -217,6 +223,15 @@ export const useUI = create<UIState>((set, get) => ({
   })(),
   openGuide: () => set({ guideOpen: true }),
   closeGuide: () => set({ guideOpen: false }),
+  notifOpen: false,
+  openNotif: () => set({ notifOpen: true }),
+  closeNotif: () => set({ notifOpen: false }),
+  notifRead: loadJson<string[]>("mrv-notif-read", []),
+  markNotifRead: (ids) => {
+    const next = Array.from(new Set([...get().notifRead, ...ids]));
+    saveJson("mrv-notif-read", next);
+    set({ notifRead: next });
+  },
   selectedMonth: null,
   equipFilter: "all",
   selectedEquip: "ch1",
@@ -596,7 +611,9 @@ export const useUI = create<UIState>((set, get) => ({
     saveJson("mrv-sites", defaultSites());
     saveJson("mrv-current-site", "SITE-01");
     saveJson("mrv-users", defaultUsers());
+    saveJson("mrv-notif-read", []);
     set({
+      notifRead: [],
       sites: defaultSites(),
       currentSite: "SITE-01",
       users: defaultUsers(),

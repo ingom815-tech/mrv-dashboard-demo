@@ -8,6 +8,7 @@ import MasterData from "./screens/MasterData";
 import EvidencePanel from "./components/EvidencePanel";
 import TraceabilityPanel from "./components/TraceabilityPanel";
 import GuideModal from "./components/GuideModal";
+import NotifCenter, { useNotifs } from "./components/NotifCenter";
 import Login from "./screens/Login";
 import SiteOnboarding from "./screens/SiteOnboarding";
 
@@ -23,9 +24,10 @@ const MENUS: Array<{ key: MenuKey; label: string }> = [
 ];
 
 export default function App() {
-  const { menu, setMenu, evidenceOpen, traceOpen, guideOpen, reviewStates, authed, logout, sites, currentSite } = useUI();
+  const { menu, setMenu, evidenceOpen, traceOpen, guideOpen, notifOpen, openNotif, reviewStates, authed, logout, sites, currentSite } = useUI();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pending = deriveVerify(reviewStates).pending;
+  const { unread } = useNotifs();
   const site = sites.find((s) => s.id === currentSite) ?? sites[0];
 
   // 드로어 열림 시 본문 스크롤 잠금 (모바일 지시문 §12)
@@ -56,14 +58,14 @@ export default function App() {
         <span className="text-[15px] font-bold text-white">디지털 MRV</span>
         <span className="max-w-28 truncate rounded bg-white/10 px-2 py-0.5 text-[12px] text-slate-300">{site.name}</span>
         <button
-          onClick={() => go("verify")}
-          aria-label="처리할 일"
+          onClick={openNotif}
+          aria-label="알림 센터 열기"
           className="tnum relative ml-auto flex h-11 min-w-11 items-center justify-center rounded-lg px-2 text-[17px] active:bg-white/10"
         >
           🔔
-          {pending > 0 && (
+          {unread > 0 && (
             <span className="absolute top-1 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-review px-1 text-[10px] font-bold text-white">
-              {pending}
+              {unread}
             </span>
           )}
         </button>
@@ -173,6 +175,7 @@ export default function App() {
       {evidenceOpen && <EvidencePanel />}
       {traceOpen && <TraceabilityPanel />}
       {guideOpen && <GuideModal />}
+      {notifOpen && <NotifCenter />}
     </div>
   );
 }
