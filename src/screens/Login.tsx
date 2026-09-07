@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useUI } from "../store";
 
 const BASE = import.meta.env.BASE_URL;
@@ -8,6 +8,11 @@ export default function Login() {
   const loginAs = useUI((s) => s.loginAs);
   const [email, setEmail] = useState("demo@example.com");
   const [pw, setPw] = useState("demo1234");
+
+  // 시연·QA용 자동 로그인 (?demo=1). 인증 없는 데모 세션이므로 우회가 아님
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("demo") === "1") loginAs("demo@example.com");
+  }, [loginAs]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();

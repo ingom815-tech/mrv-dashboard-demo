@@ -2,9 +2,12 @@ import { useUI } from "../store";
 
 /* 데모 가이드 — 처음 보는 사람에게 시스템이 무엇을 하는지 쉬운 말로 설명 */
 export default function GuideModal() {
-  const { closeGuide, setMenu } = useUI();
+  const { closeGuide, setMenu, setEquipGroup } = useUI();
   const go = (m: Parameters<typeof setMenu>[0], hash: string) => {
     window.location.hash = hash;
+    // #/equipment/<군> 딥링크는 스토어 초기화 시에만 해석되므로 여기서 직접 반영
+    const sub = hash.split("/")[2];
+    if (m === "equipment" && sub) setEquipGroup(sub);
     setMenu(m);
     closeGuide();
   };
@@ -13,37 +16,51 @@ export default function GuideModal() {
     {
       n: "1",
       title: "공장 전체를 본다",
-      desc: "공장 종합현황 — 총 에너지·배출량과 10개 설비군 상태. MRV 검증 절감(420 MWh)은 냉동·냉장 실증분",
+      desc: "공장 종합현황 — 총 에너지·배출량, 10개 설비군 상태, 검증된 MRV 절감(420 MWh)과 처리할 일",
       menu: "overview",
       hash: "#/overview",
     },
     {
       n: "2",
-      title: "대표 실증 모듈로 들어간다",
-      desc: "설비군 분석 › 냉동·냉장 — 기준선 대비 절감 차트와 성능곡선. 다른 설비군은 요약 템플릿",
+      title: "상세 실증 모듈 3종을 본다",
+      desc: "설비군 분석 — 냉동·냉장(IPMVP 기준선 절감) · 태양광·ESS(IEC 61724-1 PR·TOU 차익) · 보일러(확장 후보)",
       menu: "equipment",
       hash: "#/equipment/chiller",
     },
     {
       n: "3",
       title: "데이터를 믿을 수 있는지 본다",
-      desc: "데이터 검증 — 품질 히트맵에서 결측·이상 구간과 그 처리 규칙 확인",
+      desc: "데이터 검증 — 품질 히트맵·상태코드 7종·증적 레지스트리. 태양광은 IEC 8장 규칙으로 별도 검증",
       menu: "verify",
       hash: "#/verify",
     },
     {
       n: "4",
-      title: "검토하고 승인해 본다 (하이라이트)",
-      desc: "보고·승인 — 역할을 검토자→승인자로 바꿔 2건을 승인하면 절감량이 재계산되고 새 계산버전(v2)이 생김",
+      title: "승인하면 숫자가 재계산된다 (하이라이트)",
+      desc: "보고·승인 › 검토·승인 — 역할을 검토자→승인자로 바꿔 NR-01을 승인하면 절감량 420→414 재산정, 새 계산버전(v2) 생성",
       menu: "report",
-      hash: "#/report",
+      hash: "#/report/approve",
     },
     {
       n: "5",
-      title: "보고서로 마무리한다",
-      desc: "보고·승인 › 보고서 작성 — 시스템 데이터로 자동 채워진 작성 현황과 AI 설명문 초안, 성과보고서·데이터팩 출력",
+      title: "표준별 보고서가 자동으로 나온다",
+      desc: "보고서 탭 — M&V 계획서·결과보고서(ESCO/IPMVP), 에너지성과(ISO 50006). 각 문서에 작성 근거 규정과 조항별 정합표",
       menu: "report",
-      hash: "#/report/draft",
+      hash: "#/report/plan",
+    },
+    {
+      n: "6",
+      title: "명세서·ESG까지 같은 데이터로",
+      desc: "에너지·배출 명세서(별지 10·11 서식) 7탭 + 산정계획서, ESG 공시 데이터 팩(K-ESG 매핑·2030 목표) — 재입력 없음",
+      menu: "report",
+      hash: "#/report/inventory",
+    },
+    {
+      n: "7",
+      title: "SaaS로 확장되는 구조를 본다",
+      desc: "설비·연계 관리 › 사업장 — 사업장 등록 → 온보딩 마법사(연계 키 발급) → 회차 자동 개설 · 사용자 초대·권한",
+      menu: "master",
+      hash: "#/master/site",
     },
   ];
 
@@ -61,10 +78,11 @@ export default function GuideModal() {
 
         <div className="text-[22px] font-bold text-navy">시스템 개요</div>
         <p className="mt-2 text-[15px] leading-relaxed text-navy">
-          <b className="text-navy">제1공장 전체</b>의 에너지 사용·온실가스 배출·개선사업 성과를 통합
-          관리하고, <b className="text-teal">절감 숫자를 계산</b>해 <b className="text-accent">제3자가 믿을
-          수 있도록 검증·승인</b>하는 디지털 MRV 플랫폼입니다. 10개 설비군 중{" "}
-          <b className="text-teal">냉동·냉장(냉수플랜트)</b>이 가장 상세하게 구현된 대표 실증 모듈입니다.
+          공장의 에너지 사용·온실가스 배출·개선사업 성과를 통합 관리하고, <b className="text-teal">절감 숫자를
+          계산</b>해 <b className="text-accent">제3자가 믿을 수 있도록 검증·승인</b>한 뒤, <b className="text-navy">
+          공식 규정·표준 서식의 보고서</b>(M&V·ISO 50006·명세서·ESG)로 자동 출력하는 디지털 MRV 플랫폼입니다.
+          상세 실증: <b className="text-teal">냉동·냉장(IPMVP)</b> · <b className="text-teal">태양광·ESS(IEC 61724-1)</b>.
+          사업장 추가·회차 반복·사용자 초대까지 SaaS 구조로 동작합니다.
           <span className="ml-1 rounded bg-review/10 px-1.5 py-0.5 text-[12px] font-semibold text-review">
             모든 숫자는 데모용 합성데이터
           </span>
@@ -88,11 +106,11 @@ export default function GuideModal() {
         <div className="mt-5">
           <div className="text-[15px] font-semibold text-navy">왼쪽 메뉴 5개 — 업무 흐름 순서</div>
           <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1.5 text-[13px] md:grid-cols-2">
-            <div><b className="text-navy">공장 종합현황</b> <span className="text-body">— 공장 전체 에너지·배출·MRV 성과</span></div>
-            <div><b className="text-navy">설비군 분석</b> <span className="text-body">— 10개 설비군과 개별 설비 상세</span></div>
-            <div><b className="text-navy">데이터 검증</b> <span className="text-body">— 품질·이슈·보정·증적</span></div>
-            <div><b className="text-navy">보고·승인</b> <span className="text-body">— 검토·승인·보고서·외부 자료</span></div>
-            <div><b className="text-navy">설비·연계 관리</b> <span className="text-body">— 설비·계측·연결·변경이력</span></div>
+            <div><b className="text-navy">공장 종합현황</b> <span className="text-body">— 전체 에너지·배출·MRV 성과, 처리할 일</span></div>
+            <div><b className="text-navy">설비군 분석</b> <span className="text-body">— 상세 실증 3종(냉동·냉장/태양광·ESS/보일러) + 10개 설비군</span></div>
+            <div><b className="text-navy">데이터 검증</b> <span className="text-body">— 히트맵·상태코드·증적, IEC 품질 규칙</span></div>
+            <div><b className="text-navy">보고·승인</b> <span className="text-body">— 검토·승인 재산정, M&V·ISO·명세서·ESG 보고서</span></div>
+            <div><b className="text-navy">설비·연계 관리</b> <span className="text-body">— 사업장·온보딩, 프로젝트, 계측·계수, 사용자</span></div>
           </div>
         </div>
 

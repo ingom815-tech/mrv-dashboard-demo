@@ -9,6 +9,7 @@ import {
   type HeatStatus,
 } from "../lib/mrvData";
 import { equipGroups, factory } from "../lib/factoryData";
+import { pvTagQuality, pvQualityRules, pvIssues } from "../lib/pvData";
 import { useUI, deriveVerify } from "../store";
 import ContextBar, { TopActions } from "../components/ContextBar";
 
@@ -202,14 +203,18 @@ function EvidenceDoc({ item, onClose }: { item: EvidenceItem; onClose: () => voi
 
 export default function DataVerify() {
   // 범위: 공장 전체(기본) ↔ 설비군. 냉동·냉장만 상세 검증(기존 탭) 제공
-  const [scope, setScope] = useState<string>(() =>
-    TABS.some((t) => t.key === window.location.hash.split("/")[2]) ? "chiller" : "factory",
-  );
+  // 딥링크: #/verify/<탭키>는 냉동·냉장 상세 탭, #/verify/<설비군키>는 해당 설비군 범위
+  const [scope, setScope] = useState<string>(() => {
+    const sub = window.location.hash.split("/")[2];
+    if (TABS.some((t) => t.key === sub)) return "chiller";
+    if (equipGroups.some((g) => g.key === sub)) return sub;
+    return "factory";
+  });
   const [tab, setTab] = useState<TabKey>(initialTab);
   const [heatMonth, setHeatMonth] = useState("2026-02");
   const [selCell, setSelCell] = useState<{ tag: string; date: string; status: HeatStatus } | null>(null);
   const [selEvidence, setSelEvidence] = useState<EvidenceItem | null>(null);
-  const { reviewStates, setMenu } = useUI();
+  const { reviewStates, setMenu, setEquipGroup } = useUI();
   const q = mrv.quality;
   const verify = deriveVerify(reviewStates);
   const heat = useMemo(() => qualityHeatmap(heatMonth), [heatMonth]);
@@ -372,8 +377,102 @@ export default function DataVerify() {
         </>
       )}
 
-      {/* ---------- 설비군 요약 (냉동·냉장 외) ---------- */}
-      {scopeGroup && scopeGroup.key !== "chiller" && (
+      {/* ---------- 태양광·ESS 상세 검증 (IEC 61724-1 8장 데이터 품질) ---------- */}
+      {scopeGroup && scopeGroup.key === "pv" && (
+        <>
+          <section className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
+            {(
+              [
+                ["수집률", "99.8%", "계측 5계통 · 15분 기록"],
+                ["정상률", "99.1%", "INV-2 정지 6일 반영"],
+                ["보정 적용", "1건", "4/14 결측 3h — 적산 보정 (ESTIMATED)"],
+                ["IEC 품질 규칙", "3종 적용", "일광 필터 · 오판독 제거 · 누락 처리"],
+              ] as Array<[string, string, string]>
+            ).map(([k, v, sub]) => (
+              <div key={k} className="rounded-[10px] border border-line/60 bg-white p-4">
+                <div className="text-[13px] font-medium text-body">{k}</div>
+                <div className="tnum mt-1.5 text-[24px] leading-none font-bold text-navy">{v}</div>
+                <div className="tnum mt-1.5 truncate text-[12px] text-body" title={sub}>{sub}</div>
+              </div>
+            ))}
+          </section>
+
+          {/* 태그별 품질 */}
+          <section className="rounded-[10px] border border-line/60 bg-white p-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[15px] font-semibold text-navy">계측 태그별 품질 <span className="text-[12px] font-normal text-slate-400">IEC 61724-1 표 3 (Class B) 변수</span></span>
+              <button onClick={() => { setEquipGroup("pv"); setMenu("equipment"); window.location.hash = "#/equipment/pv"; }} className="text-[12.5px] font-medium text-accent hover:underline">
+                태양광·ESS 성과 상세 ›
+              </button>
+            </div>
+            <table className="w-full text-[12.5px]">
+              <thead>
+                <tr className="border-b border-line text-left text-[12px] text-body">
+                  <th className="py-2 font-medium">태그</th>
+                  <th className="py-2 font-medium">계측기 · 변수</th>
+                  <th className="py-2 text-right font-medium">수집률</th>
+                  <th className="py-2 text-right font-medium">정상률</th>
+                  <th className="py-2 text-right font-medium">추정률</th>
+                  <th className="wrap py-2 pl-4 font-medium">비고</th>
+                </tr>
+              </thead>
+              <tbody className="tnum">
+                {pvTagQuality.map((t) => (
+                  <tr key={t.tag} className="border-b border-line/50 last:border-0">
+                    <td className="py-2 font-semibold text-navy">{t.tag}</td>
+                    <td className="py-2 text-body">{t.meter} · {t.desc}</td>
+                    <td className="py-2 text-right text-body">{t.collectPct}%</td>
+                    <td className={`py-2 text-right font-medium ${t.validPct < 98 ? "text-review" : "text-teal"}`}>{t.validPct}%</td>
+                    <td className="py-2 text-right text-body">{t.estPct > 0 ? `${t.estPct}%` : "—"}</td>
+                    <td className="wrap max-w-72 py-2 pl-4 text-body">{t.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+
+          {/* IEC 8장 검증 규칙 + 이슈 */}
+          <section className="grid shrink-0 grid-cols-1 gap-3 xl:grid-cols-2">
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="mb-2 text-[15px] font-semibold text-navy">데이터 품질 규칙 <span className="text-[12px] font-normal text-slate-400">IEC 61724-1 8장 → 기존 상태코드 체계 매핑</span></div>
+              <div className="flex flex-col gap-2">
+                {pvQualityRules.map((r) => (
+                  <div key={r.clause} className="rounded-lg bg-surface/60 px-3.5 py-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="tnum rounded bg-navy px-1.5 py-0.5 text-[10px] font-bold text-white">{r.clause}</span>
+                      <span className="text-[13px] font-semibold text-navy">{r.name}</span>
+                    </div>
+                    <div className="mt-1 text-[12.5px] leading-relaxed text-body">{r.rule}</div>
+                    <div className="tnum mt-0.5 text-[12px] text-slate-500">매핑: {r.mapped} · 사례: {r.example}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="mb-2 text-[15px] font-semibold text-navy">이슈 및 산정 영향 <span className="text-[12px] font-normal text-slate-400">PR 산정 반영 내역</span></div>
+              <div className="flex flex-col gap-2">
+                {pvIssues.map((i) => (
+                  <div key={i.id} className="rounded-lg border border-line/60 px-3.5 py-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[13px] font-semibold text-navy">{i.id} · {i.title}</span>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${i.state === "조치 완료" ? "bg-teal/10 text-teal" : "bg-accent/10 text-accent"}`}>{i.state}</span>
+                    </div>
+                    <div className="tnum mt-0.5 text-[12px] text-slate-400">{i.period}</div>
+                    <div className="mt-0.5 text-[12.5px] text-body"><b className="text-navy">산정 영향</b> {i.impact}</div>
+                    <div className="text-[12.5px] text-body">조치: {i.action}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 text-[12px] text-body">
+                원본값은 수정 없이 보존 · 제거/보정 구간은 라벨(OUTLIER/ESTIMATED)로 구분 — 냉동·냉장과 동일 원칙
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* ---------- 설비군 요약 (냉동·냉장·태양광 외) ---------- */}
+      {scopeGroup && scopeGroup.key !== "chiller" && scopeGroup.key !== "pv" && (
         <section className="rounded-[10px] border border-line/60 bg-white p-4">
           <div className="flex items-center justify-between">
             <span className="text-[15px] font-semibold text-navy">{scopeGroup.name} — 데이터 품질 요약</span>

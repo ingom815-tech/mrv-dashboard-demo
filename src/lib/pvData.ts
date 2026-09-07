@@ -171,6 +171,31 @@ export const iecSummary = {
   todo: iecMatrix.filter((r) => r.status === "향후").length,
 };
 
+/* ---------- 데이터 검증용 — 태그별 품질 통계 (2026 상반기, 데모) ---------- */
+export interface PvTagQuality {
+  tag: string;
+  meter: string;
+  desc: string;
+  collectPct: number;
+  validPct: number;
+  estPct: number;
+  note: string;
+}
+export const pvTagQuality: PvTagQuality[] = [
+  { tag: "POA_IRR", meter: "PYR-01", desc: "경사면 일사강도", collectPct: 99.9, validPct: 99.6, estPct: 0, note: "야간 구간은 일광 필터로 산정 제외 (IEC 8.1)" },
+  { tag: "MOD_T", meter: "RTD-01·02", desc: "모듈 온도", collectPct: 99.8, validPct: 99.7, estPct: 0, note: "2점 평균 · 편차 3℃ 초과 시 검토 플래그" },
+  { tag: "INV1~4_AC", meter: "INV-01~04", desc: "인버터 AC 출력·발전량", collectPct: 99.7, validPct: 96.4, estPct: 0.2, note: "3월 INV-2 정지 6일 · 4/14 결측 3h 적산 보정" },
+  { tag: "PV_E", meter: "정산 전력량계", desc: "발전량 (정산 기준)", collectPct: 100, validPct: 100, estPct: 0, note: "인버터 합산과 월별 대사 (차이 0.4% 이내)" },
+  { tag: "ESS_P/SOC", meter: "PCS-01·BMS", desc: "충·방전 전력·SOC", collectPct: 99.9, validPct: 99.9, estPct: 0, note: "충·방전 적산 vs 전력량계 교차 검증" },
+];
+
+/* IEC 61724-1 8장 — 데이터 품질 규칙 적용 현황 (기존 상태코드 체계에 매핑) */
+export const pvQualityRules = [
+  { clause: "8.1", name: "일광 시간 필터", rule: "일사량 임계 미만(야간·저조도) 구간은 PR 산정에서 제외", mapped: "상태코드 VALID 유지 · 산정 플래그만 제외", example: "동절기 16시 이후 저조도 구간 자동 제외" },
+  { clause: "8.2.1", name: "잘못된 판독값 제거", rule: "물리범위(0~1,500 W/m²)·급변·고착 검출 시 해당 판독 제거", mapped: "OUTLIER — 원본 보존, 정제값 별도 (R-02 재사용)", example: "PYR-01 순간 스파이크 3건 제거 (상반기)" },
+  { clause: "8.2.2", name: "누락 데이터 처리", rule: "결측 구간은 보정 방법을 명시하고 라벨 유지", mapped: "ESTIMATED — 인버터 적산값 기반 보정", example: "4/14 통신 결측 3h → 적산 보정 (PV-03)" },
+];
+
 /* ---------- 품질 이슈 (기존 DQ 체계와 동일 구조) ---------- */
 export const pvIssues = [
   { id: "PV-01", title: "인버터 2 정지 — 냉각팬 교체", period: "2026-03-09 ~ 03-14", impact: "정지 손실 약 24 MWh · 3월 PR 76.3%로 하락", action: "부품 교체 완료 · 가동률 산정 반영", state: "조치 완료" },
