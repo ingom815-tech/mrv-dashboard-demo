@@ -188,13 +188,19 @@ export interface ProjectRec {
   group: string; // 대상 설비군
   stage: "검증 중" | "개시 전" | "후보";
   report: boolean; // 보고서 생성 대상 여부
-  builtin?: "chiller" | "boiler"; // 상세 구현이 있는 기본 프로젝트 (삭제 불가)
+  builtin?: "chiller" | "boiler" | "pv"; // 상세 구현이 있는 기본 프로젝트 (삭제 불가)
 }
 const defaultProjects = (): ProjectRec[] => [
   { id: "MVP-2026-01", name: "중앙 냉수플랜트 효율개선", group: "냉동·냉장", stage: "검증 중", report: true, builtin: "chiller" },
+  { id: "GEN-2026-01", name: "태양광·ESS 발전 성과", group: "태양광·ESS", stage: "검증 중", report: true, builtin: "pv" },
   { id: "MVP-2026-02", name: "보일러 폐열회수", group: "보일러·스팀", stage: "개시 전", report: true, builtin: "boiler" },
   { id: "CAND-01", name: "압축공기 누설개선", group: "압축공기", stage: "후보", report: false },
 ];
+/* 저장된 목록에 기본(builtin) 프로젝트가 빠져 있으면 보충 — 기능 추가 시 기존 localStorage 마이그레이션 */
+const withBuiltinProjects = (list: ProjectRec[]): ProjectRec[] => {
+  const missing = defaultProjects().filter((d) => d.builtin && !list.some((p) => p.builtin === d.builtin));
+  return missing.length ? [...list, ...missing] : list;
+};
 
 // 상세 화면에서 돌아와도 보고기간·선택 필터 유지 (지시문 §9)
 export const useUI = create<UIState>((set, get) => ({
@@ -356,7 +362,7 @@ export const useUI = create<UIState>((set, get) => ({
     }
   },
   // 프로젝트 관리 — 일반 역할은 조회만 (기준정보 수정 권한과 동일 정책)
-  projects: loadJson<ProjectRec[]>("mrv-projects", defaultProjects()),
+  projects: withBuiltinProjects(loadJson<ProjectRec[]>("mrv-projects", defaultProjects())),
   addProject: (name, group) => {
     const { role, projects, logAudit } = get();
     if (role === "일반" || !name.trim()) return;

@@ -119,6 +119,12 @@ export default function PvEssDetail() {
       <section className="rounded-[10px] border border-line/60 bg-white px-4 py-3">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[12.5px]">
           <span className="font-semibold text-navy">분석 조건</span>
+          <button
+            onClick={() => nav("report", "#/report/pv")}
+            className="order-last ml-auto text-[12.5px] font-medium whitespace-nowrap text-accent hover:underline"
+          >
+            발전 성과보고서 (IEC 61724-1) ›
+          </button>
           {(
             [
               ["설비군", "태양광·ESS (유틸리티)"],

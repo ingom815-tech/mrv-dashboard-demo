@@ -44,7 +44,7 @@ const mkM = (label: string, poa: number, act: number, event?: string): PvMonth =
   poaKwhM2: poa,
   expectMWh: Math.round(((PV_SPEC.arrayKwp * poa * PR_REF) / 1000) * 10) / 10,
   actMWh: act,
-  pr: Math.round((act * 1000 * 1000) / (PV_SPEC.arrayKwp * poa) / 10) / 100, // %
+  pr: Math.round(((act * 1000) / (PV_SPEC.arrayKwp * poa)) * 1000) / 10, // % (E_AC / (P0×H_POA))
   event,
 });
 export const pvMonthly: PvMonth[] = [

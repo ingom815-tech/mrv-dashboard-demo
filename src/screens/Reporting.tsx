@@ -5,6 +5,7 @@ import { useUI, deriveVerify, activeEf } from "../store";
 import ContextBar, { TopActions } from "../components/ContextBar";
 import InventoryReport from "./InventoryReport";
 import MrvReportPreview from "./MrvReportPreview";
+import PvReportDoc, { type PvDocNav } from "./PvReportDoc";
 import EsgDataPack from "./EsgDataPack";
 import FrameworkPanel from "./StandardsCompliance";
 import type { ComplyNav } from "../lib/standardsData";
@@ -82,12 +83,12 @@ export default function Reporting() {
   // 보고 범위: 냉수플랜트 MRV 보고서 | 공장 종합 명세서 (온실가스·에너지 명세서 작성 기능)
   const [rptScope, setRptScope] = useState<string>(() => {
     const seg = window.location.hash.split("/")[2];
-    return seg === "inventory" ? "inventory" : seg === "boiler" ? "boiler" : seg === "esg" ? "esg" : "chiller";
+    return seg === "inventory" ? "inventory" : seg === "boiler" ? "boiler" : seg === "esg" ? "esg" : seg === "pv" ? "pv" : "chiller";
   });
   const [copied, setCopied] = useState(false);
   // 승인 실수 방지: 첫 탭에서 무장(arm), 두 번째 탭에서 확정 (모바일 지시문 §8.7)
   const [armId, setArmId] = useState<string | null>(null);
-  const { role, reviewStates, markReviewed, approve, audit, resetDemoStates, openEvidence, setMenu, projects, planStatus } =
+  const { role, reviewStates, markReviewed, approve, audit, resetDemoStates, openEvidence, setMenu, setEquipGroup, projects, planStatus } =
     useUI();
   /* 보고서 생성 대상 프로젝트만 목록에 노출 (설비·연계 관리에서 대상 선택) */
   const reportProjects = projects.filter((p) => p.report);
@@ -195,7 +196,7 @@ export default function Reporting() {
             ] as Array<[string, string, string]>
           ).map(([key, label, sub]) => {
             const on =
-              key === "mrv" ? rptScope === "chiller" || rptScope === "boiler" : rptScope === key;
+              key === "mrv" ? rptScope === "chiller" || rptScope === "boiler" || rptScope === "pv" : rptScope === key;
             return (
               <button
                 key={key}
@@ -352,6 +353,35 @@ export default function Reporting() {
         </>
       )}
 
+      {/* ---------- 태양광·ESS 발전 성과보고서 (IEC 61724-1) — 산정 패러다임이 다른 두 번째 실보고서 ---------- */}
+      {rptScope === "pv" && (() => {
+        const onPvNav = (go: PvDocNav) => {
+          if (go === "equipment") { setEquipGroup("pv"); window.location.hash = "#/equipment/pv"; setMenu("equipment"); return; }
+          if (go === "verify") { window.location.hash = "#/verify/pv"; setMenu("verify"); return; }
+          setMenu("master");
+        };
+        return (
+          <>
+            <section className="no-print rounded-[10px] border border-line/60 bg-white p-4">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px]">
+                <span className="text-[15px] font-semibold text-navy">태양광·ESS 발전 성과 (GEN-2026-01)</span>
+                <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">IEC 61724-1</span>
+                <span className="rounded bg-accent/10 px-2 py-0.5 text-[11px] font-bold text-accent">검토 중</span>
+              </div>
+              <div className="mt-1.5 text-[12.5px] leading-relaxed text-body">
+                절감 프로젝트(회귀 기준선·M&V 계획서)가 아닌 <b className="text-navy">발전 성과 보고</b> — 일사량 기반
+                기대치(PR) 비교와 정산 계량기 대사로 확정하며, 문서는 발전 성과보고서 1종입니다. 산정 상세와 검증 예외는{" "}
+                <button onClick={() => onPvNav("equipment")} className="font-medium text-accent hover:underline">태양광·ESS 상세 ›</button>
+                {" · "}
+                <button onClick={() => onPvNav("verify")} className="font-medium text-accent hover:underline">데이터 검증 ›</button>
+                에서 관리합니다.
+              </div>
+            </section>
+            <PvReportDoc onNav={onPvNav} />
+          </>
+        );
+      })()}
+
       {/* ---------- 후보 단계 프로젝트 (신규 등록) — 보고서 생성 전 준비 안내 ---------- */}
       {scopeProject && !scopeProject.builtin && (
         <section className="rounded-[10px] border border-line/60 bg-white p-4">
@@ -372,7 +402,7 @@ export default function Reporting() {
           </div>
         </section>
       )}
-      {!scopeProject && !["chiller", "boiler", "inventory", "esg"].includes(rptScope) && (
+      {!scopeProject && !["chiller", "boiler", "pv", "inventory", "esg"].includes(rptScope) && (
         <section className="rounded-[10px] border border-line/60 bg-white p-4 text-[13px] text-body">
           선택한 프로젝트가 목록에서 제외되었거나 삭제되었습니다 — 위 드롭다운에서 다른 프로젝트를 선택하세요.
         </section>
