@@ -99,6 +99,9 @@ export default function EquipGroups() {
             {g.detail === "full" && equipGroup !== g.key && <span className="ml-1 text-[10px] font-bold text-teal">MRV</span>}
           </button>
         ))}
+        <span className="ml-1 hidden text-[11.5px] text-slate-400 lg:inline" title="사업장 온보딩에서 설비군을 선택하면 화면·지표 세트가 자동 구성됩니다. 검색·계층 탐색(공장→공정→설비)은 SaaS 확장 항목.">
+          설비군 구성·지표 세트는 사업장별 설정 (제1공장 커스텀) · 검색·계층 탐색은 SaaS 확장
+        </span>
       </div>
 
       {/* ---------- 전체: 설비군 비교 ---------- */}

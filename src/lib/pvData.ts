@@ -203,6 +203,81 @@ export const pvIssues = [
   { id: "PV-03", title: "통신 결측 3시간", period: "2026-04-14 09:00~12:00", impact: "결측 구간 인버터 적산값으로 보정 (라벨 유지)", action: "게이트웨이 재기동 · 보정 규칙 적용", state: "규칙 적용" },
 ];
 
+/* ---------- 측정값 → 보고값 재구성 (MRV 추적 핵심 — 검증자 관점) ----------
+   태양광 발전량 확정은 회귀 기준선이 아니라 "인버터 적산 ↔ 정산 계량기 대사"로 수행.
+   정비 정지는 발전 손실이지 데이터 제외가 아님 — 실측 그대로 보고 대상 (혼동 방지 명시). */
+export interface PvReconStep {
+  kind: "원천" | "보정" | "검증" | "확정" | "연계";
+  step: string;
+  value: string;
+  note: string;
+}
+export const pvRecon: PvReconStep[] = [
+  { kind: "원천", step: "인버터 적산값 (15분)", value: "835.4 MWh", note: "INV-01~04 합산 — 4/14 통신 결측 3h 구간 제외 상태" },
+  { kind: "보정", step: "통신 결측 보정", value: "+1.2 MWh", note: "적산 기반 보간 · ESTIMATED 라벨 유지 (PV-03 · 승인 완료)" },
+  { kind: "검증", step: "검증 인버터 합산", value: "836.6 MWh", note: "이상 판독 3건 OUTLIER 제거 반영 (발전량 영향 없음)" },
+  { kind: "검증", step: "정산 계량기 대사", value: "840.0 MWh", note: "PV_E 월별 대조 — 차이 0.4% (허용 내) → 계량기 기준 채택" },
+  { kind: "확정", step: "확정 발전량", value: "840.0 MWh", note: "보고 대상 — 승인 시 계산버전에 잠금" },
+  { kind: "연계", step: "자가소비량", value: "766.0 MWh", note: "수전점 구매전력 감소량과 대조 · 잉여 상계 74 MWh 분리" },
+  { kind: "연계", step: "Scope 2 회피량", value: "351.9 tCO₂eq", note: "× EF 0.4594 (EF-v1.0) — 참고치, 명세서엔 구매전력 감소로 반영" },
+];
+
+/* ---------- 데이터 품질·검증 예외 — 사건이 보고값에 어떻게 반영됐는지 ---------- */
+export interface PvException {
+  type: "보정" | "제거" | "손실" | "검토";
+  item: string;
+  impact: string;
+  handling: string;
+  approval: string;
+  ref: string;
+}
+export const pvExceptions: PvException[] = [
+  { type: "보정", item: "통신 결측 3시간 (4/14)", impact: "+1.2 MWh 보간", handling: "인버터 적산 기반 · ESTIMATED 라벨 유지", approval: "승인 완료", ref: "PV-03" },
+  { type: "제거", item: "일사계 이상 판독 3건", impact: "PR 정밀도 (발전량 영향 없음)", handling: "OUTLIER — 원본 보존 · 정제값 별도 (R-02)", approval: "규칙 승인분", ref: "IEC 8.2.1" },
+  { type: "손실", item: "인버터 2 정지 6일 (3월)", impact: "발전 손실 약 24 MWh", handling: "데이터 제외 아님 — 실측 그대로 보고 · 가동률에 반영", approval: "검토 완료", ref: "PV-01" },
+  { type: "검토", item: "패널 오염 누적 (4~5월)", impact: "손실 추정 28 MWh", handling: "손실 분해로 분리 표시 — 보고값 조정 없음", approval: "검토 중", ref: "PV-02" },
+];
+
+/* ---------- 계산 근거·증빙 (요약 + 해당 화면 연결) ---------- */
+export interface PvCalcRow {
+  item: string;
+  detail: string;
+  nav?: { menu: "verify" | "report" | "master"; hash: string; label: string };
+}
+export const pvCalcBasis: PvCalcRow[] = [
+  { item: "산정식", detail: "PR = E_AC / (P0 × H_POA) · 기대 발전 = P0 × H_POA × PR기준 0.83 · 회피량 = 자가소비 × 배출계수" },
+  { item: "기준값(기대치)", detail: "PR 기준 0.83 — 설계값·초년도 실적 기반 (데모 가정). 회귀 기준선(IPMVP형)이 아닌 기대치 비교 방식" },
+  { item: "배출계수", detail: "EF-v1.0 · 0.4594 tCO₂/MWh (소비단) — 버전관리, 최신 0.4330 갱신 시나리오", nav: { menu: "master", hash: "#/master/factor", label: "배출계수 관리 ›" } },
+  { item: "계측·교정", detail: "IEC 표 3 Class B 5종 — 계측기 대장·교정주기 연동", nav: { menu: "master", hash: "#/master/asset", label: "계측기 대장 ›" } },
+  { item: "데이터 보정 규칙", detail: "IEC 8장 3종(일광 필터·오판독 제거·누락 보정) → 기존 상태코드 체계 매핑", nav: { menu: "verify", hash: "#/verify/pv", label: "데이터 검증 ›" } },
+  { item: "계산 버전·이력", detail: "CALC-2026H1-v1 — 변경 시 새 버전 생성 · 감사로그 기록", nav: { menu: "report", hash: "#/report/history", label: "변경이력 ›" } },
+  { item: "검토·승인", detail: "검토자 확인 → 승인자 확정 시 잠금 (역할 분리) — 현재 검토 중", nav: { menu: "report", hash: "#/report/approve", label: "검토·승인 ›" } },
+];
+
+/* ---------- 사업장별 커스텀 구성 (SaaS — 설비 구조·반영 지표는 고객마다 다름) ---------- */
+export const pvSiteConfig = {
+  site: "제1공장",
+  template: "태양광·ESS 표준 템플릿 — KS C IEC 61724-1 Class B",
+  custom: "제1공장 커스텀 v1.2",
+  note: "설비 구조와 반영 지표는 사업장 온보딩에서 선택하고 설비·연계 관리에서 변경합니다 — 사업장(고객)마다 다르게 구성됩니다.",
+  structure: [
+    { item: "PV 어레이 1,200 kWp · 인버터 4대", state: "사용" },
+    { item: "정산 전력량계 (발전량 확정 기준)", state: "사용" },
+    { item: "ESS 1,000 kWh / PCS 250 kW", state: "사용" },
+    { item: "오염률 측정 장치", state: "미설치 — 지표 비활성" },
+  ],
+  kpiSet: [
+    { name: "확정 발전량", kind: "표준 필수", on: true },
+    { name: "유효 데이터율", kind: "표준 필수", on: true },
+    { name: "성능비 PR", kind: "표준 (IEC 10장)", on: true },
+    { name: "자가소비·잉여 상계", kind: "사업장 커스텀", on: true },
+    { name: "Scope 2 회피량", kind: "사업장 커스텀", on: true },
+    { name: "ESS 왕복효율·피크 기여", kind: "사업장 커스텀", on: true },
+    { name: "오염률 (측정식)", kind: "표준 선택", on: false, why: "전용 센서 미설치 — PR 추세로 간접 감지" },
+    { name: "REC 발급량", kind: "제도 연동", on: false, why: "자가용 설비 — 발급 대상 아님" },
+  ] as Array<{ name: string; kind: string; on: boolean; why?: string }>,
+};
+
 /* ---------- 사업 형태·REC (자가용 판단 반영) ---------- */
 export const pvBiz = {
   type: "자가용 전기설비 — 공장 구내 자가소비 + 잉여 상계 (발전사업자 아님)",
