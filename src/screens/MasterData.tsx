@@ -208,11 +208,13 @@ export default function MasterData() {
   const [connectStep, setConnectStep] = useState<number>(() => ls("mrv-connect-step", 0));
   const [mesOk, setMesOk] = useState<boolean>(() => ls("mrv-mes-ok", false));
   const [form2, setForm2] = useState({ name: "", group: "보일러·스팀", cap: "", mrv: true });
-  const { role, efList, registerEf, tariffValue, setTariff, logAudit, setMenu, setEquipGroup, projects, addProject, removeProject, toggleProjectReport, sites, currentSite, setCurrentSite, addSite, removeSite } = useUI();
+  const { role, efList, registerEf, tariffValue, setTariff, logAudit, setMenu, setEquipGroup, projects, addProject, removeProject, toggleProjectReport, sites, currentSite, setCurrentSite, addSite, removeSite, users, inviteUser, changeUserRole, removeUser, acceptInvite } = useUI();
   const [newPrjName, setNewPrjName] = useState("");
   const [newPrjGroup, setNewPrjGroup] = useState("공조기·환기");
   const [newSiteName, setNewSiteName] = useState("");
   const [newSiteRegion, setNewSiteRegion] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<Role>("일반");
   const calc = useCalc();
   const ef = activeEf(efList);
   const [form, setForm] = useState({ value: "", source: "", baseYear: "2025", validFrom: "2026-07-01", validTo: "2027-06-30" });
@@ -532,7 +534,7 @@ export default function MasterData() {
           </section>
 
           {/* 시스템 경계 */}
-          <section className="grid shrink-0 grid-cols-2 gap-3">
+          <section className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-2">
             <div className="rounded-[10px] border border-line/60 bg-white p-4">
               <div className="text-[13.5px] font-semibold text-navy">구현 경계 (본 데모)</div>
               <div className="mt-1.5 text-[12.5px] leading-relaxed text-body">{systemBoundary.implemented}</div>
@@ -1180,7 +1182,7 @@ export default function MasterData() {
 
       {/* ---------- 탭 3: 사용자·권한 ---------- */}
       {tab === "user" && (
-        <section className="grid shrink-0 grid-cols-2 gap-3">
+        <section className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-2">
           <div className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 text-[15px] font-semibold text-navy">역할별 권한</div>
             <table className="w-full text-[12px]">
@@ -1218,31 +1220,92 @@ export default function MasterData() {
           </div>
 
           <div className="rounded-[10px] border border-line/60 bg-white p-4">
-            <div className="mb-2 text-[15px] font-semibold text-navy">사용자 (데모)</div>
-            <table className="w-full text-[12px]">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[15px] font-semibold text-navy">조직 사용자</span>
+              <span className="text-[11.5px] text-slate-400">초대·역할 변경·삭제는 검토자·승인자만 · 감사로그 기록</span>
+            </div>
+            <table className="w-full text-[12.5px]">
               <thead>
                 <tr className="border-b border-line text-left text-[11px] text-body">
-                  <th className="py-2 font-medium">이름</th>
+                  <th className="py-2 font-medium">사용자</th>
                   <th className="py-2 font-medium">역할</th>
-                  <th className="py-2 font-medium">소속</th>
+                  <th className="py-2 pl-2 font-medium">상태</th>
+                  <th className="py-2 pl-2 font-medium">관리</th>
                 </tr>
               </thead>
-              <tbody>
-                {[
-                  { name: "현장 운영자 (데모)", role: "일반", org: "제1공장 시설팀" },
-                  { name: "MRV 검토자 (데모)", role: "검토자", org: "에너지관리 담당" },
-                  { name: "MRV 승인자 (데모)", role: "승인자", org: "MRV 책임자" },
-                ].map((u) => (
-                  <tr key={u.name} className="border-b border-line/60 last:border-0">
-                    <td className="py-2 font-medium text-navy">{u.name}</td>
-                    <td className="py-2 text-body">{u.role}</td>
-                    <td className="py-2 text-body">{u.org}</td>
+              <tbody className="tnum">
+                {users.map((u) => (
+                  <tr key={u.id} className="border-b border-line/60 last:border-0">
+                    <td className="py-2">
+                      <div className="font-medium text-navy">
+                        {u.name}
+                        {u.self && <span className="ml-1 rounded bg-accent/10 px-1 py-0.5 text-[9.5px] font-bold text-accent">나</span>}
+                      </div>
+                      <div className="text-[11px] text-slate-400">{u.email} · {u.org}</div>
+                    </td>
+                    <td className="py-2">
+                      <select
+                        aria-label={`${u.name} 역할`}
+                        value={u.self ? role : u.role}
+                        disabled={role === "일반"}
+                        onChange={(e) => changeUserRole(u.id, e.target.value as Role)}
+                        className="min-h-8 rounded border border-line bg-white px-1.5 py-0.5 text-[12px] font-medium text-navy disabled:cursor-not-allowed disabled:bg-surface disabled:text-slate-400"
+                      >
+                        {(["일반", "검토자", "승인자"] as Role[]).map((r) => <option key={r}>{r}</option>)}
+                      </select>
+                    </td>
+                    <td className="py-2 pl-2">
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${u.status === "활성" ? "bg-teal/10 text-teal" : "bg-review/10 text-review"}`}>
+                        {u.status}
+                      </span>
+                    </td>
+                    <td className="py-2 pl-2 whitespace-nowrap">
+                      {u.status === "초대 대기" && (
+                        <button onClick={() => acceptInvite(u.id)} className="mr-1.5 rounded px-1.5 py-0.5 text-[11px] font-medium text-teal hover:bg-teal/8" title="초대 수락을 데모로 즉시 처리">
+                          수락(데모)
+                        </button>
+                      )}
+                      {u.self ? (
+                        <span className="text-[11px] text-slate-400">본인</span>
+                      ) : (
+                        <button onClick={() => removeUser(u.id)} disabled={role === "일반"} className="rounded px-1.5 py-0.5 text-[11px] font-medium text-risk hover:bg-risk/8 disabled:cursor-not-allowed disabled:opacity-50">
+                          삭제
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div className="mt-2 text-[11px] text-body">
-              데모에서는 우측 상단 역할 전환으로 사용자를 대신합니다. 실서비스에서는 계정·인증으로 분리됩니다.
+            {/* 초대 폼 */}
+            <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-line/60 pt-3">
+              <label className="flex min-w-52 flex-1 flex-col gap-1 text-[12px] text-body">
+                이메일로 초대
+                <input
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="예: manager@example.com"
+                  type="email"
+                  className="min-h-9 rounded border border-line bg-white px-2 py-1.5 text-[16px] text-navy md:text-[13px]"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[12px] text-body">
+                역할
+                <select aria-label="초대 역할 선택" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Role)} className="min-h-9 rounded border border-line bg-white px-2 py-1.5 text-[13px] font-medium text-navy">
+                  {(["일반", "검토자", "승인자"] as Role[]).map((r) => <option key={r}>{r}</option>)}
+                </select>
+              </label>
+              <button
+                onClick={() => { inviteUser(inviteEmail, inviteRole); setInviteEmail(""); }}
+                disabled={role === "일반" || !inviteEmail.includes("@")}
+                className="min-h-9 rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                초대 보내기
+              </button>
+            </div>
+            <div className="mt-2 text-[11px] leading-relaxed text-body">
+              데모 — 초대 메일은 실제 발송되지 않으며 "초대 대기"로 등록됩니다 (수락 버튼으로 활성화 시연) ·
+              실제 SaaS에서는 초대 메일·SSO 연동, 본인 역할 변경은 우측 상단 역할 전환과 동기화됩니다.
             </div>
           </div>
         </section>

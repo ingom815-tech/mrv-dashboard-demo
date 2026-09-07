@@ -136,6 +136,12 @@ interface UIState {
   addSite: (name: string, region: string) => void;
   removeSite: (id: string) => void;
   siteOnboardNext: (id: string, stepLabel: string, patch: Record<string, string>) => void;
+  /* 사용자·권한 관리 */
+  users: UserRec[];
+  inviteUser: (email: string, roleTo: Role) => void;
+  changeUserRole: (id: string, roleTo: Role) => void;
+  removeUser: (id: string) => void;
+  acceptInvite: (id: string) => void;
 }
 
 /* 명세서(인벤토리 보고서) 상태 흐름 */
@@ -156,6 +162,22 @@ export interface SiteRec {
 }
 const defaultSites = (): SiteRec[] => [
   { id: "SITE-01", name: "제1공장", region: "강원 (데모)", status: "운영 중", demo: true },
+];
+
+/* ---------- 사용자·권한 관리 (조직 계정 — SaaS) ---------- */
+export interface UserRec {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  org: string;
+  status: "활성" | "초대 대기";
+  self?: boolean; // 현재 로그인 사용자 (삭제 불가)
+}
+const defaultUsers = (): UserRec[] => [
+  { id: "U-01", name: "작성자(데모)", email: "demo@example.com", role: "일반", org: "에너지관리팀", status: "활성", self: true },
+  { id: "U-02", name: "MRV 검토자(데모)", email: "reviewer@example.com", role: "검토자", org: "에너지관리 담당", status: "활성" },
+  { id: "U-03", name: "MRV 승인자(데모)", email: "approver@example.com", role: "승인자", org: "MRV 책임자", status: "활성" },
 ];
 
 /* ---------- MRV 프로젝트 관리 (목록·추가·삭제·보고서 생성 대상 선택) ---------- */
@@ -442,6 +464,49 @@ export const useUI = create<UIState>((set, get) => ({
     }
     logAudit("사업장 삭제", target.name, `${id} 삭제 (온보딩 중 사업장)`);
   },
+  /* 사용자 관리 — 초대·역할 변경·삭제 (검토자·승인자만, 감사로그 기록). 초대는 데모라 이메일 미발송 */
+  users: loadJson<UserRec[]>("mrv-users", defaultUsers()),
+  inviteUser: (email, roleTo) => {
+    const { role, users, logAudit } = get();
+    if (role === "일반" || !email.trim() || users.some((u) => u.email === email.trim())) return;
+    const id = `U-${String(users.length + 1).padStart(2, "0")}`;
+    const next: UserRec[] = [
+      ...users,
+      { id, name: `${email.split("@")[0]} (초대)`, email: email.trim(), role: roleTo, org: "미지정", status: "초대 대기" },
+    ];
+    saveJson("mrv-users", next);
+    set({ users: next });
+    logAudit("사용자 초대", email.trim(), `역할 ${roleTo} 초대 발송 (데모 — 실제 이메일 미발송, SaaS에서 초대 메일·SSO 연동)`);
+  },
+  changeUserRole: (id, roleTo) => {
+    const { role, users, logAudit } = get();
+    if (role === "일반") return;
+    const target = users.find((u) => u.id === id);
+    if (!target || target.role === roleTo) return;
+    const next = users.map((u) => (u.id === id ? { ...u, role: roleTo } : u));
+    saveJson("mrv-users", next);
+    set({ users: next });
+    if (target.self) set({ role: roleTo }); // 본인 역할 변경은 세션 역할과 동기화
+    logAudit("역할 변경", target.name, `${target.role} → ${roleTo}${target.self ? " (본인 — 세션 역할 동기화)" : ""}`);
+  },
+  removeUser: (id) => {
+    const { role, users, logAudit } = get();
+    const target = users.find((u) => u.id === id);
+    if (role === "일반" || !target || target.self) return;
+    const next = users.filter((u) => u.id !== id);
+    saveJson("mrv-users", next);
+    set({ users: next });
+    logAudit("사용자 삭제", target.name, `${target.email} 계정 제거 (감사로그 보존)`);
+  },
+  acceptInvite: (id) => {
+    const { users, logAudit } = get();
+    const target = users.find((u) => u.id === id);
+    if (!target || target.status !== "초대 대기") return;
+    const next = users.map((u) => (u.id === id ? { ...u, status: "활성" as const, name: u.name.replace(" (초대)", " (데모)") } : u));
+    saveJson("mrv-users", next);
+    set({ users: next });
+    logAudit("초대 수락", target.email, "초대 수락 처리 (데모) — 계정 활성화");
+  },
   /* 데모 로그인 — 세션 표시용 (임의 자격증명 허용, 서버 검증 없음을 화면에 명시) */
   authed: loadJson<boolean>("mrv-authed", false),
   loginAs: (email) => {
@@ -509,9 +574,11 @@ export const useUI = create<UIState>((set, get) => ({
     saveJson("mrv-esg-status", "작성 중");
     saveJson("mrv-sites", defaultSites());
     saveJson("mrv-current-site", "SITE-01");
+    saveJson("mrv-users", defaultUsers());
     set({
       sites: defaultSites(),
       currentSite: "SITE-01",
+      users: defaultUsers(),
       planInputs: {},
       planStatus: "승인 대기",
       esgInputs: {},
