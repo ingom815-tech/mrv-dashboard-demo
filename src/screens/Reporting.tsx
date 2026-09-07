@@ -67,6 +67,13 @@ export default function Reporting() {
   // 문서 탭 기본은 "깨끗한 문서만" — 편집·표준 근거는 버튼으로 펼침 (복잡도 축소)
   const [editOpen, setEditOpen] = useState(false);
   const [stdOpen, setStdOpen] = useState(false);
+  /* 보고 회차 — 주기(계획서 5절)마다 자동 개설되는 SaaS 반복 구조. 데모 데이터는 2026 상반기 회차만 존재 */
+  const [round, setRound] = useState("2026H1");
+  const ROUNDS = [
+    { id: "2025H2", label: "2025 하반기", state: "개시 전 — 해당 없음", opened: false },
+    { id: "2026H1", label: "2026 상반기", state: "현재 · 산정 중", opened: true },
+    { id: "2026H2", label: "2026 하반기", state: "예정 — 2027-01-01 자동 개설", opened: false },
+  ];
   const pickDoc = (k: DocKey) => {
     setDoc(k);
     setEditOpen(false);
@@ -226,9 +233,66 @@ export default function Reporting() {
             <button onClick={() => setMenu("master")} className="text-[12.5px] font-medium text-accent hover:underline">
               프로젝트 등록·관리 ›
             </button>
+            {rptScope === "chiller" && (
+              <label className="flex items-center gap-2 text-[12.5px] text-slate-400">
+                보고 회차
+                <select
+                  aria-label="보고 회차 선택"
+                  value={round}
+                  onChange={(e) => setRound(e.target.value)}
+                  className="min-h-9 rounded-lg border border-line bg-white px-2.5 py-1.5 text-[13px] font-medium text-navy"
+                >
+                  {ROUNDS.map((r) => (
+                    <option key={r.id} value={r.id}>{r.label} — {r.state}</option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
         )}
       </div>
+
+      {/* ---------- 미개설 회차 — 주기 종료 시 자동 개설 안내 (SaaS 반복 구조) ---------- */}
+      {rptScope === "chiller" && round !== "2026H1" && (() => {
+        const r = ROUNDS.find((x) => x.id === round)!;
+        const isFuture = round > "2026H1";
+        return (
+          <section className="rounded-[10px] border border-line/60 bg-white p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[16px] font-bold text-navy">{r.label} 회차</span>
+              <span className={`rounded px-2 py-0.5 text-[11px] font-bold ${isFuture ? "bg-review/10 text-review" : "bg-line text-body"}`}>{r.state}</span>
+            </div>
+            {isFuture ? (
+              <>
+                <p className="mt-2 text-[13.5px] leading-relaxed text-body">
+                  보고 주기(계획서 5절 설정)가 끝나면 시스템이 이 회차를 <b className="text-navy">자동 개설</b>합니다 —
+                  담당자가 새로 만들 필요가 없습니다. 개설 시점에 자동으로 수행되는 것:
+                </p>
+                <ul className="mt-2 flex flex-col gap-1.5 text-[13px] text-body">
+                  {[
+                    "승인된 M&V 계획서(측정경계·모델·규칙)를 그대로 이어받아 새 회차 산정 시작",
+                    "월별 활동자료 집계·데이터 품질 검증 규칙 자동 실행",
+                    "결과보고서·에너지성과 보고서 초안 자동 생성 (검토·승인 후 확정)",
+                    "직전 회차는 확정본으로 아카이브 — 이력·버전 비교에서 조회",
+                  ].map((s) => (
+                    <li key={s} className="flex items-start gap-2"><span className="mt-0.5 text-teal">✓</span>{s}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="mt-2 text-[13.5px] text-body">
+                개선 설비 가동(2026-01-01) 이전 기간으로 성과 산정 대상이 아닙니다 — 기준기간(2025) 데이터로만 사용됩니다.
+              </p>
+            )}
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button onClick={() => setRound("2026H1")} className="min-h-9 rounded-lg bg-accent px-4 py-1.5 text-[13px] font-semibold text-white hover:opacity-90">
+                현재 회차(2026 상반기)로 이동
+              </button>
+              <span className="text-[12px] text-slate-400">데모 데이터는 2026 상반기 회차에만 생성되어 있음</span>
+            </div>
+          </section>
+        );
+      })()}
 
       {rptScope === "inventory" && (
         <>
@@ -314,7 +378,7 @@ export default function Reporting() {
         </section>
       )}
 
-      {rptScope === "chiller" && (
+      {rptScope === "chiller" && round === "2026H1" && (
       <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-line">
         {TABS.map((t) => (
           <button
@@ -336,7 +400,7 @@ export default function Reporting() {
       )}
 
       {/* ---------- 탭 1: 검토·승인 ---------- */}
-      {rptScope === "chiller" && tab === "approve" && (
+      {rptScope === "chiller" && round === "2026H1" && tab === "approve" && (
         <>
           <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-1 flex items-center justify-between">
@@ -458,7 +522,7 @@ export default function Reporting() {
 
       {/* ---------- 탭 2: 보고서 작성 ---------- */}
       {/* ---------- 지금 할 일 — 현재 상태가 다음 행동 하나를 안내 ---------- */}
-      {rptScope === "chiller" && (() => {
+      {rptScope === "chiller" && round === "2026H1" && (() => {
         const step =
           planStatus === "작성 중"
             ? { label: "M&V 계획서 설정을 확정하고 승인을 요청하세요", sub: "계획서 편집에서 옵션·주기 확인 후 승인 요청", go: () => { setTab("report"); setDoc("plan"); setEditOpen(true); setStdOpen(false); } }
@@ -480,7 +544,7 @@ export default function Reporting() {
       })()}
 
       {/* ---------- 탭 2: 보고서 — 기준(프레임워크)별 문서 선택 ---------- */}
-      {rptScope === "chiller" && tab === "report" && (
+      {rptScope === "chiller" && round === "2026H1" && tab === "report" && (
         <div className="no-print flex shrink-0 flex-wrap items-center gap-2">
           <span className="text-[12.5px] text-slate-400">문서 선택</span>
           {DOCS.map((d) => (
@@ -520,7 +584,7 @@ export default function Reporting() {
         </div>
       )}
 
-      {rptScope === "chiller" && tab === "report" && doc === "draft" && (
+      {rptScope === "chiller" && round === "2026H1" && tab === "report" && doc === "draft" && (
         <>
           {/* 상단 요약 */}
           <section className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
@@ -700,7 +764,7 @@ export default function Reporting() {
       )}
 
       {/* ---------- 기준별 보고서 문서 — 각 문서 위에 해당 표준의 정합성 패널(접힘) ---------- */}
-      {rptScope === "chiller" && tab === "report" && doc !== "draft" && (() => {
+      {rptScope === "chiller" && round === "2026H1" && tab === "report" && doc !== "draft" && (() => {
         const onNav = (nav: ComplyNav) => {
           if (nav.go === "verify" || nav.go === "master") { setMenu(nav.go); return; }
           if (nav.go === "evidence") { openEvidence(); return; }
@@ -725,7 +789,7 @@ export default function Reporting() {
       })()}
 
       {/* ---------- 탭 4: 이력·버전 비교 ---------- */}
-      {rptScope === "chiller" && tab === "history" && (
+      {rptScope === "chiller" && round === "2026H1" && tab === "history" && (
         <>
           <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">

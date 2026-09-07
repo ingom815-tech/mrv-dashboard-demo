@@ -87,6 +87,8 @@ const STEP_FLOW: Array<{ name: string; done: (s: InvStatus, warn: number) => "�
 
 export default function InventoryReport() {
   const [tab, setTab] = useState<TabKey>("home");
+  /* 보고연도 회차 — 명세서는 연 단위 자동 개설 (데모 데이터는 2026년만 존재) */
+  const [invYear, setInvYear] = useState("2026");
   const [openSrc, setOpenSrc] = useState<string | null>("boiler");
   const [opinion, setOpinion] = useState("");
   // 승인 실수 방지 2단계 확인 (모바일 지시문 §8.7)
@@ -146,8 +148,20 @@ export default function InventoryReport() {
 
   return (
     <>
-      {/* 명세서 탭 */}
-      <div className="no-print flex shrink-0 flex-wrap gap-1 border-b border-line">
+      {/* 명세서 탭 + 보고연도 회차 */}
+      <div className="no-print flex shrink-0 flex-wrap items-center gap-1 border-b border-line">
+        <label className="mr-1 flex items-center gap-1.5 pb-1 text-[12px] text-slate-400">
+          보고연도
+          <select
+            aria-label="보고연도 선택"
+            value={invYear}
+            onChange={(e) => setInvYear(e.target.value)}
+            className="rounded border border-line bg-white px-1.5 py-0.5 text-[12.5px] font-semibold text-navy"
+          >
+            <option value="2026">2026년 — 현재 (상반기 데모)</option>
+            <option value="2027">2027년 — 예정 (2027-01 자동 개설)</option>
+          </select>
+        </label>
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -164,8 +178,30 @@ export default function InventoryReport() {
         ))}
       </div>
 
+      {/* ---------- 미개설 연도 회차 — 연 단위 자동 개설 안내 ---------- */}
+      {invYear !== "2026" && (
+        <section className="rounded-[10px] border border-line/60 bg-white p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[16px] font-bold text-navy">2027년 명세서</span>
+            <span className="rounded bg-review/10 px-2 py-0.5 text-[11px] font-bold text-review">예정 — 2027-01 자동 개설</span>
+          </div>
+          <p className="mt-2 text-[13.5px] leading-relaxed text-body">
+            명세서는 연 단위로 시스템이 <b className="text-navy">자동 개설</b>합니다 (실제 제도 기준 익년 3월 제출).
+            개설 시점에 산정계획서(별지 10)의 모니터링 방법을 이어받아 활동자료 집계를 시작하고,
+            직전 연도 명세서는 확정본으로 아카이브됩니다. 담당자는 수기 항목(담당자 정보·예외 사유·소명)과
+            검토·승인만 처리하면 됩니다.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button onClick={() => setInvYear("2026")} className="min-h-9 rounded-lg bg-accent px-4 py-1.5 text-[13px] font-semibold text-white hover:opacity-90">
+              현재 회차(2026년)로 이동
+            </button>
+            <span className="text-[12px] text-slate-400">데모 데이터는 2026년(상반기) 회차에만 생성되어 있음</span>
+          </div>
+        </section>
+      )}
+
       {/* ---------- ① 보고서 홈 ---------- */}
-      {tab === "home" && (
+      {invYear === "2026" && tab === "home" && (
         <>
           {/* 보고조건 */}
           <section className="rounded-[10px] border border-line/60 bg-white px-4 py-3">
@@ -310,7 +346,7 @@ export default function InventoryReport() {
       )}
 
       {/* ---------- ② 산정계획서 (별지 10) — 모니터링 방법의 사전 정의, 명세서와 자동 정합 ---------- */}
-      {tab === "plan" && (
+      {invYear === "2026" && tab === "plan" && (
         <>
           <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -504,7 +540,7 @@ export default function InventoryReport() {
       )}
 
       {/* ---------- ③ 기본정보·보고범위 (수기 필드는 실무자 직접 입력) ---------- */}
-      {tab === "basic" && (
+      {invYear === "2026" && tab === "basic" && (
         <>
           {approved && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-teal/30 bg-teal/6 px-3.5 py-2">
@@ -605,7 +641,7 @@ export default function InventoryReport() {
       )}
 
       {/* ---------- ③ 배출량·에너지 ---------- */}
-      {tab === "totals" && (
+      {invYear === "2026" && tab === "totals" && (
         <>
           <section className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">
             {(
@@ -663,7 +699,7 @@ export default function InventoryReport() {
       )}
 
       {/* ---------- ④ 배출원 상세 ---------- */}
-      {tab === "sources" && (
+      {invYear === "2026" && tab === "sources" && (
         <section className="rounded-[10px] border border-line/60 bg-white p-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[15px] font-semibold text-navy">
@@ -729,7 +765,7 @@ export default function InventoryReport() {
       )}
 
       {/* ---------- ⑤ 감축실적 ---------- */}
-      {tab === "reduction" && (
+      {invYear === "2026" && tab === "reduction" && (
         <section className="rounded-[10px] border border-line/60 bg-white p-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[15px] font-semibold text-navy">배출시설별 감축실적 (MRV 연계 · 인벤토리와 별도 관리)</span>
@@ -771,7 +807,7 @@ export default function InventoryReport() {
       )}
 
       {/* ---------- ⑥ 검토·승인 (자동 검증 + 상태 흐름) ---------- */}
-      {tab === "check" && (
+      {invYear === "2026" && tab === "check" && (
         <>
           <section className="rounded-[10px] border border-line/60 bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
@@ -906,7 +942,7 @@ export default function InventoryReport() {
       )}
 
       {/* ---------- ⑦ 보고서 미리보기 ---------- */}
-      {tab === "preview" && (
+      {invYear === "2026" && tab === "preview" && (
         <>
           <div className="no-print flex shrink-0 flex-wrap items-center justify-between gap-2">
             <span className="text-[13px] text-body">
